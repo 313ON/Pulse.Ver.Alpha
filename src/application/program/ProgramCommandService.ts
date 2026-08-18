@@ -1,6 +1,7 @@
 import { createProgress } from "../../domain/program/primitives";
 import { validateAction } from "../../domain/program/rules";
-import type { Action } from "../../domain/program";
+import { ProgramGovernanceRules, type GovernanceValidationReport } from "../../domain/program";
+import type { Action, ProgramStatus } from "../../domain/program";
 import { ProgramMapper } from "./ProgramMapper";
 import type { ProgramRepositoryPorts, UnknownRow } from "./ports";
 
@@ -24,6 +25,8 @@ export type CreateActionInput = {
 };
 
 export class ProgramCommandService {
+  private readonly governance = new ProgramGovernanceRules();
+
   constructor(
     private readonly ports: ProgramRepositoryPorts,
     private readonly mapper = new ProgramMapper(),
@@ -32,7 +35,12 @@ export class ProgramCommandService {
 
   createGoal(input: { id: string; title: string; programId?: string }) {
     this.authorize?.("program.goal.create", input);
-    if (!input.id.trim() || !input.title.trim()) throw new Error("Goal ID and title are required.");
+    const report = this.governance.validateGoal({
+      ...input,
+      type: "goal",
+      status: "پیش‌نویس"
+    });
+    this.assertGovernance(report, ["goal.owner.required"]);
     const result = this.ports.goals.create(input);
     return this.mapper.goal(result as UnknownRow, input.programId ?? "");
   }
@@ -40,14 +48,23 @@ export class ProgramCommandService {
   createObjective(input: { id: string; goalId: string; title: string; ownerPersonId?: string }) {
     this.authorize?.("program.objective.create", input);
     this.requireGoal(input.goalId);
-    if (!input.id.trim() || !input.title.trim()) throw new Error("Objective ID and title are required.");
+    this.assertGovernance(this.governance.validateObjective({
+      ...input,
+      type: "objective",
+      status: "پیش‌نویس"
+    }));
     return this.mapper.objective(this.ports.objectives.create(input) as UnknownRow);
   }
 
   createActivity(input: { id?: string; objectiveId: string; title: string; description?: string; ownerPersonId?: string }) {
     this.authorize?.("program.activity.create", input);
     this.requireObjective(input.objectiveId);
-    if (!input.title.trim()) throw new Error("Activity title is required.");
+    this.assertGovernance(this.governance.validateActivity({
+      ...input,
+      id: input.id ?? "",
+      type: "activity",
+      status: "پیش‌نویس"
+    }));
     const result = this.ports.activities.create({
       id: input.id,
       subGoalId: input.objectiveId,
@@ -84,6 +101,13 @@ export class ProgramCommandService {
       progress: input.progress ?? 0,
       description: input.description
     });
+    this.assertGovernance(this.governance.validateAction({
+      ...input,
+      id: input.publicId,
+      type: "action",
+      owner: input.ownerPersonId,
+      deadline: input.deadline
+    }));
     const errors = validateAction(action, new Set([input.goalId]));
     if (errors.length) throw new Error(errors.join(" "));
     const result = this.ports.actions.create({
@@ -109,6 +133,24 @@ export class ProgramCommandService {
     if (!action) throw new Error("The action was not found.");
     const bounded = createProgress(progress);
     return this.mapper.action(this.ports.actions.update(publicId, { progress: Number(bounded) }) as UnknownRow);
+  }
+
+  updateActionStatus(publicId: string, status: ProgramStatus) {
+    this.authorize?.("program.action.status", { publicId, status });
+    const current = this.ports.actions.get(publicId) as UnknownRow | undefined;
+    if (!current) throw new Error("The action was not found.");
+    const from = String(current.status ?? "پیش‌نویس") as ProgramStatus;
+    this.assertGovernance(this.governance.validateStatusTransition({ ...current, id: publicId, type: "action" }, from, status));
+    return this.mapper.action(this.ports.actions.update(publicId, { status }) as UnknownRow);
+  }
+
+  validateKPI(input: Record<string, unknown>): GovernanceValidationReport {
+    return this.governance.validateKPI({ ...input, type: "kpi" });
+  }
+
+  private assertGovernance(report: GovernanceValidationReport, warnings: string[] = []) {
+    const blocking = report.violations.filter((violation) => violation.severity === "error" && !warnings.includes(violation.rule));
+    if (blocking.length) throw new Error(blocking.map((violation) => violation.message).join(" "));
   }
 
   private requireGoal(id: string): UnknownRow {
