@@ -1,5 +1,23 @@
 export const ThemeTokens = {
   direction: "rtl",
+  semantic: {
+    background: "var(--color-background)",
+    foreground: "var(--color-foreground)",
+    muted: "var(--color-muted)",
+    mutedForeground: "var(--color-muted-foreground)",
+    card: "var(--color-card)",
+    cardForeground: "var(--color-card-foreground)",
+    popover: "var(--color-popover)",
+    popoverForeground: "var(--color-popover-foreground)",
+    border: "var(--color-border)",
+    primary: "var(--color-primary)",
+    primaryForeground: "var(--color-primary-foreground)",
+    secondary: "var(--color-secondary)",
+    secondaryForeground: "var(--color-secondary-foreground)",
+    sidebar: "var(--color-sidebar)",
+    sidebarForeground: "var(--color-sidebar-foreground)",
+    sidebarMuted: "var(--color-sidebar-muted)"
+  },
   colors: {
     canvas: "#070B12",
     surface: "#101923",

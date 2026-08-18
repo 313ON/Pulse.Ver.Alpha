@@ -80,8 +80,11 @@ body { overflow: hidden; color: var(--ink); }
 .pulse-shell { direction: rtl; }
 .pulse-shell .sidebar {
   position: fixed; inset: 0 0 0 auto; z-index: 20; width: 248px;
-  height: 100dvh; padding: 20px 15px 14px; overflow: hidden;
+  height: 100dvh; min-height: 0; padding: 20px 15px 14px;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   background: #0b141b; border-left: 1px solid var(--line);
+  scrollbar-color: var(--surface-interactive) var(--surface-inset);
+  scrollbar-width: thin;
 }
 .pulse-shell .content {
   direction: rtl; order: 1; width: calc(100% - 248px); height: 100dvh;
@@ -192,13 +195,72 @@ th { color: #66808b; border-color: var(--line); }
 .login-card input { background: #0c171f; color: var(--ink); border-color: var(--line); }
 
 @media(max-width: 700px) {
-  .pulse-shell .sidebar { display: none; }
-  .pulse-shell .content { width: 100%; margin-right: 0; }
+  .pulse-shell .sidebar { width: 220px; }
+  .pulse-shell .content { width: calc(100% - 220px); margin-right: 220px; }
   .command-header { inset-inline: 0; padding: 0 14px; }
   .command-kicker, .command-divider, .command-context strong { display: none; }
   .command-search { width: min(210px, 52vw); }
   .app-footer { inset-inline: 0; padding: 0 12px; }
   .footer-credit { display: none; }
+}
+
+/* UI hardening: semantic surfaces and explicit theme contracts. */
+:root {
+  color-scheme: dark;
+  --color-background: var(--surface-canvas);
+  --color-foreground: var(--text-primary);
+  --color-muted: var(--surface-inset);
+  --color-muted-foreground: var(--text-muted);
+  --color-card: var(--surface-base);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface-elevated);
+  --color-popover-foreground: var(--text-primary);
+  --color-border: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #041017;
+  --color-secondary: var(--surface-interactive);
+  --color-secondary-foreground: var(--text-secondary);
+  --color-sidebar: var(--surface-inset);
+  --color-sidebar-foreground: var(--text-secondary);
+  --color-sidebar-muted: var(--text-muted);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --surface-canvas: #f5f8f6;
+  --surface-base: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-inset: #edf3f0;
+  --surface-interactive: #e1ebe7;
+  --text-primary: #172033;
+  --text-secondary: #425466;
+  --text-muted: #667085;
+  --line: #d8e2dd;
+  --primary: #0c8b67;
+  --color-primary-foreground: #ffffff;
+  --color-sidebar: #12382e;
+  --color-sidebar-foreground: #d6ebe3;
+  --color-sidebar-muted: #9fc0b3;
+}
+
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]):not([data-theme="light"]) {
+    color-scheme: light;
+    --surface-canvas: #f5f8f6;
+    --surface-base: #ffffff;
+    --surface-elevated: #ffffff;
+    --surface-inset: #edf3f0;
+    --surface-interactive: #e1ebe7;
+    --text-primary: #172033;
+    --text-secondary: #425466;
+    --text-muted: #667085;
+    --line: #d8e2dd;
+    --primary: #0c8b67;
+    --color-primary-foreground: #ffffff;
+    --color-sidebar: #12382e;
+    --color-sidebar-foreground: #d6ebe3;
+    --color-sidebar-muted: #9fc0b3;
+  }
 }
 
 /* Cognition Core */
@@ -507,6 +569,120 @@ code, kbd, .command-kicker, .goal-id, td small, .system-footer b {
 .program-inspector .wide:disabled { cursor: not-allowed; opacity: .4; }
 @media(max-width:1100px){.strategic-summary{grid-template-columns:1fr 1fr}.strategic-summary-main{grid-column:1/-1}.strategic-layout{grid-template-columns:1fr}.program-inspector{position:static}.program-node-card{grid-template-columns:28px 34px minmax(0,1fr) 80px auto}}
 @media(max-width:700px){.strategic-heading-actions{align-items: stretch; flex-direction: column}.strategic-summary{grid-template-columns:1fr 1fr}.strategic-summary-main{min-height:150px; align-items:flex-start; flex-direction:column}.program-node-card{grid-template-columns:26px 30px minmax(0,1fr); padding:10px}.program-node-progress{grid-column:3}.program-add-child{grid-column:3; justify-self:start}.program-node-meta{display:none}.program-tree-children{margin-right:8px;padding-right:10px}.hierarchy-breadcrumb{overflow:auto; white-space:nowrap}}
+
+/* Final shell contract: these declarations intentionally win over legacy
+   visual layers above while keeping the existing component class names. */
+.pulse-shell .sidebar {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  border-color: var(--color-border);
+  scrollbar-color: var(--surface-interactive) var(--color-sidebar);
+  scrollbar-width: thin;
+}
+
+.pulse-shell .content {
+  min-height: 0;
+}
+
+.workspace-layout {
+  min-height: 0;
+  overscroll-behavior: contain;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.command-header,
+.app-footer {
+  background: color-mix(in srgb, var(--color-background) 96%, transparent);
+  border-color: var(--color-border);
+}
+
+.score-card,
+.stat-card,
+.panel,
+.cognition-panel,
+.drawer,
+.modal,
+.login-card {
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  border-color: var(--color-border);
+}
+
+.command-search,
+.date-chip,
+.inline-search,
+.report-filters input,
+.report-filters select,
+.form-grid input,
+.form-grid select {
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+.nav-item {
+  color: var(--color-sidebar-foreground);
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+}
+
+.brand span,
+.workspace-label,
+.nav-caption,
+.support-card,
+.user-card span,
+.nav-chevron,
+.page-heading p,
+.score-notes,
+.score-notes small,
+.card-title,
+.unit-info span,
+.kpi-row span,
+td small,
+th,
+.empty,
+.secondary-button {
+  color: var(--color-muted-foreground);
+}
+
+.detail-field,
+.drawer-score,
+.inspector-progress,
+.empty {
+  background: var(--color-muted);
+}
+
+.primary-button {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (max-width: 700px) {
+  .pulse-shell .sidebar {
+    display: flex;
+    width: 220px;
+  }
+
+  .pulse-shell .content {
+    width: calc(100% - 220px);
+    margin-inline: 220px 0;
+  }
+
+  .command-header,
+  .app-footer {
+    inset-inline-start: 220px;
+    inset-inline-end: 0;
+  }
+}
 
 /* Canonical typography pipeline: one loaded family, one inheritance path. */
 :root {
