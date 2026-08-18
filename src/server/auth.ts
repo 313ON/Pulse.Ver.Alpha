@@ -6,7 +6,8 @@ export const permissionCodes = [
   "goals.view", "goals.edit", "actions.view", "actions.create", "actions.edit-own",
   "actions.edit-department", "actions.progress", "kpis.manage", "risks.manage",
   "dependencies.manage", "organization.manage", "reports.view", "reports.export",
-  "users.manage", "permissions.manage"
+  "users.manage", "permissions.manage", "activities.view", "activities.create",
+  "activities.edit-own", "activities.edit-department"
 ] as const;
 
 export type PermissionCode = (typeof permissionCodes)[number];
@@ -92,11 +93,11 @@ export function seedAuthFoundation() {
   const rolePermissionMap: Record<string, PermissionCode[]> = {
     SUPER_ADMIN: [...permissionCodes],
     ADMIN: [...permissionCodes],
-    MANAGEMENT: ["goals.view", "actions.view", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view", "reports.export"],
-    UNIT_MANAGER: ["goals.view", "actions.view", "actions.create", "actions.edit-department", "actions.progress", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
-    PROJECT_OWNER: ["goals.view", "actions.view", "actions.create", "actions.edit-own", "actions.progress", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
-    EMPLOYEE: ["goals.view", "actions.view", "actions.edit-own", "actions.progress", "reports.view"],
-    VIEWER: ["goals.view", "actions.view", "reports.view"]
+    MANAGEMENT: ["goals.view", "actions.view", "activities.view", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view", "reports.export"],
+    UNIT_MANAGER: ["goals.view", "actions.view", "actions.create", "actions.edit-department", "actions.progress", "activities.view", "activities.create", "activities.edit-department", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
+    PROJECT_OWNER: ["goals.view", "actions.view", "actions.create", "actions.edit-own", "actions.progress", "activities.view", "activities.create", "activities.edit-own", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
+    EMPLOYEE: ["goals.view", "actions.view", "actions.edit-own", "actions.progress", "activities.view", "activities.edit-own", "reports.view"],
+    VIEWER: ["goals.view", "actions.view", "activities.view", "reports.view"]
   };
   const roleRows = db.prepare("SELECT id, code FROM app_roles").all() as Array<{ id: string; code: string }>;
   const assign = db.prepare("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)");

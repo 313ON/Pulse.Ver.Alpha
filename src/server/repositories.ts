@@ -56,6 +56,116 @@ export class SubGoalRepository {
   }
 }
 
+export type ActivityRecord = {
+  id?: string;
+  subGoalId: string;
+  title: string;
+  description?: string;
+  ownerPersonId?: string;
+};
+
+export class ActivityRepository {
+  private query(extra = "") {
+    return `
+      SELECT a.*, sg.goal_id, p.full_name AS owner,
+        (SELECT COUNT(*) FROM work_items w WHERE w.activity_id = a.id) AS activity_action_count,
+        (SELECT group_concat(w.public_id, ', ') FROM work_items w WHERE w.activity_id = a.id) AS related_actions,
+        s.department_id, d.name AS department
+      FROM activities a
+      JOIN sub_goals sg ON sg.id = a.sub_goal_id
+      LEFT JOIN people p ON p.id = a.owner_person_id
+      LEFT JOIN seats s ON s.id = p.seat_id
+      LEFT JOIN departments d ON d.id = s.department_id
+      ${extra}
+    `;
+  }
+
+  list(user?: SessionUser) {
+    const scope = user?.scope === "DEPARTMENT"
+      ? "AND s.department_id = @scopeDepartment"
+      : user?.scope === "OWN" ? "AND a.owner_person_id = @scopePerson" : "";
+    return getDatabase().prepare(`${this.query(`WHERE 1 = 1 ${scope}`)} ORDER BY sg.goal_id, a.sub_goal_id, a.title`)
+      .all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id });
+  }
+
+  get(id: string, user?: SessionUser) {
+    const scope = user?.scope === "DEPARTMENT"
+      ? "AND s.department_id = @scopeDepartment"
+      : user?.scope === "OWN" ? "AND a.owner_person_id = @scopePerson" : "";
+    return getDatabase().prepare(this.query(`WHERE a.id = @id ${scope}`))
+      .get({ id, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
+  }
+
+  getUnscoped(id: string) {
+    return getDatabase().prepare(this.query("WHERE a.id = @id")).get({ id });
+  }
+
+  scopeForInput(input: Pick<ActivityRecord, "ownerPersonId">) {
+    if (!input.ownerPersonId) return { ownerPersonId: null, departmentId: null };
+    const row = getDatabase().prepare(`
+      SELECT p.id AS ownerPersonId, s.department_id AS departmentId
+      FROM people p LEFT JOIN seats s ON s.id = p.seat_id WHERE p.id = ?
+    `).get(input.ownerPersonId) as { ownerPersonId: string; departmentId?: string } | undefined;
+    if (!row) throw new RepositoryError("VALIDATION", "The activity owner does not exist.");
+    return row;
+  }
+
+  create(input: ActivityRecord) {
+    const id = input.id?.trim() || randomUUID();
+    if (!input.subGoalId?.trim() || !input.title?.trim()) {
+      throw new RepositoryError("VALIDATION", "Sub-goal and activity title are required.");
+    }
+    if (input.title.trim().length > 200) throw new RepositoryError("VALIDATION", "The activity title is too long.");
+    if (!getDatabase().prepare("SELECT id FROM sub_goals WHERE id = ?").get(input.subGoalId)) {
+      throw new RepositoryError("VALIDATION", "The related sub-goal does not exist.");
+    }
+    this.scopeForInput(input);
+    try {
+      getDatabase().prepare(`
+        INSERT INTO activities (id, sub_goal_id, title, description, owner_person_id)
+        VALUES (@id, @subGoalId, @title, @description, @ownerPersonId)
+      `).run({
+        id,
+        subGoalId: input.subGoalId,
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+        ownerPersonId: input.ownerPersonId?.trim() || null
+      });
+      return this.getUnscoped(id);
+    } catch (error) { return mapDatabaseError(error); }
+  }
+
+  update(id: string, input: Partial<Omit<ActivityRecord, "id">>) {
+    const current = this.getUnscoped(id) as Record<string, unknown> | undefined;
+    if (!current) throw new RepositoryError("NOT_FOUND", "The activity was not found.");
+    const merged = {
+      subGoalId: input.subGoalId ?? String(current.sub_goal_id),
+      title: input.title ?? String(current.title),
+      description: input.description ?? (current.description == null ? undefined : String(current.description)),
+      ownerPersonId: input.ownerPersonId ?? (current.owner_person_id == null ? undefined : String(current.owner_person_id))
+    };
+    if (!merged.subGoalId.trim() || !merged.title.trim()) throw new RepositoryError("VALIDATION", "Sub-goal and activity title are required.");
+    if (merged.title.trim().length > 200) throw new RepositoryError("VALIDATION", "The activity title is too long.");
+    if (!getDatabase().prepare("SELECT id FROM sub_goals WHERE id = ?").get(merged.subGoalId)) {
+      throw new RepositoryError("VALIDATION", "The related sub-goal does not exist.");
+    }
+    this.scopeForInput(merged);
+    try {
+      getDatabase().prepare(`
+        UPDATE activities SET sub_goal_id=@subGoalId, title=@title, description=@description,
+          owner_person_id=@ownerPersonId, updated_at=CURRENT_TIMESTAMP WHERE id=@id
+      `).run({
+        id,
+        subGoalId: merged.subGoalId,
+        title: merged.title.trim(),
+        description: merged.description?.trim() || null,
+        ownerPersonId: merged.ownerPersonId?.trim() || null
+      });
+      return this.getUnscoped(id);
+    } catch (error) { return mapDatabaseError(error); }
+  }
+}
+
 export class RoleRepository {
   list() { return getDatabase().prepare("SELECT * FROM seats ORDER BY title").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM seats WHERE id = ?").get(id); }
@@ -145,18 +255,20 @@ export class ActionRepository {
   list(user?: SessionUser) {
     const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
     return getDatabase().prepare(`
-      SELECT w.*, p.full_name AS owner, d.name AS department
+      SELECT w.*, p.full_name AS owner, d.name AS department, a.title AS activity_title
       FROM work_items w
       JOIN people p ON p.id = w.owner_person_id
       JOIN departments d ON d.id = w.department_id
+      LEFT JOIN activities a ON a.id = w.activity_id
       WHERE w.plan_year = 1405 ${scopeClause} ORDER BY w.planned_end, w.public_id
     `).all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
   get(publicId: string, user?: SessionUser) {
     const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
     return getDatabase().prepare(`
-      SELECT w.*, p.full_name AS owner, d.name AS department
+      SELECT w.*, p.full_name AS owner, d.name AS department, a.title AS activity_title
       FROM work_items w JOIN people p ON p.id = w.owner_person_id JOIN departments d ON d.id = w.department_id
+      LEFT JOIN activities a ON a.id = w.activity_id
       WHERE w.public_id = @publicId ${scopeClause}
     `).get({ publicId, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
@@ -165,17 +277,18 @@ export class ActionRepository {
     const normalized = { ...input, publicId };
     const errors = validateWorkItem(normalized, new Set((new GoalRepository()).list().map((goal) => (goal as { id: string }).id)));
     if (errors.length) throw new RepositoryError("VALIDATION", errors.join(" "));
+    if (input.activityId) resolveActivityId(input.activityId, input.goalId);
     const db = getDatabase();
     try {
       db.prepare(`
         INSERT INTO work_items
-        (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, plan_year)
-        VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, 1405)
-      `).run({ ...normalized, id: randomUUID(), publicId, plannedStart: input.plannedStart ?? "۱۴۰۵/۰۱/۰۱" });
+        (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, activity_id, description, role_id, external_source_id, plan_year)
+        VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @activityId, @description, @roleId, @externalSourceId, 1405)
+      `).run({ ...normalized, id: randomUUID(), publicId, plannedStart: input.plannedStart ?? "۱۴۰۵/۰۱/۰۱", activityId: input.activityId ?? null, description: input.description ?? null, roleId: input.roleId ?? null, externalSourceId: input.externalSourceId ?? null });
       return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }
-  update(publicId: string, input: Partial<WorkItem> & { departmentId?: string }): unknown {
+  update(publicId: string, input: Partial<WorkItem> & { departmentId?: string; activityId?: string }): unknown {
     const current = this.get(publicId) as Record<string, unknown> | undefined;
     if (!current) throw new RepositoryError("NOT_FOUND", "The action was not found.");
     const merged = {
@@ -192,13 +305,15 @@ export class ActionRepository {
     } as WorkItem;
     const errors = validateWorkItem(merged, new Set((new GoalRepository()).list().map((goal) => (goal as { id: string }).id)));
     if (errors.length) throw new RepositoryError("VALIDATION", errors.join(" "));
+    if (input.activityId) resolveActivityId(input.activityId, merged.goalId);
     try {
       getDatabase().prepare(`
         UPDATE work_items SET goal_id=@goalId, department_id=COALESCE(@departmentId, department_id),
         owner_person_id=@ownerPersonId, title=@title, work_type=@workType, deliverable=@deliverable,
-        status=@status, progress=@progress, planned_start=@plannedStart, planned_end=@deadline
+        status=@status, progress=@progress, planned_start=@plannedStart, planned_end=@deadline,
+        activity_id=COALESCE(@activityId, activity_id)
         WHERE public_id=@publicId
-      `).run({ ...merged, departmentId: input.departmentId ?? String(current.department_id), ownerPersonId: merged.ownerPersonId });
+      `).run({ ...merged, departmentId: input.departmentId ?? String(current.department_id), ownerPersonId: merged.ownerPersonId, activityId: input.activityId ?? null });
       return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -275,6 +390,17 @@ function resolveWorkItemId(identifier?: string): string | null {
   if (identifier.startsWith("wi-")) return identifier;
   const row = getDatabase().prepare("SELECT id FROM work_items WHERE public_id = ?").get(identifier) as { id: string } | undefined;
   if (!row) throw new RepositoryError("VALIDATION", "The related action does not exist.");
+  return row.id;
+}
+
+function resolveActivityId(identifier: string, goalId?: string): string {
+  const row = getDatabase().prepare(`
+    SELECT a.id, sg.goal_id
+    FROM activities a JOIN sub_goals sg ON sg.id = a.sub_goal_id
+    WHERE a.id = ?
+  `).get(identifier) as { id: string; goal_id: string } | undefined;
+  if (!row) throw new RepositoryError("VALIDATION", "The related activity does not exist.");
+  if (goalId && row.goal_id !== goalId) throw new RepositoryError("VALIDATION", "The activity does not belong to the selected goal.");
   return row.id;
 }
 

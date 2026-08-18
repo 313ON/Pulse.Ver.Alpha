@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { PulseShell } from "./PulseShell";
 
-const endpoints: Record<string, string> = { departments: "/api/departments", roles: "/api/roles", persons: "/api/persons", users: "/api/users" };
+const endpoints: Record<string, string> = { activities: "/api/activities", departments: "/api/departments", roles: "/api/roles", persons: "/api/persons", users: "/api/users" };
 const fields: Record<string, Array<[string, string]>> = {
+  activities: [["subGoalId", "شناسه زیرهدف"], ["title", "عنوان"], ["description", "شرح"], ["ownerPersonId", "شناسه مسئول"]],
   departments: [["name", "نام واحد"], ["active", "فعال"]],
   roles: [["title", "عنوان سمت"], ["departmentId", "شناسه واحد"]],
   persons: [["fullName", "نام و نام خانوادگی"], ["seatId", "شناسه سمت"], ["active", "فعال"]],
@@ -21,7 +22,8 @@ export function RecordDetailPage({ section, id }: { section: string; id: string 
     event.preventDefault();
     const payload: Record<string, unknown> = { ...form, active: form.active === "1" || form.active === "true" };
     if (!String(payload.password ?? "")) delete payload.password;
-    const response = await fetch(`${endpoint}/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const csrf = await fetch("/api/auth/csrf").then((response) => response.json());
+    const response = await fetch(`${endpoint}/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(payload) });
     const body = await response.json();
     setMessage(response.ok ? "تغییرات ذخیره شد." : body.error ?? "ذخیره انجام نشد.");
     if (response.ok) setRecord(body);

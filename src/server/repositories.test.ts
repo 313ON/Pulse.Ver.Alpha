@@ -4,8 +4,8 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getDatabase } from "./db";
 import { seedBaseline } from "./seed";
-import { ActionRepository, DependencyRepository, PersonRepository, RepositoryError, RoleRepository, UserRepository } from "./repositories";
-import { seedAuthFoundation } from "./auth";
+import { ActionRepository, ActivityRepository, DependencyRepository, PersonRepository, RepositoryError, RoleRepository, SubGoalRepository, UserRepository } from "./repositories";
+import { audit, canScope, seedAuthFoundation, type SessionUser } from "./auth";
 
 let testDatabasePath = "";
 
@@ -79,6 +79,56 @@ describe("SQLite repositories", () => {
       status: "باز",
       delayDays: 0
     })).toThrow(RepositoryError);
+  });
+
+  it("creates and updates an activity under a sub-goal and exposes linked actions", () => {
+    new SubGoalRepository().create({ id: "SG01", goalId: "G10", title: "زیرهدف تستی", ownerPersonId: "it-engineer" });
+    const activities = new ActivityRepository();
+    const created = activities.create({
+      id: "activity-it-1",
+      subGoalId: "SG01",
+      title: "فعالیت تستی",
+      description: "شرح فعالیت",
+      ownerPersonId: "it-engineer"
+    }) as { id: string };
+    expect(created.id).toBe("activity-it-1");
+    activities.update(created.id, { title: "فعالیت به‌روزشده" });
+    new ActionRepository().create({
+      publicId: "G10-O99-A99-T903",
+      goalId: "G10",
+      title: "اقدام متصل به فعالیت",
+      workType: "اقدام",
+      departmentId: "it",
+      ownerPersonId: "it-engineer",
+      deliverable: "خروجی",
+      deadline: "۱۴۰۵/۰۷/۱۵",
+      status: "شروع نشده",
+      progress: 0,
+      activityId: created.id
+    });
+    expect(activities.get(created.id)).toMatchObject({ title: "فعالیت به‌روزشده", activity_action_count: 1, related_actions: "G10-O99-A99-T903" });
+  });
+
+  it("rejects invalid activity input and isolates department/own scopes", () => {
+    new SubGoalRepository().create({ id: "SG01", goalId: "G10", title: "زیرهدف تستی", ownerPersonId: "it-engineer" });
+    const activities = new ActivityRepository();
+    expect(() => activities.create({ subGoalId: "missing", title: "نامعتبر", ownerPersonId: "it-engineer" })).toThrow(RepositoryError);
+    activities.create({ id: "activity-it-2", subGoalId: "SG01", title: "فعالیت فناوری", ownerPersonId: "it-engineer" });
+    activities.create({ id: "activity-rnd-1", subGoalId: "SG01", title: "فعالیت تحقیق", ownerPersonId: "product-engineer" });
+    const unit = { id: "unit", username: "unit", role: "UNIT_MANAGER", scope: "DEPARTMENT", department_id: "it" } as SessionUser;
+    const employee = { id: "employee", username: "employee", role: "EMPLOYEE", scope: "OWN", person_id: "it-engineer" } as SessionUser;
+    expect(activities.list(unit).every((item) => (item as { department_id?: string }).department_id === "it")).toBe(true);
+    expect(activities.list(employee).every((item) => (item as { owner_person_id?: string }).owner_person_id === "it-engineer")).toBe(true);
+    expect(canScope(unit, { departmentId: "rnd" })).toBe(false);
+    expect(canScope(employee, { ownerPersonId: "product-engineer" })).toBe(false);
+  });
+
+  it("writes an audit event for an activity mutation", () => {
+    seedAuthFoundation();
+    const db = getDatabase();
+    const actor = db.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: string };
+    audit(actor.id, "activity", "activity-audit", "created", null, { title: "ثبت شد" });
+    expect(db.prepare("SELECT entity_type, event_type, after_json FROM audit_log WHERE entity_id = ?").get("activity-audit")).toMatchObject({ entity_type: "activity", event_type: "created" });
   });
 
   it("supports partial master-data updates without undefined SQLite bindings", () => {

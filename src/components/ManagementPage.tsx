@@ -7,6 +7,7 @@ import { PulseShell } from "./PulseShell";
 type Row = Record<string, unknown>;
 const config: Record<string, { title: string; endpoint: string; columns: Array<[string, string]> }> = {
   goals: { title: "اهداف", endpoint: "/api/goals", columns: [["id", "شناسه"], ["title", "عنوان"]] },
+  activities: { title: "فعالیت‌ها", endpoint: "/api/activities", columns: [["id", "شناسه"], ["title", "عنوان"], ["sub_goal_id", "زیرهدف"], ["owner", "مسئول"], ["activity_action_count", "اقدامات مرتبط"]] },
   departments: { title: "واحدها", endpoint: "/api/departments", columns: [["id", "شناسه"], ["name", "نام واحد"], ["active", "وضعیت"]] },
   roles: { title: "سمت‌ها و نقش‌ها", endpoint: "/api/roles", columns: [["id", "شناسه"], ["title", "عنوان"], ["department_id", "واحد"]] },
   persons: { title: "پرسنل", endpoint: "/api/persons", columns: [["id", "شناسه"], ["full_name", "نام"], ["seat_id", "سمت"]] },
@@ -32,10 +33,11 @@ export function ManagementPage({ section }: { section: string }) {
     }).catch((reason) => setError(reason instanceof Error ? reason.message : "خطا در دریافت اطلاعات"));
   }, [entry.endpoint]);
   const filtered = useMemo(() => rows.filter((row) => JSON.stringify(row).toLocaleLowerCase("fa").includes(query.toLocaleLowerCase("fa"))), [rows, query]);
-  const fields = section === "goals" ? [["id", "شناسه هدف"], ["title", "عنوان"]] : section === "departments" ? [["id", "شناسه واحد"], ["name", "نام واحد"]] : section === "roles" ? [["id", "شناسه سمت"], ["title", "عنوان سمت"], ["departmentId", "شناسه واحد"]] : section === "persons" ? [["id", "شناسه پرسنل"], ["fullName", "نام و نام خانوادگی"], ["seatId", "شناسه سمت"]] : section === "users" ? [["id", "شناسه کاربر"], ["username", "نام کاربری"], ["password", "گذرواژه"], ["roleId", "شناسه نقش"]] : [];
+  const fields = section === "goals" ? [["id", "شناسه هدف"], ["title", "عنوان"]] : section === "activities" ? [["id", "شناسه فعالیت"], ["subGoalId", "شناسه زیرهدف"], ["title", "عنوان"], ["description", "شرح"], ["ownerPersonId", "شناسه مسئول"]] : section === "departments" ? [["id", "شناسه واحد"], ["name", "نام واحد"]] : section === "roles" ? [["id", "شناسه سمت"], ["title", "عنوان سمت"], ["departmentId", "شناسه واحد"]] : section === "persons" ? [["id", "شناسه پرسنل"], ["fullName", "نام و نام خانوادگی"], ["seatId", "شناسه سمت"]] : section === "users" ? [["id", "شناسه کاربر"], ["username", "نام کاربری"], ["password", "گذرواژه"], ["roleId", "شناسه نقش"]] : [];
   async function createRecord(event: React.FormEvent) {
     event.preventDefault();
-    const response = await fetch(entry.endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const csrf = await fetch("/api/auth/csrf").then((response) => response.json());
+    const response = await fetch(entry.endpoint, { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(form) });
     const body = await response.json();
     if (!response.ok) { setError(body.error ?? "ثبت اطلاعات انجام نشد."); return; }
     setRows((current) => [...current, body]); setForm({}); setShowCreate(false); setError("");
