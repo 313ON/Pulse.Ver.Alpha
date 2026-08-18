@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  ["داشبورد", "/", "⌂"],
+  ["مرکز راهبردی", "/", "✦"],
+  ["نمای اجرایی", "/program", "⌂"],
   ["اهداف", "/goals", "◎"],
   ["واحدها", "/departments", "▦"],
   ["سمت‌ها و نقش‌ها", "/roles", "◈"],

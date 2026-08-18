@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 
 const sectionNames: Record<string, string> = {
-  "/": "مرکز فرمان",
+  "/": "مرکز فرمان راهبردی",
+  "/program": "نمای اجرایی برنامه",
   "/goals": "اهداف سازمانی",
   "/departments": "واحدهای عملیاتی",
   "/roles": "سمت‌ها و نقش‌ها",
