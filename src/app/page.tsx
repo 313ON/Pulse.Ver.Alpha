@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PulseShell } from "../components/PulseShell";
+import { CognitionPanel } from "../components/cognition/CognitionPanel";
 
 type Dashboard = {
   goals: Array<Record<string, unknown>>;
@@ -26,6 +27,7 @@ export default function Home() {
   }, []);
   return <PulseShell><div className="page">
     <div className="page-heading"><div><div className="eyebrow">مرکز کنترل مدیریت</div><h1>داشبورد عملکرد سالانه <span>✦</span></h1><p>نمایش یکپارچه اهداف، اقدامات، شاخص‌ها و موارد نیازمند توجه مدیریت</p></div><Link href="/actions" className="primary-button">＋ اقدام جدید</Link></div>
+    <CognitionPanel />
     {error && <div className="empty">{error}</div>}
     {!data && !error && <div className="empty">در حال دریافت اطلاعات داشبورد...</div>}
     {data && <><div className="score-grid">
