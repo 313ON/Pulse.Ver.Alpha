@@ -21,6 +21,10 @@ export type SessionUser = {
   scope: DataScope;
 };
 
+export function secureCookiesEnabled() {
+  return process.env.PULSE_HTTPS?.trim().toLowerCase() === "true";
+}
+
 const loginAttempts = new Map<string, { failures: number; firstFailureAt: number }>();
 export const LOGIN_RATE_LIMIT = { maxFailures: 5, windowMs: 15 * 60 * 1000 };
 
@@ -132,7 +136,7 @@ export async function login(username: string, password: string) {
   const token = randomBytes(32).toString("hex");
   getDatabase().prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, datetime('now', '+8 hours'))").run(token, row.id);
   const cookieStore = await cookies();
-  cookieStore.set("pulse_session", token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8 });
+  cookieStore.set("pulse_session", token, { httpOnly: true, sameSite: "lax", secure: secureCookiesEnabled(), path: "/", maxAge: 60 * 60 * 8 });
   return true;
 }
 

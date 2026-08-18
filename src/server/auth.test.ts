@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase } from "./db";
-import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
+import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
 import { authorizationStatus, csrfTokensMatch } from "../app/api/_lib";
 import { seedBaseline } from "./seed";
 
@@ -36,6 +36,17 @@ describe("authentication and scopes", () => {
     expect(csrfTokensMatch("csrf-token", "csrf-token")).toBe(true);
     expect(csrfTokensMatch("csrf-token", "wrong-token")).toBe(false);
     expect(csrfTokensMatch("csrf-token", "csrf-token-extra")).toBe(false);
+  });
+  it("enables secure cookies only when HTTPS is explicitly configured", () => {
+    const previous = process.env.PULSE_HTTPS;
+    delete process.env.PULSE_HTTPS;
+    expect(secureCookiesEnabled()).toBe(false);
+    process.env.PULSE_HTTPS = "false";
+    expect(secureCookiesEnabled()).toBe(false);
+    process.env.PULSE_HTTPS = "true";
+    expect(secureCookiesEnabled()).toBe(true);
+    if (previous === undefined) delete process.env.PULSE_HTTPS;
+    else process.env.PULSE_HTTPS = previous;
   });
   it("limits repeated login failures and clears the limit after success", () => {
     resetLoginRateLimitForTests();

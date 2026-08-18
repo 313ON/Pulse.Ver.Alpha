@@ -3,7 +3,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { seedBaseline } from "../../server/seed";
 import { RepositoryError } from "../../server/repositories";
-import { audit, can, canScope, getSessionUser, seedAuthFoundation, type PermissionCode, type SessionUser } from "../../server/auth";
+import { audit, can, canScope, getSessionUser, seedAuthFoundation, secureCookiesEnabled, type PermissionCode, type SessionUser } from "../../server/auth";
 
 export class AuthorizationError extends Error {
   constructor(public code: "UNAUTHORIZED" | "FORBIDDEN", message: string) {
@@ -44,7 +44,7 @@ export async function issueCsrfToken() {
   cookieStore.set(csrfCookieName, token, {
     httpOnly: false,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookiesEnabled(),
     path: "/",
     maxAge: 60 * 60 * 8
   });
