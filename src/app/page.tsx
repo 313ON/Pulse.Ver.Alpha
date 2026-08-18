@@ -26,7 +26,7 @@ export default function Home() {
     }).catch((reason) => setError(reason instanceof Error ? reason.message : "خطا در دریافت داشبورد"));
   }, []);
   return <PulseShell><div className="page">
-    <div className="page-heading"><div><div className="eyebrow">مرکز کنترل مدیریت</div><h1>داشبورد عملکرد سالانه <span>✦</span></h1><p>نمایش یکپارچه اهداف، اقدامات، شاخص‌ها و موارد نیازمند توجه مدیریت</p></div><Link href="/actions" className="primary-button">＋ اقدام جدید</Link></div>
+    <div className="page-heading"><div><div className="eyebrow">مرکز کنترل مدیریت</div><h1>داشبورد عملکرد سالانه <span>✦</span></h1><p>نمایش یکپارچه اهداف، اقدامات، شاخص‌ها و موارد نیازمند توجه مدیریت</p></div><Link href="/actions" className="primary-button dashboard-action-button" aria-label="ایجاد اقدام جدید">＋ اقدام جدید</Link></div>
     <CognitionPanel />
     {error && <div className="empty">{error}</div>}
     {!data && !error && <div className="empty">در حال دریافت اطلاعات داشبورد...</div>}

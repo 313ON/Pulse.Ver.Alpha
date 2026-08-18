@@ -29,10 +29,10 @@ export const ThemeTokens = {
     }
   },
   typography: {
-    fontFamily: "var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+    fontFamily: "Estedad, var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
     technicalFamily: "var(--font-inter), Inter, ui-monospace, SFMono-Regular, Consolas, monospace",
     brand: {
-      family: "var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+      family: "Estedad, var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
       weight: 700,
       letterSpacing: "0.01em"
     },
