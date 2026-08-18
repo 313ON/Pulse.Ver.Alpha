@@ -1,4 +1,5 @@
 export const ThemeTokens = {
+  direction: "rtl",
   colors: {
     canvas: "#080d12",
     surface: "#0d151d",
@@ -18,7 +19,41 @@ export const ThemeTokens = {
   spacing: {
     sidebar: "248px",
     header: "64px",
-    footer: "30px"
+    footer: "30px",
+    density: {
+      compact: "4px",
+      standard: "8px",
+      comfortable: "16px",
+      section: "24px"
+    }
+  },
+  typography: {
+    fontFamily: "var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+    heading: {
+      size: "24px",
+      weight: 700,
+      lineHeight: 1.5,
+      letterSpacing: "-0.01em"
+    },
+    body: {
+      size: "13px",
+      weight: 400,
+      lineHeight: 1.75,
+      letterSpacing: "0"
+    },
+    caption: {
+      size: "10px",
+      weight: 500,
+      lineHeight: 1.5,
+      letterSpacing: "0.01em"
+    },
+    mono: {
+      family: "ui-monospace, SFMono-Regular, Consolas, monospace",
+      size: "10px",
+      weight: 500,
+      lineHeight: 1.5,
+      letterSpacing: "0.04em"
+    }
   }
 } as const;
 

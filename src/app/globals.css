@@ -276,3 +276,63 @@ th { color: #66808b; border-color: var(--line); }
 @media(prefers-reduced-motion: reduce) {
   .reasoning-mark i { animation: none; }
 }
+
+/* Persian-first global normalization */
+:root {
+  --direction: rtl;
+  --font-enterprise: var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --type-heading-size: 24px;
+  --type-heading-weight: 700;
+  --type-heading-line: 1.5;
+  --type-body-size: 13px;
+  --type-body-weight: 400;
+  --type-body-line: 1.75;
+  --type-caption-size: 10px;
+  --type-caption-weight: 500;
+  --type-caption-line: 1.5;
+}
+
+html { direction: rtl; }
+body, button, input, select, textarea { direction: rtl; font-family: var(--font-enterprise); }
+body { font-size: var(--type-body-size); font-weight: var(--type-body-weight); line-height: var(--type-body-line); letter-spacing: 0; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-enterprise); line-height: var(--type-heading-line); letter-spacing: -0.01em; }
+code, kbd, .command-kicker, .nav-caption, .system-footer, .goal-id, td small { font-family: var(--font-mono); direction: ltr; }
+
+.app-shell { direction: rtl; }
+.pulse-shell .sidebar {
+  inset-inline: auto 0;
+  border-inline-start: 1px solid var(--line);
+  border-inline-end: 0;
+}
+.pulse-shell .content {
+  margin-inline: 0 248px;
+  direction: rtl;
+}
+.command-header {
+  inset-block: 0 auto;
+  inset-inline: 248px 0;
+  direction: rtl;
+}
+.workspace-layout { direction: rtl; }
+.app-footer {
+  inset-inline: 0 248px;
+  direction: rtl;
+  font-family: var(--font-enterprise);
+}
+.logout-button { margin-inline: auto 0; }
+.date-chip span { margin-inline: 0 8px; }
+.workspace-label .status-dot { margin-inline: 0 7px; }
+.telemetry-led { margin-inline: 0 6px; }
+.reasoning-indicator { border-inline-end: 2px solid var(--primary); border-right: 0; }
+.intelligence-timeline { border-inline-end: 1px solid var(--line); border-right: 0; padding-inline: 0 18px; padding-right: 0; }
+.footer-identity { direction: rtl; }
+.footer-runtime { direction: rtl; }
+.footer-telemetry { direction: rtl; }
+.footer-identity, .footer-telemetry, .footer-runtime { font-family: var(--font-enterprise); }
+
+@media(max-width: 700px) {
+  .pulse-shell .content { margin-inline: 0; }
+  .command-header { inset-inline: 0; }
+  .app-footer { inset-inline: 0; }
+}
