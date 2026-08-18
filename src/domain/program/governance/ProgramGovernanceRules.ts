@@ -1,4 +1,5 @@
 import { canTransitionStatus, compareProgramDates } from "../rules";
+import type { Assignment } from "../Assignment";
 import type { ProgramNode, ProgramStatus } from "../types";
 import {
   createGovernanceReport,
@@ -9,6 +10,11 @@ import {
 } from "./GovernanceViolation";
 
 type RecordLike = Record<string, unknown>;
+
+export type AssignmentValidationOptions = {
+  validPersonIds?: ReadonlySet<string>;
+  validUnitIds?: ReadonlySet<string>;
+};
 
 const text = (value: unknown): string => value === undefined || value === null ? "" : String(value).trim();
 const firstText = (entity: RecordLike, ...keys: string[]): string => {
@@ -56,16 +62,17 @@ export class ProgramGovernanceRules {
     return createGovernanceReport(violations);
   }
 
-  validateActivity(activity: RecordLike): GovernanceValidationReport {
+  validateActivity(activity: RecordLike, options: AssignmentValidationOptions = {}): GovernanceValidationReport {
     const violations: GovernanceViolation[] = [];
     this.validateIdentityAndLifecycle(activity, "activity", violations);
     if (!firstText(activity, "objectiveId", "objective_id", "subGoalId", "sub_goal_id", "parentObjectiveId")) {
       add(violations, activity, "activity", "activity.parentObjective.required", "Activity parent Objective is required.");
     }
+    this.validateAssignments(activity, "activity", violations, options);
     return createGovernanceReport(violations);
   }
 
-  validateAction(action: RecordLike): GovernanceValidationReport {
+  validateAction(action: RecordLike, options: AssignmentValidationOptions = {}): GovernanceValidationReport {
     const violations: GovernanceViolation[] = [];
     this.validateIdentityAndLifecycle(action, "action", violations);
     if (!firstText(action, "activityId", "activity_id", "parentActivityId")) {
@@ -77,7 +84,40 @@ export class ProgramGovernanceRules {
     if (!firstText(action, "deadline", "plannedEnd", "planned_end", "end")) {
       add(violations, action, "action", "action.timeline.required", "Action timeline is required.");
     }
+    this.validateAssignments(action, "action", violations, options);
     return createGovernanceReport(violations);
+  }
+
+  validateAssignments(
+    entity: RecordLike,
+    entityType: "activity" | "action",
+    violations: GovernanceViolation[],
+    options: AssignmentValidationOptions = {}
+  ) {
+    const assignments = Array.isArray(entity.assignments) ? entity.assignments as Assignment[] : [];
+    const seen = new Set<string>();
+    for (const assignment of assignments) {
+      const key = `${assignment.entityType}:${assignment.entityId}:${assignment.role}:${assignment.responsibilityType}`;
+      if (seen.has(key)) {
+        add(violations, entity, entityType, "assignment.duplicate", `Duplicate assignment "${key}" is not allowed.`);
+      }
+      seen.add(key);
+      if (!assignment.entityId?.trim() || !assignment.displayName?.trim()) {
+        add(violations, entity, entityType, "assignment.reference.required", "Assignment entity reference and display name are required.");
+      }
+      const validIds = assignment.entityType === "PERSON" ? options.validPersonIds : options.validUnitIds;
+      if (validIds && !validIds.has(assignment.entityId)) {
+        add(violations, entity, entityType, "assignment.reference.valid", `Assignment reference "${assignment.entityId}" is not valid.`);
+      }
+    }
+    const critical = firstText(entity, "priority") === "بحرانی" || entity.critical === true;
+    const hasPrimaryResponsible = assignments.some((assignment) =>
+      assignment.responsibilityType === "PRIMARY"
+      && (assignment.role === "EXECUTOR" || assignment.role === "OWNER")
+    );
+    if (critical && !hasPrimaryResponsible) {
+      add(violations, entity, entityType, "assignment.primaryResponsible.required", `${entityType} requires a primary responsible assignment.`);
+    }
   }
 
   validateKPI(kpi: RecordLike): GovernanceValidationReport {
@@ -143,4 +183,3 @@ export class ProgramGovernanceRules {
     }
   }
 }
-

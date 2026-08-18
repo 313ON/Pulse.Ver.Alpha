@@ -47,6 +47,7 @@ export const programFixture: Program = {
               priority: "زیاد",
               timeline: { start: "۱۴۰۵/۰۲/۱۵", end: "۱۴۰۵/۰۵/۳۰" },
               progress: createProgress(42),
+              assignments: [],
               actions: [
                 {
                   id: "action-firewall",
@@ -59,6 +60,7 @@ export const programFixture: Program = {
                   priority: "بحرانی",
                   timeline: { start: "۱۴۰۵/۰۳/۰۱", end: "۱۴۰۵/۰۴/۱۵" },
                   progress: createProgress(72),
+                  assignments: [],
                   kpis: [
                     {
                       id: "kpi-firewall-availability",

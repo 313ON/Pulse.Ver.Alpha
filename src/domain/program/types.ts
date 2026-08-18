@@ -7,6 +7,7 @@ import type {
   ProgramStatus,
   Progress
 } from "./primitives";
+import type { Assignment } from "./Assignment";
 
 export type { KpiDirection, KpiMeasurement, KpiMeasurementRule, Priority, ProgramDate, ProgramStatus, Progress };
 
@@ -55,6 +56,7 @@ export type Objective = ProgramEntity & {
 export type Activity = ProgramEntity & {
   type: "activity";
   objectiveId: string;
+  assignments: Assignment[];
   actions: Action[];
 };
 
@@ -73,6 +75,7 @@ export type Action = ProgramEntity & {
   goalId?: string;
   objectiveId?: string;
   activityId?: string;
+  assignments: Assignment[];
   kpis: KPI[];
 };
 

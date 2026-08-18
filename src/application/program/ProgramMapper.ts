@@ -1,4 +1,4 @@
-import { kpiRecordToKPI, workItemToAction } from "../../domain/program/mappings";
+import { assignmentsFromUnknown, kpiRecordToKPI, workItemToAction } from "../../domain/program/mappings";
 import { createProgress } from "../../domain/program/primitives";
 import type { Action, Activity, EntityReference, Goal, KPI, Objective, Program, ProgramDate, ProgramStatus } from "../../domain/program";
 import type { KpiRecord, WorkItem } from "../../lib/domain";
@@ -84,6 +84,7 @@ export class ProgramMapper {
       ...baseEntity(row, "activity"),
       type: "activity",
       objectiveId,
+      assignments: assignmentsFromUnknown(row.assignments),
       actions: []
     };
   }
@@ -116,6 +117,7 @@ export class ProgramMapper {
       owner: text(row, "owner") ?? action.owner,
       ownerRef: reference(row, "owner_person_id", "owner"),
       department: reference(row, "department_id", "department"),
+      assignments: assignmentsFromUnknown(row.assignments),
       actualCompletion: text(row, "actual_completion", "actualCompletion"),
       description: text(row, "description") ?? action.description
     };

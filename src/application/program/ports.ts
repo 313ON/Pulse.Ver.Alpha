@@ -1,4 +1,5 @@
 import type { SessionUser } from "../../server/auth";
+import type { Assignment } from "../../domain/program";
 
 export type UnknownRow = Record<string, unknown>;
 
@@ -18,7 +19,7 @@ export type ActivityRepositoryPort = {
   list(user?: SessionUser): unknown[];
   get(id: string, user?: SessionUser): unknown;
   getUnscoped(id: string): unknown;
-  create(input: { id?: string; subGoalId: string; title: string; description?: string; ownerPersonId?: string }): unknown;
+  create(input: { id?: string; subGoalId: string; title: string; description?: string; ownerPersonId?: string; assignments?: Assignment[] }): unknown;
 };
 
 export type ActionRepositoryPort = {

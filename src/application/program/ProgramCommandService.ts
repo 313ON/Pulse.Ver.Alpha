@@ -1,7 +1,7 @@
 import { createProgress } from "../../domain/program/primitives";
 import { validateAction } from "../../domain/program/rules";
 import { ProgramGovernanceRules, type GovernanceValidationReport } from "../../domain/program";
-import type { Action, ProgramStatus } from "../../domain/program";
+import type { Action, Assignment, ProgramStatus } from "../../domain/program";
 import { ProgramMapper } from "./ProgramMapper";
 import type { ProgramRepositoryPorts, UnknownRow } from "./ports";
 
@@ -22,6 +22,7 @@ export type CreateActionInput = {
   status: Action["status"];
   progress?: number;
   description?: string;
+  assignments?: Assignment[];
 };
 
 export class ProgramCommandService {
@@ -56,23 +57,25 @@ export class ProgramCommandService {
     return this.mapper.objective(this.ports.objectives.create(input) as UnknownRow);
   }
 
-  createActivity(input: { id?: string; objectiveId: string; title: string; description?: string; ownerPersonId?: string }) {
+  createActivity(input: { id?: string; objectiveId: string; title: string; description?: string; ownerPersonId?: string; assignments?: Assignment[] }) {
     this.authorize?.("program.activity.create", input);
     this.requireObjective(input.objectiveId);
     this.assertGovernance(this.governance.validateActivity({
       ...input,
       id: input.id ?? "",
       type: "activity",
-      status: "پیش‌نویس"
+      status: "پیش‌نویس",
+      assignments: input.assignments
     }));
     const result = this.ports.activities.create({
       id: input.id,
       subGoalId: input.objectiveId,
       title: input.title,
       description: input.description,
-      ownerPersonId: input.ownerPersonId
+      ownerPersonId: input.ownerPersonId,
+      assignments: input.assignments
     });
-    return this.mapper.activity(result as UnknownRow);
+    return { ...this.mapper.activity(result as UnknownRow), assignments: input.assignments ?? [] };
   }
 
   createAction(input: CreateActionInput) {
@@ -106,7 +109,8 @@ export class ProgramCommandService {
       id: input.publicId,
       type: "action",
       owner: input.ownerPersonId,
-      deadline: input.deadline
+      deadline: input.deadline,
+      assignments: input.assignments
     }));
     const errors = validateAction(action, new Set([input.goalId]));
     if (errors.length) throw new Error(errors.join(" "));
@@ -122,9 +126,10 @@ export class ProgramCommandService {
       deadline: input.deadline,
       plannedStart: input.plannedStart,
       workType: input.workType,
-      status: input.status
+      status: input.status,
+      assignments: input.assignments
     });
-    return this.mapper.action(result as UnknownRow);
+    return { ...this.mapper.action(result as UnknownRow), assignments: input.assignments ?? [] };
   }
 
   updateProgress(publicId: string, progress: number) {

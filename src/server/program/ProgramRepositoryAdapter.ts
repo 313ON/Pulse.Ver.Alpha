@@ -68,7 +68,7 @@ export class ActivityRepositoryAdapter implements ActivityRepositoryPort {
     const row = this.repository.getUnscoped(id);
     return row ? this.mapper.activity(row as Record<string, unknown>) : undefined;
   }
-  create(input: { id?: string; subGoalId: string; title: string; description?: string; ownerPersonId?: string }) {
+  create(input: { id?: string; subGoalId: string; title: string; description?: string; ownerPersonId?: string; assignments?: import("../../domain/program").Assignment[] }) {
     return this.mapper.activity(this.repository.create(input) as Record<string, unknown>);
   }
 }

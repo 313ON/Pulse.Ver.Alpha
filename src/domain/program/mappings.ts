@@ -1,6 +1,7 @@
 import type { KpiRecord, WorkItem } from "../../lib/domain";
 import { createProgress } from "./primitives";
 import type { Action, KPI, ProgramStatus } from "./types";
+import type { Assignment } from "./Assignment";
 
 const LEGACY_STATUS_MAP: Record<WorkItem["status"], ProgramStatus> = {
   "پیش‌نویس": "پیش‌نویس",
@@ -35,6 +36,7 @@ export function workItemToAction(item: WorkItem): Action {
     goalId: item.goalId,
     objectiveId: item.subGoalId,
     activityId: item.activityId,
+    assignments: [],
     department: item.departmentId ? { id: item.departmentId } : undefined,
     workType: item.workType,
     plannedStart,
@@ -66,4 +68,18 @@ export function kpiRecordToKPI(record: KpiRecord): KPI {
     direction: record.direction,
     measurementRule: { direction: record.direction }
   };
+}
+
+export function assignmentsFromUnknown(value: unknown): Assignment[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((assignment): assignment is Assignment => {
+    if (!assignment || typeof assignment !== "object") return false;
+    const candidate = assignment as Record<string, unknown>;
+    return typeof candidate.id === "string"
+      && (candidate.entityType === "PERSON" || candidate.entityType === "UNIT")
+      && typeof candidate.entityId === "string"
+      && typeof candidate.displayName === "string"
+      && (candidate.role === "OWNER" || candidate.role === "EXECUTOR" || candidate.role === "COLLABORATOR")
+      && (candidate.responsibilityType === "PRIMARY" || candidate.responsibilityType === "SUPPORT");
+  });
 }
