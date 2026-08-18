@@ -11,7 +11,7 @@ export function SystemFooter() {
         <span><i className="telemetry-led telemetry-led-cyan" /> هسته هوش مصنوعی <b>ACTIVE</b></span>
         <span><i className="telemetry-led telemetry-led-amber" /> دانش <b>SYNCED</b></span>
       </div>
-      <div className="footer-identity"><strong>PULSE</strong><span>تحول دیجیتال</span></div>
+      <div className="footer-identity"><strong>PULSE</strong><span>تحول دیجیتال</span><small>313ON</small></div>
     </footer>
   );
 }

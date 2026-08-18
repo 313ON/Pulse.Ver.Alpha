@@ -340,6 +340,7 @@ code, kbd, .command-kicker, .nav-caption, .system-footer, .goal-id, td small { f
 .reasoning-indicator { border-inline-end: 2px solid var(--primary); border-right: 0; }
 .intelligence-timeline { border-inline-end: 1px solid var(--line); border-right: 0; padding-inline: 0 18px; padding-right: 0; }
 .footer-identity { direction: rtl; }
+.footer-identity small { color: var(--text-muted, #64748B); font: 500 8px var(--font-technical); letter-spacing: .12em; }
 .footer-runtime { direction: rtl; }
 .footer-telemetry { direction: rtl; }
 .footer-identity, .footer-telemetry, .footer-runtime { font-family: var(--font-enterprise); }
