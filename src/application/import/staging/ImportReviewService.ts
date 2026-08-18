@@ -1,6 +1,8 @@
 import type { Program } from "../../../domain/program";
-import { ImportReadinessService, type ImportReadinessOptions, type ProgramReadinessEvaluation } from "../ImportReadinessService";
+import { ImportReadinessService, type ImportReadinessOptions } from "../ImportReadinessService";
 import type { ImportRecord, ImportSource } from "../contracts";
+import { InMemoryImportJobRepository, InMemoryImportRecordRepository } from "../adapters";
+import type { ImportJobRepository, ImportRecordRepository } from "../ports";
 import type { ImportJob, ImportJobStatus } from "./ImportJob";
 
 export type ImportApprovalResult = {
@@ -9,14 +11,13 @@ export type ImportApprovalResult = {
 };
 
 export class ImportReviewService {
-  private readonly jobs = new Map<string, ImportJob>();
-
   constructor(
-    private readonly readiness: ImportReadinessService = new ImportReadinessService()
+    private readonly readiness: ImportReadinessService = new ImportReadinessService(),
+    private readonly jobs: ImportJobRepository = new InMemoryImportJobRepository(),
+    private readonly records: ImportRecordRepository = new InMemoryImportRecordRepository()
   ) {}
 
   createJob(source: ImportSource, id = `import-${Date.now()}`): ImportJob {
-    if (this.jobs.has(id)) throw new Error(`Import job "${id}" already exists.`);
     const job: ImportJob = {
       id,
       source,
@@ -24,32 +25,35 @@ export class ImportReviewService {
       records: [],
       createdAt: new Date().toISOString()
     };
-    this.jobs.set(id, job);
-    return job;
+    return this.jobs.create(job);
   }
 
   getJob(id: string): ImportJob {
     const job = this.jobs.get(id);
     if (!job) throw new Error(`Import job "${id}" was not found.`);
-    return job;
+    return this.withRecords(job);
   }
 
   attachRecords(id: string, records: ImportRecord[]): ImportJob {
     const job = this.getJob(id);
     this.requireStatus(job, "DRAFT");
-    job.records = [...records];
-    return job;
+    this.records.attach(id, records);
+    return this.getJob(id);
   }
 
   analyze(id: string, program: Program, options: ImportReadinessOptions = {}): ImportJob {
     const job = this.getJob(id);
     this.requireStatus(job, "DRAFT", "REVIEW_REQUIRED");
-    job.status = "ANALYZING";
-    job.validationResult = this.readiness.validate(job.records, options);
+    this.jobs.updateStatus(id, "ANALYZING");
+    const normalizedRecords = this.records.getByJobId(id);
+    const validationResult = this.readiness.validate(normalizedRecords, options);
     const evaluation = this.readiness.evaluateProgram(program, options);
-    this.storeEvaluation(job, evaluation);
-    job.status = "REVIEW_REQUIRED";
-    return job;
+    this.jobs.saveAnalysisResult(id, validationResult, {
+      governance: evaluation.governance,
+      findings: evaluation.assessment
+    }, evaluation.qualityScore);
+    this.jobs.updateStatus(id, "REVIEW_REQUIRED");
+    return this.getJob(id);
   }
 
   approvalReadiness(id: string): ImportApprovalResult {
@@ -82,24 +86,17 @@ export class ImportReviewService {
     this.requireStatus(job, "REVIEW_REQUIRED");
     const readiness = this.approvalReadiness(id);
     if (!readiness.ready) throw new Error(readiness.blockers.join(" "));
-    job.status = "APPROVED";
-    job.approvedAt = new Date().toISOString();
-    return job;
+    return this.getJob(this.jobs.updateStatus(id, "APPROVED", new Date().toISOString()).id);
   }
 
   reject(id: string): ImportJob {
     const job = this.getJob(id);
     this.requireStatus(job, "REVIEW_REQUIRED", "ANALYZING");
-    job.status = "REJECTED";
-    return job;
+    return this.getJob(this.jobs.updateStatus(id, "REJECTED").id);
   }
 
-  private storeEvaluation(job: ImportJob, evaluation: ProgramReadinessEvaluation) {
-    job.assessmentResult = {
-      governance: evaluation.governance,
-      findings: evaluation.assessment
-    };
-    job.qualityScore = evaluation.qualityScore;
+  private withRecords(job: ImportJob): ImportJob {
+    return { ...job, records: this.records.getByJobId(job.id) };
   }
 
   private isCriticalGovernanceViolation(rule: string): boolean {
