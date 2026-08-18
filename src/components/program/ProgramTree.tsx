@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { Action, Activity, Goal, KPI, Objective, Program, ProgramNode, ProgramNodeType } from "../../domain/program";
-import { sampleProgram } from "../../domain/program";
+import { createProgress } from "../../domain/program";
+import { programFixture } from "../../domain/program";
 import { ActionCard } from "./ActionCard";
 import { ActivityCard } from "./ActivityCard";
 import { GoalCard, EntityCard } from "./GoalCard";
@@ -47,7 +48,7 @@ function updateNode(node: ProgramNode, parentId: string, child: ProgramNode): Pr
   return node;
 }
 
-export function ProgramTree({ program = sampleProgram }: { program?: Program }) {
+export function ProgramTree({ program = programFixture }: { program?: Program }) {
   const [tree, setTree] = useState<Program>(program);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([program.id, program.goals[0]?.id]));
   const [selectedId, setSelectedId] = useState(program.id);
@@ -76,8 +77,8 @@ export function ProgramTree({ program = sampleProgram }: { program?: Program }) 
     if (!parent || parent.type === "kpi") return;
     const type = childTypes[parent.type];
     const id = `${type}-${Date.now()}`;
-    const base = { id, title: draftTitle.trim(), description: "مورد جدید برای تکمیل برنامه راهبردی", status: "پیش‌نویس" as const, owner: "تخصیص داده نشده", priority: "متوسط" as const, timeline: { start: "۱۴۰۵/۰۶/۰۱", end: "۱۴۰۵/۱۲/۲۹" }, progress: 0 };
-    const child = type === "goal" ? { ...base, type, programId: parent.id, objectives: [] } : type === "objective" ? { ...base, type, goalId: parent.id, activities: [] } : type === "activity" ? { ...base, type, objectiveId: parent.id, actions: [] } : type === "action" ? { ...base, type, activityId: parent.id, kpis: [] } : { ...base, type, actionId: parent.id, unit: "٪", target: "—", actual: "—" };
+    const base = { id, title: draftTitle.trim(), description: "مورد جدید برای تکمیل برنامه راهبردی", status: "پیش‌نویس" as const, owner: "تخصیص داده نشده", priority: "متوسط" as const, timeline: { start: "۱۴۰۵/۰۶/۰۱", end: "۱۴۰۵/۱۲/۲۹" }, progress: createProgress(0) };
+    const child = type === "goal" ? { ...base, type, programId: parent.id, objectives: [] } : type === "objective" ? { ...base, type, goalId: parent.id, activities: [] } : type === "activity" ? { ...base, type, objectiveId: parent.id, actions: [] } : type === "action" ? { ...base, type, activityId: parent.id, kpis: [] } : { ...base, type, actionId: parent.id, unit: "٪", target: 0, actual: 0, direction: "higher-is-better" as const };
     setTree((current) => updateNode(current, parent.id, child as ProgramNode) as Program);
     setSelectedId(id);
     setAddingTo(null);

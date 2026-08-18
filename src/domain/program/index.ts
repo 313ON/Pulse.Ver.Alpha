@@ -1,3 +1,4 @@
+export * from "./primitives";
 export * from "./types";
 export * from "./cognition";
-export * from "./sampleProgram";
+export * from "./program.fixture";

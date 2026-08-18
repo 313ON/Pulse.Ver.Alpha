@@ -1,6 +1,7 @@
+import { createProgress } from "./primitives";
 import type { Program } from "./types";
 
-export const sampleProgram: Program = {
+export const programFixture: Program = {
   id: "program-1405",
   type: "program",
   title: "برنامه سالانه تحول دیجیتال ۱۴۰۵",
@@ -9,7 +10,7 @@ export const sampleProgram: Program = {
   owner: "مدیر تحول دیجیتال",
   priority: "بحرانی",
   timeline: { start: "۱۴۰۵/۰۱/۰۱", end: "۱۴۰۵/۱۲/۲۹" },
-  progress: 62,
+  progress: createProgress(62),
   goals: [
     {
       id: "goal-it-infrastructure",
@@ -21,7 +22,7 @@ export const sampleProgram: Program = {
       owner: "معاونت فناوری اطلاعات",
       priority: "زیاد",
       timeline: { start: "۱۴۰۵/۰۱/۱۵", end: "۱۴۰۵/۰۹/۳۰" },
-      progress: 68,
+      progress: createProgress(68),
       objectives: [
         {
           id: "objective-network-security",
@@ -33,7 +34,7 @@ export const sampleProgram: Program = {
           owner: "مدیر شبکه و امنیت",
           priority: "بحرانی",
           timeline: { start: "۱۴۰۵/۰۲/۰۱", end: "۱۴۰۵/۰۶/۳۱" },
-          progress: 54,
+          progress: createProgress(54),
           activities: [
             {
               id: "activity-security-architecture",
@@ -45,7 +46,7 @@ export const sampleProgram: Program = {
               owner: "تیم زیرساخت",
               priority: "زیاد",
               timeline: { start: "۱۴۰۵/۰۲/۱۵", end: "۱۴۰۵/۰۵/۳۰" },
-              progress: 42,
+              progress: createProgress(42),
               actions: [
                 {
                   id: "action-firewall",
@@ -57,7 +58,7 @@ export const sampleProgram: Program = {
                   owner: "کارشناس امنیت شبکه",
                   priority: "بحرانی",
                   timeline: { start: "۱۴۰۵/۰۳/۰۱", end: "۱۴۰۵/۰۴/۱۵" },
-                  progress: 72,
+                  progress: createProgress(72),
                   kpis: [
                     {
                       id: "kpi-firewall-availability",
@@ -69,10 +70,11 @@ export const sampleProgram: Program = {
                       owner: "مرکز عملیات شبکه",
                       priority: "زیاد",
                       timeline: { start: "۱۴۰۵/۰۳/۰۱", end: "۱۴۰۵/۱۲/۲۹" },
-                      progress: 91,
+                      progress: createProgress(91),
                       unit: "٪",
-                      target: "۹۹.۵٪",
-                      actual: "۹۸.۷٪"
+                      target: 99.5,
+                      actual: 98.7,
+                      direction: "higher-is-better"
                     }
                   ]
                 }
@@ -90,7 +92,7 @@ export const sampleProgram: Program = {
           owner: "دفتر داده و هوش تجاری",
           priority: "متوسط",
           timeline: { start: "۱۴۰۵/۰۵/۰۱", end: "۱۴۰۵/۱۰/۳۰" },
-          progress: 28,
+          progress: createProgress(28),
           activities: []
         }
       ]
@@ -105,7 +107,7 @@ export const sampleProgram: Program = {
       owner: "دفتر تحول سازمانی",
       priority: "زیاد",
       timeline: { start: "۱۴۰۵/۰۱/۲۰", end: "۱۴۰۵/۱۱/۳۰" },
-      progress: 56,
+      progress: createProgress(56),
       objectives: []
     }
   ]

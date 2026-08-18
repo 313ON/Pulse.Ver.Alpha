@@ -1,26 +1,38 @@
-export type ProgramEntityStatus =
-  | "پیش‌نویس"
-  | "در حال اجرا"
-  | "تکمیل شده"
-  | "مسدود"
-  | "متوقف شده";
+import type {
+  KpiDirection,
+  KpiMeasurement,
+  KpiMeasurementRule,
+  Priority,
+  ProgramDate,
+  ProgramStatus,
+  Progress
+} from "./primitives";
 
-export type Priority = "بحرانی" | "زیاد" | "متوسط" | "کم";
+export type { KpiDirection, KpiMeasurement, KpiMeasurementRule, Priority, ProgramDate, ProgramStatus, Progress };
+
+export type ProgramEntityStatus = ProgramStatus;
+
+export type EntityReference = {
+  id: string;
+  label?: string;
+};
+
+export type WorkType = "پروژه" | "اقدام" | "فعالیت تکرارشونده" | "پایش KPI" | "Milestone";
 
 export type Timeline = {
-  start: string;
-  end: string;
+  start: ProgramDate;
+  end: ProgramDate;
 };
 
 export type ProgramEntity = {
   id: string;
   title: string;
   description: string;
-  status: ProgramEntityStatus;
+  status: ProgramStatus;
   owner: string;
   priority: Priority;
   timeline: Timeline;
-  progress: number;
+  progress: Progress;
 };
 
 export type Program = ProgramEntity & {
@@ -48,16 +60,34 @@ export type Activity = ProgramEntity & {
 
 export type Action = ProgramEntity & {
   type: "action";
-  activityId: string;
+  ownerRef?: EntityReference;
+  department?: EntityReference;
+  workType?: WorkType;
+  plannedStart?: ProgramDate;
+  plannedEnd?: ProgramDate;
+  actualCompletion?: ProgramDate;
+  blocker?: string;
+  notes?: string;
+  deliverable?: string;
+  externalIdentifiers?: Record<string, string>;
+  goalId?: string;
+  objectiveId?: string;
+  activityId?: string;
   kpis: KPI[];
 };
 
 export type KPI = ProgramEntity & {
   type: "kpi";
-  actionId: string;
+  ownerRef?: EntityReference;
+  actionId?: string;
   unit: string;
-  target: string;
-  actual: string;
+  baseline?: number;
+  target: number;
+  actual: number;
+  direction: KpiDirection;
+  measurementRule?: KpiMeasurementRule;
+  frequency?: string;
+  measurement?: KpiMeasurement;
 };
 
 export type ProgramNode = Program | Goal | Objective | Activity | Action | KPI;
@@ -75,10 +105,15 @@ export const PROGRAM_TYPE_LABELS: Record<ProgramNodeType, string> = {
   kpi: "شاخص / نتیجه"
 };
 
-export const PROGRAM_STATUS_LABELS: Record<ProgramEntityStatus, string> = {
+export const PROGRAM_STATUS_LABELS: Record<ProgramStatus, string> = {
   "پیش‌نویس": "پیش‌نویس",
+  "نیازمند تکمیل": "نیازمند تکمیل",
+  "در انتظار تأیید": "در انتظار تأیید",
+  "تأیید شده": "تأیید شده",
+  "شروع نشده": "شروع نشده",
   "در حال اجرا": "در حال اجرا",
   "تکمیل شده": "تکمیل شده",
   "مسدود": "مسدود",
-  "متوقف شده": "متوقف شده"
+  "متوقف شده": "متوقف شده",
+  "لغو شده": "لغو شده"
 };
