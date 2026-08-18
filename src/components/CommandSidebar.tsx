@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 const items = [
   ["مرکز راهبردی", "/", "✦"],
   ["نمای اجرایی", "/program", "⌂"],
-  ["اهداف", "/goals", "◎"],
+  ["اهداف کلی", "/goals", "◎"],
+  ["اهداف جزئی", "/sub-goals", "◇"],
   ["واحدها", "/departments", "▦"],
   ["سمت‌ها و نقش‌ها", "/roles", "◈"],
   ["پرسنل", "/persons", "●"],
@@ -33,7 +34,7 @@ export function CommandSidebar({
     <aside className="sidebar command-sidebar">
       <div className="brand">
         <div className="brand-mark">P</div>
-        <div><strong>PULSE</strong><span>تحول دیجیتال</span></div>
+        <div><strong>PULSE</strong><span>برنامه دیجیتال سازمان</span><small>چرب شیمی</small></div>
       </div>
       <div className="workspace-label"><span className="status-dot green" /> سازمان / چرب شیمی</div>
       <div className="nav-caption">ناوبری فرمان</div>

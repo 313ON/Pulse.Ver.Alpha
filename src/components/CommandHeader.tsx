@@ -6,6 +6,7 @@ const sectionNames: Record<string, string> = {
   "/": "مرکز فرمان راهبردی",
   "/program": "نمای اجرایی برنامه",
   "/goals": "اهداف سازمانی",
+  "/sub-goals": "اهداف جزئی",
   "/departments": "واحدهای عملیاتی",
   "/roles": "سمت‌ها و نقش‌ها",
   "/persons": "پرسنل",
