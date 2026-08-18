@@ -57,6 +57,7 @@ function baseEntity(row: UnknownRow, fallbackId: string, fallbackTitle = "") {
 
 export class ProgramMapper {
   goal(row: UnknownRow, programId: string): Goal {
+    if (row.type === "goal") return { ...(row as Goal), programId, objectives: [] };
     return {
       ...baseEntity(row, "goal"),
       type: "goal",
@@ -66,6 +67,7 @@ export class ProgramMapper {
   }
 
   objective(row: UnknownRow): Objective {
+    if (row.type === "objective") return { ...(row as Objective), activities: [] };
     const goalId = text(row, "goal_id", "goalId") ?? "";
     return {
       ...baseEntity(row, "objective"),
@@ -76,6 +78,7 @@ export class ProgramMapper {
   }
 
   activity(row: UnknownRow): Activity {
+    if (row.type === "activity") return { ...(row as Activity), actions: [] };
     const objectiveId = text(row, "sub_goal_id", "subGoalId") ?? "";
     return {
       ...baseEntity(row, "activity"),
@@ -86,6 +89,7 @@ export class ProgramMapper {
   }
 
   action(row: UnknownRow): Action {
+    if (row.type === "action") return { ...(row as Action), kpis: [] };
     const legacy: WorkItem = {
       publicId: text(row, "public_id", "publicId", "id") ?? "",
       goalId: text(row, "goal_id", "goalId"),
@@ -118,6 +122,7 @@ export class ProgramMapper {
   }
 
   kpi(row: UnknownRow, actionId?: string): KPI {
+    if (row.type === "kpi") return { ...(row as KPI), actionId: actionId ?? (String(row.actionId ?? "") || undefined) };
     const legacy: KpiRecord = {
       id: text(row, "id") ?? "kpi",
       name: text(row, "name", "title") ?? "",

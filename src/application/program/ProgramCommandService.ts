@@ -62,9 +62,9 @@ export class ProgramCommandService {
     this.authorize?.("program.action.create", input);
     const objective = this.requireObjective(input.objectiveId);
     const activity = this.requireActivity(input.activityId);
-    const activityObjectiveId = String((activity as UnknownRow).sub_goal_id ?? "");
+    const activityObjectiveId = String((activity as UnknownRow).sub_goal_id ?? (activity as UnknownRow).objectiveId ?? "");
     if (activityObjectiveId !== input.objectiveId) throw new Error("The activity does not belong to the selected objective.");
-    const goalId = String((objective as UnknownRow).goal_id ?? "");
+    const goalId = String((objective as UnknownRow).goal_id ?? (objective as UnknownRow).goalId ?? "");
     if (goalId !== input.goalId) throw new Error("The objective does not belong to the selected goal.");
 
     const action = this.mapper.action({

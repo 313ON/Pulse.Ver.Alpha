@@ -1,0 +1,1 @@
+export { GoalRepositoryAdapter } from "./ProgramRepositoryAdapter";

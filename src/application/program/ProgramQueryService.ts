@@ -32,10 +32,16 @@ export class ProgramQueryService {
     const objectives = objectiveRows.map((row) => this.mapper.objective(row));
     const activities = activityRows.map((row) => this.mapper.activity(row));
     const actions = actionRows.map((row) => this.mapper.action(row));
-    const actionByInternalId = new Map(actionRows.map((row, index) => [String(row.id ?? row.public_id), actions[index]]));
+    const actionByInternalId = new Map(
+      actionRows.flatMap((row, index) => [
+        [String(row.id ?? row.public_id), actions[index]] as const,
+        [String(row.public_id ?? row.id), actions[index]] as const
+      ])
+    );
     const kpis = kpiRows.map((row) => {
-      const action = actionByInternalId.get(String(row.work_item_id ?? ""));
-      return this.mapper.kpi(row, action?.id);
+      const directActionId = String(row.actionId ?? "");
+      const action = directActionId ? actions.find((candidate) => candidate.id === directActionId) : actionByInternalId.get(String(row.work_item_id ?? ""));
+      return this.mapper.kpi(row, action?.id ?? (directActionId || undefined));
     });
 
     for (const goal of goals) {

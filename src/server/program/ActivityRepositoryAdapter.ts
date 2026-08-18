@@ -1,0 +1,1 @@
+export { ActivityRepositoryAdapter } from "./ProgramRepositoryAdapter";
