@@ -13,6 +13,9 @@ const ENTITY_TYPE_BY_SEMANTIC_TYPE: Record<ColumnSemanticType, ImportRecord["ent
   ACTIVITY: "activity",
   ACTION: "action",
   KPI: "kpi",
+  KPI_TARGET: undefined,
+  KPI_VALUE: undefined,
+  KPI_UNIT: undefined,
   OWNER: undefined,
   EXECUTOR: undefined,
   COLLABORATOR: undefined,
@@ -20,6 +23,9 @@ const ENTITY_TYPE_BY_SEMANTIC_TYPE: Record<ColumnSemanticType, ImportRecord["ent
   PERSON: undefined,
   START_DATE: undefined,
   END_DATE: undefined,
+  DURATION: undefined,
+  WORKING_DAYS: undefined,
+  PERSON_HOURS: undefined,
   PROGRESS: undefined
 };
 
