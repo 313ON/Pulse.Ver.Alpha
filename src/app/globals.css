@@ -301,25 +301,38 @@ code, kbd, .command-kicker, .nav-caption, .system-footer, .goal-id, td small { f
 
 .app-shell { direction: rtl; }
 .pulse-shell .sidebar {
-  inset-inline: auto 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
   border-inline-start: 1px solid var(--line);
   border-inline-end: 0;
 }
 .pulse-shell .content {
-  margin-inline: 0 248px;
+  margin-inline: 248px 0;
   direction: rtl;
 }
 .command-header {
   inset-block: 0 auto;
-  inset-inline: 248px 0;
+  inset-inline-start: 248px;
+  inset-inline-end: 0;
   direction: rtl;
 }
 .workspace-layout { direction: rtl; }
 .app-footer {
-  inset-inline: 0 248px;
+  inset-inline-start: 248px;
+  inset-inline-end: 0;
   direction: rtl;
   font-family: var(--font-enterprise);
 }
+.pulse-shell .sidebar, .pulse-shell .content { box-sizing: border-box; }
+.pulse-shell .sidebar { order: 0; }
+.pulse-shell .content { order: 1; width: auto; }
+.system-footer {
+  direction: rtl;
+  grid-template-columns: 1fr auto 1fr;
+}
+.system-footer .footer-runtime { grid-column: 1; justify-self: start; }
+.system-footer .footer-telemetry { grid-column: 2; justify-self: center; }
+.system-footer .footer-identity { grid-column: 3; justify-self: end; }
 .logout-button { margin-inline: auto 0; }
 .date-chip span { margin-inline: 0 8px; }
 .workspace-label .status-dot { margin-inline: 0 7px; }
@@ -330,9 +343,10 @@ code, kbd, .command-kicker, .nav-caption, .system-footer, .goal-id, td small { f
 .footer-runtime { direction: rtl; }
 .footer-telemetry { direction: rtl; }
 .footer-identity, .footer-telemetry, .footer-runtime { font-family: var(--font-enterprise); }
+body * { font-family: var(--font-enterprise); }
+code, kbd, .command-kicker, .goal-id, td small { font-family: var(--font-mono); }
 
 @media(max-width: 700px) {
   .pulse-shell .content { margin-inline: 0; }
-  .command-header { inset-inline: 0; }
-  .app-footer { inset-inline: 0; }
+  .command-header, .app-footer { inset-inline-start: 0; inset-inline-end: 0; }
 }

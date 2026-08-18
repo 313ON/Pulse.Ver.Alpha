@@ -10,11 +10,11 @@ export function CognitionPanel() {
       <div className="cognition-panel-head">
         <div>
           <div className="eyebrow">لایه هوشمندی / ۰۱</div>
-          <h2 id="cognition-core-title">PULSE COGNITION CORE</h2>
+          <h2 id="cognition-core-title">هسته شناختی پالس</h2>
           <p>درک عملیاتی از فضای کاری فعال</p>
         </div>
         <span className="cognition-core-badge" style={{ color: ThemeTokens.colors.cyan }}>
-          <i /> CORE ONLINE
+          <i /> هسته فعال
         </span>
       </div>
       <div className="cognition-grid">

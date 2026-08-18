@@ -35,7 +35,7 @@ export function CommandSidebar({
         <div><strong>PULSE</strong><span>تحول دیجیتال</span></div>
       </div>
       <div className="workspace-label"><span className="status-dot green" /> سازمان / چرب شیمی</div>
-      <div className="nav-caption">COMMAND NAVIGATION</div>
+      <div className="nav-caption">ناوبری فرمان</div>
       <nav aria-label="ناوبری اصلی">
         {items.map(([label, href, icon]) => (
           <Link key={href} href={href} className={`nav-item ${pathname === href ? "active" : ""}`}>
