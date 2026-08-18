@@ -1,5 +1,5 @@
-import { ensureRuntimeData, handleApiError, json, readJson } from "../../_lib";
+import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requirePermission } from "../../_lib";
 import { KPIRepository } from "../../../../server/repositories";
 export const dynamic = "force-dynamic";
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); const { id } = await params; const item = new KPIRepository().get(id); return item ? json(item) : json({ error: "The KPI was not found.", code: "NOT_FOUND" }, { status: 404 }); } catch (error) { return handleApiError(error); } }
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); const { id } = await params; return json(new KPIRepository().update(id, await readJson(request))); } catch (error) { return handleApiError(error); } }
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); await requirePermission("actions.view"); const { id } = await params; const item = new KPIRepository().get(id); return item ? json(item) : json({ error: "The KPI was not found.", code: "NOT_FOUND" }, { status: 404 }); } catch (error) { return handleApiError(error); } }
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); const user = await requirePermission("kpis.manage"); const { id } = await params; const repo = new KPIRepository(); const before = repo.get(id); const result = repo.update(id, await readJson(request)); auditMutation(user, "kpi", id, "updated", before, result); return json(result); } catch (error) { return handleApiError(error); } }

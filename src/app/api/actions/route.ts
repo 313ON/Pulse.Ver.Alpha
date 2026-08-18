@@ -1,5 +1,5 @@
-import { ensureRuntimeData, handleApiError, json, readJson } from "../_lib";
+import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requirePermission } from "../_lib";
 import { ActionRepository } from "../../../server/repositories";
 export const dynamic = "force-dynamic";
-export function GET() { try { ensureRuntimeData(); return json(new ActionRepository().list()); } catch (error) { return handleApiError(error); } }
-export async function POST(request: Request) { try { ensureRuntimeData(); const body = await readJson(request); return json(new ActionRepository().create(body as never), { status: 201 }); } catch (error) { return handleApiError(error); } }
+export async function GET() { try { ensureRuntimeData(); const user = await requirePermission("actions.view"); return json(new ActionRepository().list(user)); } catch (error) { return handleApiError(error); } }
+export async function POST(request: Request) { try { ensureRuntimeData(); const user = await requirePermission("actions.create"); const body = await readJson(request); const result = new ActionRepository().create(body as never); auditMutation(user, "action", String((result as { public_id: string }).public_id), "created", null, result); return json(result, { status: 201 }); } catch (error) { return handleApiError(error); } }

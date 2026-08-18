@@ -4,7 +4,8 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getDatabase } from "./db";
 import { seedBaseline } from "./seed";
-import { ActionRepository, DependencyRepository, RepositoryError } from "./repositories";
+import { ActionRepository, DependencyRepository, PersonRepository, RepositoryError, RoleRepository, UserRepository } from "./repositories";
+import { seedAuthFoundation } from "./auth";
 
 let testDatabasePath = "";
 
@@ -78,5 +79,20 @@ describe("SQLite repositories", () => {
       status: "باز",
       delayDays: 0
     })).toThrow(RepositoryError);
+  });
+
+  it("supports partial master-data updates without undefined SQLite bindings", () => {
+    const roles = new RoleRepository();
+    const people = new PersonRepository();
+    const users = new UserRepository();
+    seedAuthFoundation();
+
+    roles.create({ id: "test-seat", title: "Test seat", departmentId: "it" });
+    people.create({ id: "test-person", fullName: "Test person", seatId: "test-seat" });
+    users.create({ id: "test-user", username: "test-user", password: "test-password-123", personId: "test-person", departmentId: "it", roleId: "role-employee" });
+
+    expect(roles.update("test-seat", { title: "Updated seat" })).toMatchObject({ title: "Updated seat", department_id: "it" });
+    expect(people.update("test-person", { fullName: "Updated person" })).toMatchObject({ full_name: "Updated person", seat_id: "test-seat" });
+    expect(users.update("test-user", { active: false })).toMatchObject({ username: "test-user", active: 0 });
   });
 });

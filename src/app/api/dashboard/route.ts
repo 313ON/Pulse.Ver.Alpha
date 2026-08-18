@@ -1,15 +1,16 @@
 import { currentPlanDate } from "../../../lib/data";
 import { calculatePulseScore, getKpiHealth, inspectProgramQuality, riskSeverity, type KpiRecord, type RiskRecord, type WorkItem } from "../../../lib/domain";
-import { ensureRuntimeData, handleApiError, json } from "../_lib";
+import { ensureRuntimeData, handleApiError, json, requirePermission } from "../_lib";
 import { ActionRepository, DependencyRepository, DepartmentRepository, GoalRepository, KPIRepository, RiskRepository } from "../../../server/repositories";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
+export async function GET() {
   try {
     ensureRuntimeData();
+    const user = await requirePermission("actions.view");
     const goalRows = new GoalRepository().list() as Array<{ id: string; title: string }>;
-    const actionRows = new ActionRepository().list() as Array<Record<string, unknown>>;
+    const actionRows = new ActionRepository().list(user) as Array<Record<string, unknown>>;
     const kpiRows = new KPIRepository().list() as Array<Record<string, unknown>>;
     const riskRows = new RiskRepository().list() as Array<Record<string, unknown>>;
     const dependencyRows = new DependencyRepository().list() as Array<Record<string, unknown>>;

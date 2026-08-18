@@ -1,5 +1,5 @@
 export type Health = "سبز" | "زرد" | "قرمز" | "خاکستری";
-export type ActionStatus = "شروع نشده" | "در حال اجرا" | "تکمیل شده" | "مسدود" | "لغو شده";
+export type ActionStatus = "پیش‌نویس" | "نیازمند تکمیل" | "در انتظار تأیید" | "تأیید شده" | "شروع نشده" | "در حال اجرا" | "تکمیل شده" | "مسدود" | "لغو شده";
 export const currentPlanDate = "۱۴۰۵/۰۵/۲۶";
 
 export const goals = [

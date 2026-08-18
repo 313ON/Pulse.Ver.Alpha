@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { getDatabase } from "./db";
 import { inspectProgramQuality, validateWorkItem, type Dependency, type KpiRecord, type RiskRecord, type WorkItem } from "../lib/domain";
+import type { SessionUser } from "./auth";
+import { hashPasswordForStorage } from "./auth";
 
 export class RepositoryError extends Error {
   constructor(public code: "NOT_FOUND" | "DUPLICATE" | "VALIDATION" | "DATABASE", message: string) {
@@ -63,7 +65,14 @@ export class RoleRepository {
   }
   update(id: string, input: { title?: string; departmentId?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The role was not found.");
-    try { getDatabase().prepare("UPDATE seats SET title=COALESCE(@title,title), department_id=COALESCE(@departmentId,department_id) WHERE id=@id").run({ id, ...input }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    try {
+      getDatabase().prepare("UPDATE seats SET title=COALESCE(@title,title), department_id=COALESCE(@departmentId,department_id) WHERE id=@id").run({
+        id,
+        title: input.title ?? null,
+        departmentId: input.departmentId ?? null
+      });
+      return this.get(id);
+    } catch (error) { return mapDatabaseError(error); }
   }
 }
 
@@ -76,29 +85,85 @@ export class PersonRepository {
   }
   update(id: string, input: { fullName?: string; seatId?: string; active?: boolean }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The person was not found.");
-    try { getDatabase().prepare("UPDATE people SET full_name=COALESCE(@fullName,full_name), seat_id=COALESCE(@seatId,seat_id), active=COALESCE(@active,active) WHERE id=@id").run({ id, ...input, active: input.active === undefined ? undefined : input.active ? 1 : 0 }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    try {
+      getDatabase().prepare("UPDATE people SET full_name=COALESCE(@fullName,full_name), seat_id=COALESCE(@seatId,seat_id), active=COALESCE(@active,active) WHERE id=@id").run({
+        id,
+        fullName: input.fullName ?? null,
+        seatId: input.seatId ?? null,
+        active: input.active === undefined ? null : input.active ? 1 : 0
+      });
+      return this.get(id);
+    } catch (error) { return mapDatabaseError(error); }
+  }
+}
+
+export class UserRepository {
+  list() {
+    return getDatabase().prepare(`
+      SELECT u.id, u.username, u.person_id, u.department_id, u.active, r.code AS role, r.title AS role_title
+      FROM users u JOIN app_roles r ON r.id = u.role_id ORDER BY u.username
+    `).all();
+  }
+  get(id: string) { return getDatabase().prepare("SELECT id, username, person_id, department_id, role_id, active FROM users WHERE id = ?").get(id); }
+  create(input: { id: string; username: string; password: string; personId?: string; departmentId?: string; roleId: string }) {
+    if (!input.id.trim() || !input.username.trim() || !input.password || !input.roleId) throw new RepositoryError("VALIDATION", "User identity, password, and role are required.");
+    try {
+      getDatabase().prepare(`
+        INSERT INTO users (id, username, password_hash, person_id, department_id, role_id)
+        VALUES (@id, @username, @passwordHash, @personId, @departmentId, @roleId)
+      `).run({ ...input, passwordHash: hashPasswordForStorage(input.password) });
+      return this.get(input.id);
+    } catch (error) { return mapDatabaseError(error); }
+  }
+  update(id: string, input: { username?: string; password?: string; personId?: string; departmentId?: string; roleId?: string; active?: boolean }) {
+    const current = this.get(id);
+    if (!current) throw new RepositoryError("NOT_FOUND", "The user was not found.");
+    try {
+      getDatabase().prepare(`
+        UPDATE users SET username=COALESCE(@username,username),
+          password_hash=COALESCE(@passwordHash,password_hash),
+          person_id=COALESCE(@personId,person_id),
+          department_id=COALESCE(@departmentId,department_id),
+          role_id=COALESCE(@roleId,role_id),
+          active=COALESCE(@active,active), updated_at=CURRENT_TIMESTAMP
+        WHERE id=@id
+      `).run({
+        id,
+        username: input.username ?? null,
+        passwordHash: input.password ? hashPasswordForStorage(input.password) : null,
+        personId: input.personId ?? null,
+        departmentId: input.departmentId ?? null,
+        roleId: input.roleId ?? null,
+        active: input.active === undefined ? null : input.active ? 1 : 0
+      });
+      return this.get(id);
+    } catch (error) { return mapDatabaseError(error); }
   }
 }
 
 export class ActionRepository {
-  list() {
+  list(user?: SessionUser) {
+    const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
     return getDatabase().prepare(`
       SELECT w.*, p.full_name AS owner, d.name AS department
       FROM work_items w
       JOIN people p ON p.id = w.owner_person_id
       JOIN departments d ON d.id = w.department_id
-      WHERE w.plan_year = 1405 ORDER BY w.planned_end, w.public_id
-    `).all();
+      WHERE w.plan_year = 1405 ${scopeClause} ORDER BY w.planned_end, w.public_id
+    `).all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
-  get(publicId: string) {
+  get(publicId: string, user?: SessionUser) {
+    const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
     return getDatabase().prepare(`
       SELECT w.*, p.full_name AS owner, d.name AS department
       FROM work_items w JOIN people p ON p.id = w.owner_person_id JOIN departments d ON d.id = w.department_id
-      WHERE w.public_id = ?
-    `).get(publicId);
+      WHERE w.public_id = @publicId ${scopeClause}
+    `).get({ publicId, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
-  create(input: WorkItem & { departmentId: string }): unknown {
-    const errors = validateWorkItem(input, new Set((new GoalRepository()).list().map((goal) => (goal as { id: string }).id)));
+  create(input: WorkItem & { departmentId: string; publicId?: string; activityId?: string; description?: string; roleId?: string; externalSourceId?: string }): unknown {
+    const publicId = input.publicId ?? nextPublicId(input.goalId ?? "G01");
+    const normalized = { ...input, publicId };
+    const errors = validateWorkItem(normalized, new Set((new GoalRepository()).list().map((goal) => (goal as { id: string }).id)));
     if (errors.length) throw new RepositoryError("VALIDATION", errors.join(" "));
     const db = getDatabase();
     try {
@@ -106,8 +171,8 @@ export class ActionRepository {
         INSERT INTO work_items
         (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, plan_year)
         VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, 1405)
-      `).run({ ...input, id: randomUUID(), publicId: input.publicId, plannedStart: input.plannedStart ?? "۱۴۰۵/۰۱/۰۱" });
-      return this.get(input.publicId);
+      `).run({ ...normalized, id: randomUUID(), publicId, plannedStart: input.plannedStart ?? "۱۴۰۵/۰۱/۰۱" });
+      return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }
   update(publicId: string, input: Partial<WorkItem> & { departmentId?: string }): unknown {
@@ -137,6 +202,14 @@ export class ActionRepository {
       return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }
+}
+
+function nextPublicId(goalId: string): string {
+  const db = getDatabase();
+  const prefix = `${goalId}-O01-A01-T`;
+  const rows = db.prepare("SELECT public_id FROM work_items WHERE public_id LIKE ?").all(`${prefix}%`) as Array<{ public_id: string }>;
+  const max = rows.reduce((largest, row) => Math.max(largest, Number(row.public_id.split("-T").pop() ?? 0)), 0);
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 export class KPIRepository {

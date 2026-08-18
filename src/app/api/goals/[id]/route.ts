@@ -1,8 +1,8 @@
-import { ensureRuntimeData, handleApiError, json, readJson } from "../../_lib";
+import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requirePermission } from "../../_lib";
 import { GoalRepository } from "../../../../server/repositories";
 
 export const dynamic = "force-dynamic";
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  try { ensureRuntimeData(); const { id } = await params; const item = new GoalRepository().get(id); return item ? json(item) : json({ error: "The goal was not found.", code: "NOT_FOUND" }, { status: 404 }); } catch (error) { return handleApiError(error); }
+  try { ensureRuntimeData(); await requirePermission("goals.view"); const { id } = await params; const item = new GoalRepository().get(id); return item ? json(item) : json({ error: "The goal was not found.", code: "NOT_FOUND" }, { status: 404 }); } catch (error) { return handleApiError(error); }
 }
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); const { id } = await params; return json(new GoalRepository().update(id, await readJson(request) as never)); } catch (error) { return handleApiError(error); } }
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) { try { ensureRuntimeData(); const user = await requirePermission("goals.edit"); const { id } = await params; const repo = new GoalRepository(); const before = repo.get(id); const result = repo.update(id, await readJson(request) as never); auditMutation(user, "goal", id, "updated", before, result); return json(result); } catch (error) { return handleApiError(error); } }
