@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Action, Activity, Goal, KPI, Objective, Program, ProgramNode, ProgramNodeType } from "../../domain/program";
-import { createProgress } from "../../domain/program";
-import { programFixture } from "../../domain/program";
 import { ActionCard } from "./ActionCard";
 import { ActivityCard } from "./ActivityCard";
 import { GoalCard, EntityCard } from "./GoalCard";
@@ -48,13 +46,21 @@ function updateNode(node: ProgramNode, parentId: string, child: ProgramNode): Pr
   return node;
 }
 
-export function ProgramTree({ program = programFixture }: { program?: Program }) {
+export function ProgramTree({ program }: { program: Program }) {
   const [tree, setTree] = useState<Program>(program);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([program.id, program.goals[0]?.id]));
   const [selectedId, setSelectedId] = useState(program.id);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const selected = useMemo(() => findNode(tree, selectedId) ?? tree, [tree, selectedId]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTree(program);
+    setSelectedId(program.id);
+    setExpanded(new Set([program.id, program.goals[0]?.id].filter(Boolean)));
+  }, [program]);
 
   function toggle(id: string) {
     setExpanded((current) => {
@@ -70,19 +76,31 @@ export function ProgramTree({ program = programFixture }: { program?: Program })
     setExpanded((current) => new Set(current).add(parent.id));
   }
 
-  function saveChild(event: React.FormEvent) {
+  async function saveChild(event: React.FormEvent) {
     event.preventDefault();
     if (!addingTo || !draftTitle.trim()) return;
     const parent = findNode(tree, addingTo);
     if (!parent || parent.type === "kpi") return;
-    const type = childTypes[parent.type];
-    const id = `${type}-${Date.now()}`;
-    const base = { id, title: draftTitle.trim(), description: "مورد جدید برای تکمیل برنامه راهبردی", status: "پیش‌نویس" as const, owner: "تخصیص داده نشده", priority: "متوسط" as const, timeline: { start: "۱۴۰۵/۰۶/۰۱", end: "۱۴۰۵/۱۲/۲۹" }, progress: createProgress(0) };
-    const child = type === "goal" ? { ...base, type, programId: parent.id, objectives: [] } : type === "objective" ? { ...base, type, goalId: parent.id, activities: [] } : type === "activity" ? { ...base, type, objectiveId: parent.id, actions: [] } : type === "action" ? { ...base, type, activityId: parent.id, kpis: [] } : { ...base, type, actionId: parent.id, unit: "٪", target: 0, actual: 0, direction: "higher-is-better" as const };
-    setTree((current) => updateNode(current, parent.id, child as ProgramNode) as Program);
-    setSelectedId(id);
-    setAddingTo(null);
-    setDraftTitle("");
+    setSaving(true);
+    setError(null);
+    try {
+      const csrfResponse = await fetch("/api/auth/csrf");
+      const { token } = await csrfResponse.json() as { token: string };
+      const response = await fetch("/api/program/commands", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-csrf-token": token },
+        body: JSON.stringify({ type: childTypes[parent.type], parentId: parent.id, title: draftTitle.trim() })
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "ثبت گره برنامه انجام نشد.");
+      setAddingTo(null);
+      setDraftTitle("");
+      window.location.reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "خطای ناشناخته در ثبت گره برنامه.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function renderNode(node: ProgramNode, level = 0): React.ReactNode {
@@ -106,7 +124,8 @@ export function ProgramTree({ program = programFixture }: { program?: Program })
         <div className="inspector-progress"><ProgressValue value={selected.progress} /></div>
         <dl className="inspector-meta"><div><dt>نوع</dt><dd>{selected.type === "program" ? "برنامه سالانه" : selected.type}</dd></div><div><dt>مسئول</dt><dd>{selected.owner}</dd></div><div><dt>بازه زمانی</dt><dd>{selected.timeline.start} تا {selected.timeline.end}</dd></div><div><dt>وضعیت</dt><dd>{selected.status}</dd></div></dl>
         <div className="alignment-card"><div><span>هسته شناختی</span><b>آماده اتصال</b></div><p>اعتبارسنجی هم‌راستایی و کامل‌بودن این گره در نسخه بعدی فعال می‌شود.</p></div>
-        {addingTo && <form className="program-add-form" onSubmit={saveChild}><label>عنوان {childTypes[(findNode(tree, addingTo) as Exclude<ProgramNode, KPI>).type]} جدید<input autoFocus value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="عنوان را وارد کنید" /></label><div className="form-actions"><button className="primary-button" type="submit">افزودن به درخت</button><button className="secondary-button" type="button" onClick={() => setAddingTo(null)}>انصراف</button></div></form>}
+        {error && <p role="alert" className="form-error">{error}</p>}
+        {addingTo && <form className="program-add-form" onSubmit={saveChild}><label>عنوان {childTypes[(findNode(tree, addingTo) as Exclude<ProgramNode, KPI>).type]} جدید<input autoFocus value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="عنوان را وارد کنید" /></label><div className="form-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? "در حال ثبت…" : "افزودن به درخت"}</button><button className="secondary-button" type="button" onClick={() => setAddingTo(null)} disabled={saving}>انصراف</button></div></form>}
         <button className="primary-button wide" onClick={() => addChild(selected)} disabled={selected.type === "kpi"}>＋ افزودن فرزند به این گره</button>
       </aside>
     </div>
