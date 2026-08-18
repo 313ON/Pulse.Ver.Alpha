@@ -67,6 +67,10 @@ export function PulseShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {children}
+        <footer className="app-footer" aria-label="PULSE footer">
+          <span>Made with love, coffee &amp; code by 313ON</span>
+          <span>Charb Chimie • Pulse Platform • 2026</span>
+        </footer>
       </section>
     </main>
   );
