@@ -1,4 +1,7 @@
 import type { ActionStatus, Health } from "./data";
+import { kpiRecordToKPI, workItemToAction } from "../domain/program/mappings";
+import { calculatePulseScore as calculateCanonicalPulseScore } from "../domain/program/metrics";
+import { getKpiHealth as getCanonicalKpiHealth, isActionOverdue } from "../domain/program/rules";
 
 export type WorkType = "پروژه" | "اقدام" | "فعالیت تکرارشونده" | "پایش KPI" | "Milestone";
 export type RiskStatus = "باز" | "کنترل‌شده" | "بسته";
@@ -8,13 +11,19 @@ export interface WorkItem {
   publicId: string;
   goalId?: string;
   subGoalId?: string;
+  activityId?: string;
   title: string;
   workType: WorkType;
   ownerPersonId?: string;
   departmentId?: string;
+  priority?: "بحرانی" | "زیاد" | "متوسط" | "کم";
   deliverable?: string;
   deadline?: string;
   plannedStart?: string;
+  actualCompletion?: string;
+  blocker?: string;
+  notes?: string;
+  externalIdentifiers?: Record<string, string>;
   status: ActionStatus;
   progress: number;
 }
@@ -32,6 +41,7 @@ export interface KpiRecord {
   actual: number;
   target: number;
   direction: "higher-is-better" | "lower-is-better";
+  unit?: string;
   health?: Health;
 }
 
@@ -98,7 +108,8 @@ export function compareJalaliDates(left?: string, right?: string): number | null
 }
 
 export function isOverdue(deadline: string | undefined, today: string, status: ActionStatus): boolean {
-  return status !== "تکمیل شده" && status !== "لغو شده" && compareJalaliDates(deadline, today) === -1;
+  if (!deadline) return false;
+  return isActionOverdue({ plannedEnd: deadline, status }, today);
 }
 
 export function canTransitionStatus(from: ActionStatus, to: ActionStatus): boolean {
@@ -114,13 +125,7 @@ export function riskSeverity(probability: number, impact: number): number {
 }
 
 export function getKpiHealth(kpi: KpiRecord): Health {
-  if (kpi.target === 0) return "خاکستری";
-  if (kpi.direction === "lower-is-better" && kpi.actual === 0) return "سبز";
-  if (kpi.direction === "higher-is-better" && kpi.actual === 0) return "قرمز";
-  const ratio = kpi.direction === "higher-is-better" ? kpi.actual / kpi.target : kpi.target / kpi.actual;
-  if (ratio >= 1) return "سبز";
-  if (ratio >= 0.85) return "زرد";
-  return "قرمز";
+  return getCanonicalKpiHealth(kpiRecordToKPI(kpi));
 }
 
 export function validateWorkItem(item: WorkItem, validGoalIds: Set<string>): string[] {
@@ -176,18 +181,11 @@ export function calculatePulseScore(
   risks: RiskRecord[],
   today = "1405/06/15"
 ): PulseScoreBreakdown {
-  const boundedAverage = (values: number[]) => values.length ? values.reduce((sum, value) => sum + Math.max(0, Math.min(100, value)), 0) / values.length : 0;
-  const overdue = items.filter((item) => isOverdue(item.deadline, today, item.status)).length;
-  const blocked = items.filter((item) => item.status === "مسدود").length;
-  const active = items.filter((item) => item.status !== "لغو شده").length;
-  const healthyKpis = kpis.filter((kpi) => getKpiHealth(kpi) === "سبز").length;
-  const criticalRisks = risks.filter((risk) => riskSeverity(risk.probability, risk.impact) >= 15 && risk.status !== "بسته").length;
-  const goalComponent = boundedAverage(goalProgress);
-  const executionControl = active ? (items.filter((item) => item.status === "تکمیل شده").length / active) * 100 : 0;
-  const overdueControl = active ? (1 - overdue / active) * 100 : 100;
-  const blockedControl = active ? (1 - blocked / active) * 100 : 100;
-  const kpiHealth = kpis.length ? (healthyKpis / kpis.length) * 100 : 0;
-  const criticalRiskControl = risks.length ? (1 - criticalRisks / risks.length) * 100 : 100;
-  const total = Math.round(goalComponent * 0.3 + executionControl * 0.25 + overdueControl * 0.15 + blockedControl * 0.1 + kpiHealth * 0.15 + criticalRiskControl * 0.05);
-  return { goalProgress: Math.round(goalComponent), executionControl: Math.round(executionControl), overdueControl: Math.round(overdueControl), blockedControl: Math.round(blockedControl), kpiHealth: Math.round(kpiHealth), criticalRiskControl: Math.round(criticalRiskControl), total };
+  return calculateCanonicalPulseScore(
+    goalProgress,
+    items.map((item) => workItemToAction(item)),
+    kpis.map((kpi) => kpiRecordToKPI(kpi)),
+    risks,
+    today
+  );
 }
