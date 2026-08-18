@@ -81,7 +81,8 @@ export class ProgramGovernanceRules {
     if (!firstText(action, "owner", "ownerId", "ownerPersonId", "owner_person_id")) {
       add(violations, action, "action", "action.owner.required", "Action owner is required.");
     }
-    if (!firstText(action, "deadline", "plannedEnd", "planned_end", "end")) {
+    const timeline = action.timeline && typeof action.timeline === "object" ? action.timeline as RecordLike : undefined;
+    if (!firstText(action, "deadline", "plannedEnd", "planned_end", "end") && !firstText(timeline ?? {}, "end")) {
       add(violations, action, "action", "action.timeline.required", "Action timeline is required.");
     }
     this.validateAssignments(action, "action", violations, options);
@@ -164,7 +165,16 @@ export class ProgramGovernanceRules {
     const violations: GovernanceViolation[] = [];
     const walk = (entity: RecordLike, type: string, parentId?: string) => {
       const ownId = idOf(entity);
-      if (parentId && !firstText(entity, `${type === "goal" ? "program" : type === "objective" ? "goal" : type === "activity" ? "objective" : "activity"}Id`, "parentId")) {
+      const parentKey = type === "goal"
+        ? "programId"
+        : type === "objective"
+          ? "goalId"
+          : type === "activity"
+            ? "objectiveId"
+            : type === "action"
+              ? "activityId"
+              : "actionId";
+      if (parentId && !firstText(entity, parentKey, "parentId")) {
         add(violations, entity, type, `${type}.parent.required`, `${type} parent is required.`);
       }
       const childrenKey = type === "program" ? "goals" : type === "goal" ? "objectives" : type === "objective" ? "activities" : type === "activity" ? "actions" : "kpis";
