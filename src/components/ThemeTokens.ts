@@ -1,20 +1,21 @@
 export const ThemeTokens = {
   direction: "rtl",
   colors: {
-    canvas: "#080d12",
-    surface: "#0d151d",
-    surfaceRaised: "#111d27",
-    surfaceElevated: "#162632",
-    line: "#21333f",
-    lineStrong: "#2d4654",
-    text: "#e5eef2",
-    textMuted: "#8da3ad",
-    textDim: "#5f7782",
-    cyan: "#39d0c1",
-    cyanStrong: "#18a99e",
-    amber: "#e9ae45",
-    red: "#ef6b73",
-    green: "#54c98d"
+    canvas: "#070B12",
+    surface: "#101923",
+    surfaceRaised: "#152231",
+    surfaceElevated: "#1b2c3d",
+    line: "#263545",
+    lineStrong: "#34495c",
+    text: "#F1F5F9",
+    textMuted: "#94A3B8",
+    textDim: "#64748B",
+    cyan: "#00D9FF",
+    cyanStrong: "#00B8D9",
+    amber: "#FFB547",
+    green: "#22C55E",
+    warning: "#F59E0B",
+    red: "#EF4444"
   },
   spacing: {
     sidebar: "248px",
@@ -29,6 +30,12 @@ export const ThemeTokens = {
   },
   typography: {
     fontFamily: "var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+    technicalFamily: "var(--font-inter), Inter, ui-monospace, SFMono-Regular, Consolas, monospace",
+    brand: {
+      family: "var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+      weight: 700,
+      letterSpacing: "0.01em"
+    },
     heading: {
       size: "24px",
       weight: 700,
@@ -48,12 +55,31 @@ export const ThemeTokens = {
       letterSpacing: "0.01em"
     },
     mono: {
-      family: "ui-monospace, SFMono-Regular, Consolas, monospace",
+      family: "var(--font-inter), Inter, ui-monospace, SFMono-Regular, Consolas, monospace",
       size: "10px",
       weight: 500,
       lineHeight: 1.5,
       letterSpacing: "0.04em"
     }
+  },
+  surfaces: {
+    canvas: "#070B12",
+    base: "#101923",
+    elevated: "#152231",
+    inset: "#0B121B",
+    interactive: "#1B2C3D"
+  },
+  status: {
+    success: "#22C55E",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+    info: "#00D9FF",
+    neutral: "#64748B"
+  },
+  shadows: {
+    panel: "0 8px 24px rgba(0, 0, 0, 0.18)",
+    elevated: "0 16px 40px rgba(0, 0, 0, 0.28)",
+    focus: "0 0 0 3px rgba(0, 217, 255, 0.18)"
   }
 } as const;
 
