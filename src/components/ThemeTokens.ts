@@ -29,10 +29,12 @@ export const ThemeTokens = {
     }
   },
   typography: {
-    fontFamily: "Estedad, var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
-    technicalFamily: "var(--font-inter), Inter, ui-monospace, SFMono-Regular, Consolas, monospace",
+    fontFamily: "var(--font-primary)",
+    technicalFamily: "var(--font-primary)",
+    primary: "var(--font-primary)",
+    technical: "var(--font-primary)",
     brand: {
-      family: "Estedad, var(--font-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif",
+      family: "var(--font-primary)",
       weight: 700,
       letterSpacing: "0.01em"
     },
@@ -54,8 +56,24 @@ export const ThemeTokens = {
       lineHeight: 1.5,
       letterSpacing: "0.01em"
     },
+    title: {
+      size: "16px",
+      weight: 600,
+      lineHeight: 1.6
+    },
+    display: {
+      size: "30px",
+      weight: 700,
+      lineHeight: 1.35
+    },
+    weights: {
+      regular: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700
+    },
     mono: {
-      family: "var(--font-inter), Inter, ui-monospace, SFMono-Regular, Consolas, monospace",
+      family: "var(--font-primary)",
       size: "10px",
       weight: 500,
       lineHeight: 1.5,
