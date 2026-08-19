@@ -4,6 +4,7 @@ import {
   ProductionGovernedOperationalReportService,
   ReadOnlyProgramQueryService
 } from "../../../application/reporting";
+import { SQLiteOperationalProgramReadRepository } from "../../../server/reporting/OperationalProgramReadRepository";
 
 export async function GET(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
       if (!params.generatedAt) {
         return json({ error: "generatedAt is required for governed reports.", code: "VALIDATION" }, { status: 400 });
       }
-      const program = new ReadOnlyProgramQueryService().getProgram({
+      const program = new ReadOnlyProgramQueryService(new SQLiteOperationalProgramReadRepository()).getProgram({
         id: "program-1405",
         title: "برنامه سالانه تحول دیجیتال ۱۴۰۵",
         description: "گزارش برنامه canonical سال ۱۴۰۵",

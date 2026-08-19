@@ -445,6 +445,16 @@ function validateAssignment(
     assignmentContext
     ?? (rootSubjectMatchesAssignment ? input.snapshot.context : undefined);
 
+  if (assignmentContext && !assignmentContext.authorizationScope.subjectVisible) {
+    addFinding(findings, {
+      ruleId: "assignment.context.authorization.unavailable",
+      severity: "BLOCKER",
+      subject,
+      reason: "Assignment-specific organizational context is outside authorization scope.",
+      evidence
+    });
+  }
+
   if (requiresOrganizationalContext && !organizationalContext) {
     addFinding(findings, {
       ruleId: "assignment.context.required",
@@ -477,7 +487,7 @@ function validateAssignment(
         evidence
       });
     }
-    if (!organizationalContext.authorizationScope.subjectVisible) {
+    if (!assignmentContext && !organizationalContext.authorizationScope.subjectVisible) {
       addFinding(findings, {
         ruleId: "assignment.context.authorization.unavailable",
         severity: "BLOCKER",

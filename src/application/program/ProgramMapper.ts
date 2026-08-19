@@ -80,11 +80,23 @@ export class ProgramMapper {
   activity(row: UnknownRow): Activity {
     if (row.type === "activity") return { ...(row as Activity), actions: [] };
     const objectiveId = text(row, "sub_goal_id", "subGoalId") ?? "";
+    const ownerPersonId = text(row, "owner_person_id", "ownerPersonId");
+    const ownerName = text(row, "owner");
     return {
       ...baseEntity(row, "activity"),
       type: "activity",
       objectiveId,
-      assignments: assignmentsFromUnknown(row.assignments),
+      assignments: [
+        ...(ownerPersonId ? [{
+          id: `${text(row, "id") ?? "activity"}:OWNER`,
+          entityType: "PERSON" as const,
+          entityId: ownerPersonId,
+          displayName: ownerName ?? ownerPersonId,
+          role: "OWNER" as const,
+          responsibilityType: "PRIMARY" as const
+        }] : []),
+        ...assignmentsFromUnknown(row.assignments)
+      ],
       actions: []
     };
   }

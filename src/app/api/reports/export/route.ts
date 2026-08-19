@@ -10,6 +10,7 @@ import {
   ProductionGovernedOperationalReportService,
   ReadOnlyProgramQueryService
 } from "../../../../application/reporting";
+import { SQLiteOperationalProgramReadRepository } from "../../../../server/reporting/OperationalProgramReadRepository";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
           headers: { "Content-Type": "application/json" }
         });
       }
-      const program = new ReadOnlyProgramQueryService().getProgram({
+      const program = new ReadOnlyProgramQueryService(new SQLiteOperationalProgramReadRepository()).getProgram({
         id: "program-1405",
         title: "برنامه سالانه تحول دیجیتال ۱۴۰۵",
         description: "گزارش برنامه canonical سال ۱۴۰۵",

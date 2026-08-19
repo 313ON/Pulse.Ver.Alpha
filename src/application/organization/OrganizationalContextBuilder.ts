@@ -15,6 +15,7 @@ import type {
   OrganizationalContextSubject
 } from "./OrganizationalContext";
 import { collectContextProvenance } from "./OrganizationalContextHardening";
+import { isAnnualProgramIdentity } from "../reporting/ProgramEntityIdentity";
 
 const CURRENT_PLAN_YEAR = 1405;
 
@@ -220,7 +221,11 @@ export class OrganizationalContextBuilder {
     const assignments = this.dependencies.readSide.listAssignments()
       .filter((assignment) => assignment.planYear === CURRENT_PLAN_YEAR)
       .filter((assignment) => {
-        if (subject.type === "PROGRAM_ENTITY") return assignment.programEntityId === subject.id;
+        if (subject.type === "PROGRAM_ENTITY") {
+          return isAnnualProgramIdentity(subject.id, CURRENT_PLAN_YEAR)
+            ? true
+            : assignment.programEntityId === subject.id;
+        }
         if (subject.type === "PERSON") return assignment.entityType === "PERSON" && assignment.entityId === subject.id;
         return assignment.entityType === "UNIT"
           ? assignment.entityId === resolved.visibleUnitId
