@@ -11,11 +11,17 @@ import {
 } from "../../domain/program";
 import type { ImportRecord, ImportValidationResult } from "./contracts";
 import { ImportNormalizer, type ImportNormalizationHooks } from "./normalization";
+import type { ProductionOrganizationalGovernance, ProductionOrganizationalGovernanceInput } from "../organization/governance/ProductionOrganizationalGovernance";
 
 export type ImportReadinessOptions = {
   normalizationHooks?: ImportNormalizationHooks;
   assignmentValidation?: AssignmentValidationOptions;
   today?: string;
+  evaluationGeneratedAt?: string;
+  organizationalGovernance?: {
+    boundary: ProductionOrganizationalGovernance;
+    input: ProductionOrganizationalGovernanceInput;
+  };
 };
 
 export type ProgramReadinessEvaluation = {
@@ -40,6 +46,9 @@ export class ImportReadinessService {
   }
 
   evaluateProgram(program: Program, options: ImportReadinessOptions = {}): ProgramReadinessEvaluation {
+    if (options.organizationalGovernance) {
+      throw new Error("Governed 10D evaluation must use ImportReviewService.evaluateGoverned.");
+    }
     const governance = this.validateAggregate(program, options.assignmentValidation);
     const assessment = assessProgramResponsibilities(program);
     const qualityScore = this.qualityEngine.calculate(program, governance, assessment, { today: options.today });

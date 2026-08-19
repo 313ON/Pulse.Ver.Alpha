@@ -4,6 +4,9 @@ import type { ImportRecord, ImportSource } from "../contracts";
 import { InMemoryImportJobRepository, InMemoryImportRecordRepository } from "../adapters";
 import type { ImportJobRepository, ImportRecordRepository } from "../ports";
 import type { ImportJob, ImportJobStatus } from "./ImportJob";
+import type { GovernedProgramEvaluationResult } from "../../program/GovernedProgramEvaluationService";
+import type { SessionUser } from "../../../server/auth";
+import { ProductionGovernedProgramEvaluationService } from "../../program/ProductionGovernedProgramEvaluationService";
 
 export type ImportApprovalResult = {
   ready: boolean;
@@ -42,6 +45,9 @@ export class ImportReviewService {
   }
 
   analyze(id: string, program: Program, options: ImportReadinessOptions = {}): ImportJob {
+    if (options.organizationalGovernance) {
+      throw new Error("Governed 10D evaluation must use evaluateGoverned and cannot persist evaluation results.");
+    }
     const job = this.getJob(id);
     this.requireStatus(job, "DRAFT", "REVIEW_REQUIRED");
     this.jobs.updateStatus(id, "ANALYZING");
@@ -54,6 +60,14 @@ export class ImportReviewService {
     }, evaluation.qualityScore);
     this.jobs.updateStatus(id, "REVIEW_REQUIRED");
     return this.getJob(id);
+  }
+
+  evaluateGoverned(
+    program: Program,
+    user: SessionUser,
+    generatedAt: string
+  ): GovernedProgramEvaluationResult {
+    return new ProductionGovernedProgramEvaluationService().evaluate(program, user, generatedAt);
   }
 
   approvalReadiness(id: string): ImportApprovalResult {

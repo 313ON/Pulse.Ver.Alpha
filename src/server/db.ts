@@ -3,6 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 let database: Database.Database | undefined;
+let readOnlyDatabase: Database.Database | undefined;
+
+function databasePath(): string {
+  return process.env.PULSE_DB_PATH ?? path.join(process.cwd(), "db", "pulse.sqlite");
+}
 
 function ensurePhaseFiveSchema(database: Database.Database): void {
   database.exec(`
@@ -97,9 +102,9 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
 
 export function getDatabase(): Database.Database {
   if (!database) {
-    const databasePath = process.env.PULSE_DB_PATH ?? path.join(process.cwd(), "db", "pulse.sqlite");
-    fs.mkdirSync(path.dirname(databasePath), { recursive: true });
-    database = new Database(databasePath);
+    const filePath = databasePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    database = new Database(filePath);
     database.pragma("foreign_keys = ON");
     const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
     database.exec(schema);
@@ -108,7 +113,25 @@ export function getDatabase(): Database.Database {
   return database;
 }
 
+/**
+ * Opens the configured SQLite file without runtime schema initialization.
+ * Read-only consumers must use this boundary so reads cannot create or alter
+ * the database as a side effect.
+ */
+export function getReadOnlyDatabase(): Database.Database {
+  if (!readOnlyDatabase) {
+    readOnlyDatabase = new Database(databasePath(), {
+      readonly: true,
+      fileMustExist: true
+    });
+    readOnlyDatabase.pragma("foreign_keys = ON");
+  }
+  return readOnlyDatabase;
+}
+
 export function closeDatabase(): void {
   database?.close();
   database = undefined;
+  readOnlyDatabase?.close();
+  readOnlyDatabase = undefined;
 }

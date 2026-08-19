@@ -166,6 +166,11 @@ export class ActivityRepository {
   }
 }
 
+/**
+ * LEGACY/AMBIGUOUS compatibility repository.
+ * Despite its historical name, this repository reads and writes seats
+ * (Position data). It is not a BusinessRole or authorization-role repository.
+ */
 export class RoleRepository {
   list() { return getDatabase().prepare("SELECT * FROM seats ORDER BY title").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM seats WHERE id = ?").get(id); }
