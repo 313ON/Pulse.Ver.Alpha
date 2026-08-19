@@ -70,7 +70,7 @@ function snapshot(overrides: Partial<OrganizationalContext> = {}) {
   return createOrganizationalContextSnapshot(context);
 }
 
-function evaluate(program = structuredClone(programFixture), context = snapshot(), authorization = user) {
+function evaluate(program = structuredClone(programFixture), context = snapshot()) {
   const assignmentContexts: Record<string, Pick<OrganizationalContext, "person" | "position" | "unit" | "authorizationScope">> = {};
   for (const goal of program.goals) {
     for (const objective of goal.objectives) {

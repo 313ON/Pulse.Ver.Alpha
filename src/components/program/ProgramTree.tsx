@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Action, Activity, Goal, KPI, Objective, Program, ProgramNode, ProgramNodeType } from "../../domain/program";
+import type { KPI, Program, ProgramNode, ProgramNodeType } from "../../domain/program";
 import { ActionCard } from "./ActionCard";
 import { ActivityCard } from "./ActivityCard";
 import { GoalCard, EntityCard } from "./GoalCard";
@@ -27,23 +27,6 @@ function findNode(node: ProgramNode, id: string): ProgramNode | null {
     if (found) return found;
   }
   return null;
-}
-
-function updateNode(node: ProgramNode, parentId: string, child: ProgramNode): ProgramNode {
-  if (node.id === parentId) {
-    if (node.type === "program" && child.type === "goal") return { ...node, goals: [...node.goals, child] };
-    if (node.type === "goal" && child.type === "objective") return { ...node, objectives: [...node.objectives, child] };
-    if (node.type === "objective" && child.type === "activity") return { ...node, activities: [...node.activities, child] };
-    if (node.type === "activity" && child.type === "action") return { ...node, actions: [...node.actions, child] };
-    if (node.type === "action" && child.type === "kpi") return { ...node, kpis: [...node.kpis, child] };
-    return node;
-  }
-  if (node.type === "program") return { ...node, goals: node.goals.map((item) => updateNode(item, parentId, child) as Goal) };
-  if (node.type === "goal") return { ...node, objectives: node.objectives.map((item) => updateNode(item, parentId, child) as Objective) };
-  if (node.type === "objective") return { ...node, activities: node.activities.map((item) => updateNode(item, parentId, child) as Activity) };
-  if (node.type === "activity") return { ...node, actions: node.actions.map((item) => updateNode(item, parentId, child) as Action) };
-  if (node.type === "action") return { ...node, kpis: node.kpis.map((item) => updateNode(item, parentId, child) as KPI) };
-  return node;
 }
 
 export function ProgramTree({ program }: { program: Program }) {

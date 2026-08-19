@@ -113,7 +113,6 @@ const builder = new OrganizationalContextBuilder({ organization, readSide });
 const company: SessionUser = { id: "company", username: "company", role: "MANAGEMENT", scope: "COMPANY" };
 const itManager: SessionUser = { id: "it-manager", username: "it-manager", role: "UNIT_MANAGER", scope: "DEPARTMENT", department_id: "it" };
 const itPerson: SessionUser = { id: "it-person", username: "it-person", role: "EMPLOYEE", scope: "OWN", person_id: "it-person" };
-const rndPerson: SessionUser = { id: "rnd-person", username: "rnd-person", role: "EMPLOYEE", scope: "OWN", person_id: "rnd-person" };
 
 describe("OrganizationalContextBuilder", () => {
   it("is deterministic for identical canonical inputs", () => {

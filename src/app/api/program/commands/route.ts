@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     const { commands, query } = createProgramServices();
     if (type === "goal") {
-      const user = await requirePermission("goals.edit");
+      await requirePermission("goals.edit");
       const program = query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy;
       const nextId = nextIdentifier("G", program.goals.map((goal) => goal.id));
       return json(commands.createGoal({ id: nextId, title, programId: parentId }), { status: 201 });

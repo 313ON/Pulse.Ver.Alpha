@@ -1,4 +1,4 @@
-import { canTransitionStatus, compareProgramDates } from "../rules";
+import { canTransitionStatus } from "../rules";
 import type { Assignment } from "../Assignment";
 import type { ProgramNode, ProgramStatus } from "../types";
 import {

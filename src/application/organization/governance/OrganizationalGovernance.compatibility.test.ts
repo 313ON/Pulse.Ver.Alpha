@@ -85,16 +85,6 @@ function canonicalAssignments(
     }));
 }
 
-function blockedAssignmentIds(assignments: ContextProgramAssignment[]): Set<string> {
-  return new Set(assignments
-    .filter((assignment) => evaluateOrganizationalGovernance({
-      snapshot: snapshot(),
-      identity,
-      assignments: [assignment]
-    }).status === "BLOCKED")
-    .map((assignment) => assignment.id));
-}
-
 describe("10C compatibility boundaries", () => {
   it("excludes 10C-blocked assignments from responsibility coverage", () => {
     const valid = [contextAssignment("activity-valid", person.id), contextAssignment("action-valid", person.id)];

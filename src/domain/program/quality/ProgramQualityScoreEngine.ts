@@ -1,7 +1,7 @@
 import { compareProgramDates, isActionOverdue } from "../rules";
 import type { GovernanceValidationReport } from "../governance/GovernanceViolation";
 import type { ResponsibilityAssessmentFinding } from "../governance/ResponsibilityAssessment";
-import type { Action, Activity, Goal, KPI, Objective, Program } from "../types";
+import type { Action, Activity, Goal, Objective, Program } from "../types";
 import type { ProgramQualityFinding, ProgramQualityScore } from "./ProgramQualityScore";
 
 export type ProgramQualityScoreOptions = {
