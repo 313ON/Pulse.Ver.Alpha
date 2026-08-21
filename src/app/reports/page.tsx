@@ -137,7 +137,8 @@ export default function ReportsPage() {
               </div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>شناسه</th><th>عنوان</th><th>نوع</th><th>وضعیت</th><th>پیشرفت</th><th>هدف</th><th>تخصیص مجاز</th></tr></thead>
+                  <caption className="sr-only">جدول اقلام گزارش governed</caption>
+                  <thead><tr><th scope="col">شناسه</th><th scope="col">عنوان</th><th scope="col">نوع</th><th scope="col">وضعیت</th><th scope="col">پیشرفت</th><th scope="col">هدف</th><th scope="col">تخصیص مجاز</th></tr></thead>
                   <tbody>
                     {report.rows.map((row) => (
                       <tr key={row.id}>

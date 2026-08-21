@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -29,9 +30,50 @@ export function CommandSidebar({
   onLogout: () => void;
 }) {
   const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileOpen]);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="sidebar command-sidebar">
+    <>
+      <button
+        ref={toggleRef}
+        className="mobile-nav-toggle"
+        type="button"
+        aria-expanded={isMobileOpen}
+        aria-controls="pulse-command-sidebar"
+        aria-label={isMobileOpen ? "بستن منوی اصلی" : "باز کردن منوی اصلی"}
+        onClick={() => setIsMobileOpen((current) => !current)}
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
+      {isMobileOpen && (
+        <button
+          className="mobile-nav-backdrop"
+          type="button"
+          aria-label="بستن منوی اصلی"
+          onClick={() => {
+            setIsMobileOpen(false);
+            toggleRef.current?.focus();
+          }}
+        />
+      )}
+    <aside id="pulse-command-sidebar" className={`sidebar command-sidebar${isMobileOpen ? " is-mobile-open" : ""}`} aria-label="منوی اصلی">
       <div className="brand">
         <div className="brand-mark">P</div>
         <div><strong>PULSE</strong><span>برنامه دیجیتال سازمان</span><small>چرب شیمی</small></div>
@@ -40,7 +82,7 @@ export function CommandSidebar({
       <div className="nav-caption">ناوبری فرمان</div>
       <nav aria-label="ناوبری اصلی">
         {items.map(([label, href, icon]) => (
-          <Link key={href} href={href} className={`nav-item ${pathname === href ? "active" : ""}`}>
+          <Link key={href} href={href} className={`nav-item ${pathname === href ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>
             <span className="nav-icon">{icon}</span><span>{label}</span><span className="nav-chevron">‹</span>
           </Link>
         ))}
@@ -54,5 +96,6 @@ export function CommandSidebar({
         </div>
       </div>
     </aside>
+    </>
   );
 }

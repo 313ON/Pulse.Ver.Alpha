@@ -1121,3 +1121,77 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .import-field summary { color: var(--primary-strong); cursor: pointer; }
 .import-review-boundary { border-inline-start: 4px solid var(--primary); }
 .import-review-actions button:focus-visible, .import-upload-actions button:focus-visible, .import-file-summary button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mobile-nav-toggle,
+.mobile-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .pulse-shell .sidebar {
+    display: flex;
+    width: min(280px, 86vw);
+    transform: translateX(100%);
+    transition: transform .2s ease;
+    box-shadow: -18px 0 40px rgba(0, 0, 0, .18);
+  }
+
+  .pulse-shell .sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .pulse-shell .content {
+    width: 100%;
+    margin-inline: 0;
+  }
+
+  .command-header,
+  .app-footer {
+    inset-inline: 0;
+  }
+
+  .mobile-nav-toggle {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    inset-block-start: 14px;
+    inset-inline-end: 16px;
+    z-index: 7;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface-base);
+    color: var(--text-primary);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .1);
+    font-size: 20px;
+  }
+
+  .mobile-nav-toggle:focus-visible,
+  .mobile-nav-backdrop:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+    outline-offset: 2px;
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 6;
+    width: 100%;
+    height: 100%;
+    background: color-mix(in srgb, #07110d 55%, transparent);
+  }
+}
