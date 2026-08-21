@@ -40,6 +40,13 @@ export class InMemoryImportJobRepository implements ImportJobRepository {
     return job;
   }
 
+  saveFailure(id: string, reason: string): ImportJob {
+    const job = this.require(id);
+    job.status = "FAILED";
+    job.failureReason = reason;
+    return job;
+  }
+
   private require(id: string): ImportJob {
     const job = this.jobs.get(id);
     if (!job) throw new Error(`Import job "${id}" was not found.`);

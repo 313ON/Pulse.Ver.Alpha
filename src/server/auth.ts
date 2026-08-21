@@ -6,7 +6,7 @@ export const permissionCodes = [
   "goals.view", "goals.edit", "actions.view", "actions.create", "actions.edit-own",
   "actions.edit-department", "actions.progress", "kpis.manage", "risks.manage",
   "dependencies.manage", "organization.manage", "reports.view", "reports.export",
-  "users.manage", "permissions.manage", "activities.view", "activities.create",
+  "users.manage", "permissions.manage", "imports.manage", "activities.view", "activities.create",
   "activities.edit-own", "activities.edit-department"
 ] as const;
 

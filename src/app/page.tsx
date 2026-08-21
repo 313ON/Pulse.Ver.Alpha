@@ -1,21 +1,25 @@
 import { PulseShell } from "../components/PulseShell";
 import { StrategicCommandCenter } from "../components/program/StrategicCommandCenter";
 import { ensureRuntimeData } from "./api/_lib";
+import { requirePagePermission } from "./api/_lib";
 import { createProgramServices } from "../server/program";
+import { getPlanningContext } from "../domain/planning";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  await requirePagePermission("goals.view");
   ensureRuntimeData();
+  const planning = getPlanningContext();
   const { query } = createProgramServices();
   const program = query.getProgram({
-    id: "program-1405",
-    title: "برنامه سالانه تحول دیجیتال ۱۴۰۵",
-    description: "نقشه اجرایی یکپارچه تحول دیجیتال سازمان در چرخه برنامه‌ریزی سالانه",
+    id: `program-${planning.planYear}`,
+    title: `برنامه سالانه تحول دیجیتال ${planning.planYear}`,
+    description: `نقشه اجرایی یکپارچه تحول دیجیتال سازمان در چرخه برنامه‌ریزی سالانه ${planning.planYear}`,
     status: "در حال اجرا",
     priority: "بحرانی",
-    start: "۱۴۰۵/۰۱/۰۱",
-    end: "۱۴۰۵/۱۲/۲۹"
+    start: planning.startDate,
+    end: planning.endDate
   }).hierarchy;
   return <PulseShell><StrategicCommandCenter program={program} /></PulseShell>;
 }

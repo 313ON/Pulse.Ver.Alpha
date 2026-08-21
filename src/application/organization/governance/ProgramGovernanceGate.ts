@@ -1,6 +1,7 @@
 import type { Program, Activity, Action } from "../../../domain/program/types";
 import {
   evaluateOrganizationalGovernance,
+  currentPlanYear,
   type OrganizationalGovernanceInput,
   type GovernanceResult
 } from "./OrganizationalGovernance";
@@ -30,7 +31,7 @@ export function projectProgramThroughOrganizationalGovernance(
     (entity.assignments ?? []).map((assignment) => ({
       ...assignment,
       programEntityId: entity.id,
-      planYear: 1405
+      planYear: currentPlanYear()
     }))
   );
   const governance = evaluateOrganizationalGovernance({ ...input, assignments });

@@ -11,9 +11,13 @@ import type {
   OrganizationalContext,
   OrganizationalContextSnapshot
 } from "../OrganizationalContext";
+import { getPlanningContext } from "../../../domain/planning";
 
 export const GOVERNANCE_RULE_SET_VERSION = "10C.1";
-export const CURRENT_PLAN_YEAR = 1405;
+export const DEFAULT_PLAN_YEAR = getPlanningContext().planYear;
+export function currentPlanYear(): number {
+  return getPlanningContext().planYear;
+}
 
 export type GovernanceStatus = "PASS" | "WARNING" | "BLOCKED";
 export type GovernanceSeverity = "INFO" | "WARNING" | "BLOCKER";
@@ -50,7 +54,7 @@ export type GovernanceFinding = {
 export type GovernanceResult = {
   status: GovernanceStatus;
   ruleSetVersion: string;
-  planYear: typeof CURRENT_PLAN_YEAR;
+  planYear: number;
   findings: GovernanceFinding[];
 };
 
@@ -188,7 +192,7 @@ function validateContext(
     }
   }
   for (const evidence of context.historicalEvidence) {
-    if (evidence.reference.sourceYear === CURRENT_PLAN_YEAR || !evidence.sourceOnly) {
+    if (evidence.reference.sourceYear === currentPlanYear() || !evidence.sourceOnly) {
       addFinding(findings, {
         ruleId: "plan-year.historical-evidence.leakage",
         severity: "BLOCKER",
@@ -196,7 +200,7 @@ function validateContext(
           type: evidence.entityType,
           id: evidence.entityId
         },
-        reason: "Historical/reference evidence cannot satisfy canonical 1405 governance.",
+        reason: `Historical/reference evidence cannot satisfy canonical ${currentPlanYear()} governance.`,
         evidence: {
           provenance: [evidence.reference],
           sourceYear: evidence.reference.sourceYear,
@@ -583,23 +587,23 @@ function validateAssignment(
     }
   }
 
-  if (assignment.planYear !== CURRENT_PLAN_YEAR) {
+  if (assignment.planYear !== currentPlanYear()) {
     addFinding(findings, {
       ruleId: "plan-year.assignment.not-canonical",
       severity: "BLOCKER",
       subject,
-      reason: "Only plan year 1405 assignments may participate in canonical governance.",
+      reason: `Only plan year ${currentPlanYear()} assignments may participate in canonical governance.`,
       evidence
     });
     return;
   }
 
-  if (assignment.provenance && assignment.provenance.sourceYear !== CURRENT_PLAN_YEAR) {
+  if (assignment.provenance && assignment.provenance.sourceYear !== currentPlanYear()) {
     addFinding(findings, {
       ruleId: "plan-year.historical-assignment.blocked",
       severity: "BLOCKER",
       subject,
-      reason: "Historical provenance cannot satisfy a canonical 1405 assignment.",
+      reason: `Historical provenance cannot satisfy a canonical ${currentPlanYear()} assignment.`,
       evidence
     });
   }
@@ -766,7 +770,7 @@ export function evaluateOrganizationalGovernance(
   return {
     status,
     ruleSetVersion: GOVERNANCE_RULE_SET_VERSION,
-    planYear: CURRENT_PLAN_YEAR,
+    planYear: currentPlanYear(),
     findings: deduplicated
   };
 }

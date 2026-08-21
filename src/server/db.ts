@@ -76,6 +76,24 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
     CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
+    CREATE TABLE IF NOT EXISTS import_jobs (
+      id TEXT PRIMARY KEY,
+      source_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      validation_json TEXT,
+      assessment_json TEXT,
+      quality_score_json TEXT,
+      created_at TEXT NOT NULL,
+      approved_at TEXT,
+      failure_reason TEXT
+    );
+    CREATE TABLE IF NOT EXISTS import_records (
+      id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      record_json TEXT NOT NULL,
+      PRIMARY KEY (job_id, id),
+      FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
+    );
   `);
   const columns = database.prepare("PRAGMA table_info(work_items)").all() as Array<{ name: string }>;
   const known = new Set(columns.map((column) => column.name));

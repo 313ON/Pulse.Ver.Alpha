@@ -7,9 +7,10 @@ import type {
   GovernedProgramEvaluationResult
 } from "../program/GovernedProgramEvaluationService";
 import type { GovernanceEvidence, GovernanceSubject } from "../organization/governance/OrganizationalGovernance";
+import { DEFAULT_PLANNING_CONTEXT } from "../../domain/planning";
 
 export const GOVERNED_OPERATIONAL_REPORT_VERSION = "10E.1";
-export const GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR = 1405 as const;
+export const GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR = DEFAULT_PLANNING_CONTEXT.planYear;
 
 export type GovernedOperationalReportFilters = {
   goalId?: string;
@@ -24,7 +25,7 @@ export type GovernedOperationalReportInput = {
   filters?: GovernedOperationalReportFilters;
   legacyCompatibilityMetrics?: LegacyCompatibilityMetric[];
   generatedAt: string;
-  planYear?: typeof GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR;
+  planYear?: number;
 };
 
 export type GovernedFindingView = {
@@ -34,7 +35,7 @@ export type GovernedFindingView = {
   reason: string;
   evidence?: GovernanceEvidence;
   provenance: OrganizationalContextProvenance[];
-  planYear: typeof GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR;
+  planYear: number;
 };
 
 export type LegacyCompatibilityMetric = {
@@ -64,7 +65,7 @@ export type GovernedOperationalReport = {
     title: string;
     status: string;
   };
-  planYear: typeof GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR;
+  planYear: number;
   generatedAt: string;
   evaluationState: "PASS" | "WARNING" | "BLOCKED";
   authorization: {

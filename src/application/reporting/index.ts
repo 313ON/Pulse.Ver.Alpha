@@ -3,3 +3,4 @@ export * from "./GovernedOperationalReportAdapter";
 export * from "./ProductionGovernedOperationalReportService";
 export * from "./ReadOnlyProgramQueryService";
 export * from "./ports";
+export * from "./CanonicalProgram";

@@ -2,6 +2,7 @@ import type { ActionStatus, Health } from "./data";
 import { kpiRecordToKPI, workItemToAction } from "../domain/program/mappings";
 import { calculatePulseScore as calculateCanonicalPulseScore } from "../domain/program/metrics";
 import { getKpiHealth as getCanonicalKpiHealth, isActionOverdue } from "../domain/program/rules";
+import { DEFAULT_PLANNING_CONTEXT } from "../domain/planning";
 
 export type WorkType = "پروژه" | "اقدام" | "فعالیت تکرارشونده" | "پایش KPI" | "Milestone";
 export type RiskStatus = "باز" | "کنترل‌شده" | "بسته";
@@ -148,7 +149,7 @@ export function inspectProgramQuality(
   goalIds: Set<string>,
   kpiItemIds: Set<string>,
   dependencies: Dependency[] = [],
-  today = "1405/06/15"
+  today = DEFAULT_PLANNING_CONTEXT.today
 ): ProgramQuality {
   const duplicateKeys = new Set<string>();
   let duplicateActions = 0;
@@ -179,7 +180,7 @@ export function calculatePulseScore(
   items: WorkItem[],
   kpis: KpiRecord[],
   risks: RiskRecord[],
-  today = "1405/06/15"
+  today = DEFAULT_PLANNING_CONTEXT.today
 ): PulseScoreBreakdown {
   return calculateCanonicalPulseScore(
     goalProgress,

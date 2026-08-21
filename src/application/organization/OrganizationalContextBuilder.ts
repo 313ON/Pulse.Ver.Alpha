@@ -17,7 +17,7 @@ import type {
 import { collectContextProvenance } from "./OrganizationalContextHardening";
 import { isAnnualProgramIdentity } from "../reporting/ProgramEntityIdentity";
 
-const CURRENT_PLAN_YEAR = 1405;
+import { getPlanningContext } from "../../domain/planning";
 
 export type OrganizationalContextBuilderDependencies = {
   organization: OrganizationRepository;
@@ -219,10 +219,10 @@ export class OrganizationalContextBuilder {
     resolved: ReturnType<OrganizationalContextBuilder["resolveSubject"]>
   ) {
     const assignments = this.dependencies.readSide.listAssignments()
-      .filter((assignment) => assignment.planYear === CURRENT_PLAN_YEAR)
+      .filter((assignment) => assignment.planYear === getPlanningContext().planYear)
       .filter((assignment) => {
         if (subject.type === "PROGRAM_ENTITY") {
-          return isAnnualProgramIdentity(subject.id, CURRENT_PLAN_YEAR)
+          return isAnnualProgramIdentity(subject.id, getPlanningContext().planYear)
             ? true
             : assignment.programEntityId === subject.id;
         }
@@ -240,7 +240,7 @@ export class OrganizationalContextBuilder {
       });
 
     const historicalEvidence = this.dependencies.readSide.listHistoricalEvidence()
-      .filter((evidence) => evidence.reference.sourceYear !== CURRENT_PLAN_YEAR)
+      .filter((evidence) => evidence.reference.sourceYear !== getPlanningContext().planYear)
       .filter((evidence) => {
         if (subject.type === "PERSON") return evidence.entityId === subject.id;
         if (subject.type === "UNIT") return evidence.entityId === subject.id;
@@ -248,11 +248,11 @@ export class OrganizationalContextBuilder {
       });
     const historicalAssignments = assignments
       .filter((assignment) =>
-        Boolean(assignment.provenance) && assignment.provenance!.sourceYear !== CURRENT_PLAN_YEAR
+        Boolean(assignment.provenance) && assignment.provenance!.sourceYear !== getPlanningContext().planYear
       )
       .map(historicalAssignment);
     const canonicalAssignments = assignments
-      .filter((assignment) => assignment.provenance?.sourceYear === CURRENT_PLAN_YEAR || !assignment.provenance);
+      .filter((assignment) => assignment.provenance?.sourceYear === getPlanningContext().planYear || !assignment.provenance);
 
     const unresolvedReferences = canonicalAssignments
       .filter((assignment) =>

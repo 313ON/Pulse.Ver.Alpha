@@ -9,8 +9,11 @@ import {
   GovernedProgramEvaluationService,
   type GovernedProgramEvaluationResult
 } from "./GovernedProgramEvaluationService";
+import { getPlanningContext, type PlanningContext } from "../../domain/planning";
 
 export class ProductionGovernedProgramEvaluationService {
+  constructor(private readonly planning: PlanningContext = getPlanningContext()) {}
+
   private readonly organization = new SQLiteOrganizationRepository();
   private readonly readSide = new SQLiteOrganizationalContextReadRepository();
   private readonly builder = new OrganizationalContextBuilder({
@@ -57,7 +60,7 @@ export class ProductionGovernedProgramEvaluationService {
           assignmentContexts
         }
       },
-      today: generatedAt.slice(0, 10),
+      today: this.planning.today,
       evaluationGeneratedAt: generatedAt
     });
   }

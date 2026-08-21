@@ -11,7 +11,8 @@ export type ImportJobStatus =
   | "ANALYZING"
   | "REVIEW_REQUIRED"
   | "APPROVED"
-  | "REJECTED";
+  | "REJECTED"
+  | "FAILED";
 
 export type ImportAssessmentResult = {
   governance: GovernanceValidationReport;
@@ -28,4 +29,5 @@ export type ImportJob = {
   qualityScore?: ProgramQualityScore;
   createdAt: string;
   approvedAt?: string;
+  failureReason?: string;
 };

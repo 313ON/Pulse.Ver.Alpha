@@ -1,12 +1,14 @@
 import { ensureRuntimeData, handleApiError, json, readJson, requirePermission } from "../../_lib";
 import { createProgramServices } from "../../../../server/program";
 import type { ProgramNodeType } from "../../../../domain/program";
+import { getPlanningContext } from "../../../../domain/planning";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
     ensureRuntimeData();
+    const planning = getPlanningContext();
     const body = await readJson(request);
     const type = String(body.type) as Exclude<ProgramNodeType, "program" | "kpi">;
     const parentId = String(body.parentId ?? "");
@@ -18,13 +20,13 @@ export async function POST(request: Request) {
     const { commands, query } = createProgramServices();
     if (type === "goal") {
       await requirePermission("goals.edit");
-      const program = query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy;
+      const program = query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy;
       const nextId = nextIdentifier("G", program.goals.map((goal) => goal.id));
       return json(commands.createGoal({ id: nextId, title, programId: parentId }), { status: 201 });
     }
     if (type === "objective") {
       await requirePermission("goals.edit");
-      const goal = findGoal(query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy, parentId);
+      const goal = findGoal(query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy, parentId);
       if (!goal) return json({ error: "هدف والد پیدا نشد.", code: "NOT_FOUND" }, { status: 404 });
       return json(commands.createObjective({ id: nextIdentifier("O", goal.objectives.map((item) => item.id)), goalId: goal.id, title }), { status: 201 });
     }
@@ -33,10 +35,10 @@ export async function POST(request: Request) {
       return json(commands.createActivity({ objectiveId: parentId, title }), { status: 201 });
     }
     await requirePermission("actions.create");
-    const activity = findActivity(query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy, parentId);
+    const activity = findActivity(query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy, parentId);
     if (!activity) return json({ error: "فعالیت والد پیدا نشد.", code: "NOT_FOUND" }, { status: 404 });
-    const objective = findObjective(query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy, activity.objectiveId);
-    const goal = objective ? findGoal(query.getProgram({ id: "program-1405", title: "برنامه ۱۴۰۵" }).hierarchy, objective.goalId) : undefined;
+    const objective = findObjective(query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy, activity.objectiveId);
+    const goal = objective ? findGoal(query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy, objective.goalId) : undefined;
     if (!objective || !goal) return json({ error: "زنجیره والد اقدام کامل نیست.", code: "VALIDATION" }, { status: 400 });
     return json(commands.createAction({
       publicId: `${goal.id}-${objective.id}-${activity.id}-T${Date.now().toString().slice(-3)}`,
@@ -48,8 +50,8 @@ export async function POST(request: Request) {
       departmentId: "it",
       ownerPersonId: "it-engineer",
       deliverable: title,
-      deadline: "۱۴۰۵/۱۲/۲۹",
-      plannedStart: "۱۴۰۵/۰۶/۰۱",
+      deadline: planning.endDate,
+      plannedStart: planning.today,
       status: "پیش‌نویس",
       progress: 0
     }), { status: 201 });

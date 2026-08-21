@@ -63,7 +63,7 @@ export default function ReportsPage() {
           <div>
             <div className="eyebrow">گزارش‌گیری مدیریتی</div>
             <h1>گزارش عملیاتی حاکمیتی</h1>
-            <p>نمای خواندنی و deterministic بر مبنای ارزیابی governed برنامه ۱۴۰۵</p>
+            <p>نمای خواندنی و deterministic بر مبنای ارزیابی governed برنامه جاری</p>
           </div>
           <div className="top-actions">
             <a className="secondary-button" href={exportUrl("pdf")}>خروجی PDF</a>

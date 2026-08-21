@@ -1,6 +1,7 @@
 import type { Action, KPI } from "./types";
 import type { RiskRecord } from "../../lib/domain";
 import { getKpiHealth, isActionOverdue } from "./rules";
+import { DEFAULT_PLANNING_CONTEXT } from "../planning";
 
 export type PulseScoreBreakdown = {
   goalProgress: number;
@@ -21,7 +22,7 @@ export function calculatePulseScore(
   actions: Action[],
   kpis: KPI[],
   risks: RiskRecord[],
-  today = "1405/06/15"
+  today = DEFAULT_PLANNING_CONTEXT.today
 ): PulseScoreBreakdown {
   const boundedAverage = (values: number[]) => values.length
     ? values.reduce((sum, value) => sum + Math.max(0, Math.min(100, value)), 0) / values.length

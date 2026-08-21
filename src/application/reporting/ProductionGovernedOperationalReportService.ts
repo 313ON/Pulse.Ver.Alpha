@@ -7,8 +7,11 @@ import { ProductionGovernedProgramEvaluationService } from "../program/Productio
 import type { Program } from "../../domain/program";
 import type { GovernedOperationalReport, GovernedOperationalReportFilters } from "./contracts";
 import { GovernedOperationalReportAdapter } from "./GovernedOperationalReportAdapter";
+import { getPlanningContext, type PlanningContext } from "../../domain/planning";
 
 export class ProductionGovernedOperationalReportService {
+  constructor(private readonly planning: PlanningContext = getPlanningContext()) {}
+
   private readonly organization = new SQLiteOrganizationRepository();
   private readonly readSide = new SQLiteOrganizationalContextReadRepository();
   private readonly builder = new OrganizationalContextBuilder({
@@ -34,7 +37,7 @@ export class ProductionGovernedOperationalReportService {
       authorization: user,
       filters,
       generatedAt,
-      planYear: 1405
+      planYear: this.planning.planYear
     });
   }
 }

@@ -4,11 +4,13 @@ import type { ProgramReadModel } from "../program/ProgramReadModel";
 import { ProgramMapper } from "../program/ProgramMapper";
 import type { OperationalProgramReadPort } from "./ports";
 import { parseWorkItemHierarchyIdentity } from "./ProgramEntityIdentity";
+import { getPlanningContext, type PlanningContext } from "../../domain/planning";
 
 export class ReadOnlyProgramQueryService {
   constructor(
     private readonly readRepository: OperationalProgramReadPort,
-    private readonly mapper = new ProgramMapper()
+    private readonly mapper = new ProgramMapper(),
+    private readonly planning: PlanningContext = getPlanningContext()
   ) {}
 
   getProgram(descriptor: {
@@ -20,7 +22,7 @@ export class ReadOnlyProgramQueryService {
     start?: string;
     end?: string;
   }): ProgramReadModel {
-    const planYear = 1405;
+    const planYear = this.planning.planYear;
     const goals = this.readRepository.listGoals(planYear)
       .map((row) => this.mapper.goal(row, descriptor.id));
     const objectives = this.readRepository.listObjectives(planYear)

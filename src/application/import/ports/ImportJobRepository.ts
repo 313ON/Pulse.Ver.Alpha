@@ -13,4 +13,5 @@ export type ImportJobRepository = {
     assessmentResult: ImportAssessmentResult,
     qualityScore: ProgramQualityScore
   ): ImportJob;
+  saveFailure(id: string, reason: string): ImportJob;
 };

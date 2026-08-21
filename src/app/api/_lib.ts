@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { seedBaseline } from "../../server/seed";
 import { RepositoryError } from "../../server/repositories";
 import { audit, can, canScope, getSessionUser, seedAuthFoundation, secureCookiesEnabled, type PermissionCode, type SessionUser } from "../../server/auth";
@@ -82,6 +83,19 @@ export async function requirePermission(permission: PermissionCode) {
   const user = await getSessionUser();
   if (!user) throw new AuthorizationError("UNAUTHORIZED", "برای انجام این عملیات وارد سامانه شوید.");
   if (!can(permission, user.role)) throw new AuthorizationError("FORBIDDEN", "شما مجوز انجام این عملیات را ندارید.");
+  return user;
+}
+
+export async function requirePagePermission(permission: PermissionCode): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  if (!can(permission, user.role)) redirect("/login");
+  return user;
+}
+
+export async function requirePageSession(): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
   return user;
 }
 

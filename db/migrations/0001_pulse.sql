@@ -6,7 +6,6 @@ create table strategic_goals (
   owner_person_id uuid,
   plan_year smallint not null default 1405,
   created_at timestamptz not null default now(),
-  check (plan_year = 1405)
 );
 create table departments (
   id uuid primary key default gen_random_uuid(),
@@ -49,7 +48,7 @@ create table work_items (
   priority varchar(12),
   blocker text,
   notes text,
-  plan_year smallint not null default 1405 check (plan_year = 1405),
+  plan_year smallint not null default 1405,
   created_at timestamptz not null default now(),
   check (public_id ~ '^G[0-9]{2}-O[0-9]{2}-A[0-9]{2}-T[0-9]{3}$'),
   check (planned_end >= planned_start),

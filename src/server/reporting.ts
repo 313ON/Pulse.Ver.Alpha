@@ -1,12 +1,13 @@
 import { getDatabase } from "./db";
 import type { SessionUser } from "./auth";
+import { getPlanningContext, type PlanningContext } from "../domain/planning";
 
 export type ReportFilters = Record<string, string>;
 
-export function buildReport(filters: ReportFilters, user?: SessionUser | null) {
+export function buildReport(filters: ReportFilters, user?: SessionUser | null, planning: PlanningContext = getPlanningContext()) {
   const db = getDatabase();
-  const clauses = ["w.plan_year = 1405"];
-  const values: Record<string, string | number> = {};
+  const clauses = ["w.plan_year = @planYear"];
+  const values: Record<string, string | number> = { planYear: planning.planYear };
   const add = (sql: string, key: string, value: string | null) => {
     if (value) { clauses.push(sql); values[key] = value; }
   };
@@ -22,7 +23,7 @@ export function buildReport(filters: ReportFilters, user?: SessionUser | null) {
   if (filters.dateTo) add("w.planned_end <= @dateTo", "dateTo", filters.dateTo);
   if (filters.progressMin) { clauses.push("w.progress >= @progressMin"); values.progressMin = Number(filters.progressMin); }
   if (filters.progressMax) { clauses.push("w.progress <= @progressMax"); values.progressMax = Number(filters.progressMax); }
-  if (filters.overdue === "true") clauses.push("w.status NOT IN ('تکمیل شده','لغو شده') AND w.planned_end < '۱۴۰۵/۰۶/۱۵'");
+  if (filters.overdue === "true") { clauses.push("w.status NOT IN ('تکمیل شده','لغو شده') AND w.planned_end < @today"); values.today = planning.today; }
   if (filters.kpi === "true") clauses.push("EXISTS (SELECT 1 FROM kpis k WHERE k.work_item_id = w.id)");
   if (filters.risk === "true") clauses.push("EXISTS (SELECT 1 FROM risks r WHERE r.work_item_id = w.id OR r.goal_id = w.goal_id)");
   if (user?.scope === "DEPARTMENT") { clauses.push("w.department_id = @scopeDepartment"); values.scopeDepartment = user.department_id ?? ""; }
@@ -41,9 +42,9 @@ export function buildReport(filters: ReportFilters, user?: SessionUser | null) {
     WHERE ${clauses.join(" AND ")}
     ORDER BY w.planned_end, w.public_id
   `).all(values) as Array<Record<string, unknown>>;
-  const departments = db.prepare("SELECT d.id, d.name, COUNT(w.id) AS action_count, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM departments d LEFT JOIN work_items w ON w.department_id = d.id AND w.plan_year = 1405 GROUP BY d.id ORDER BY d.name").all();
-  const goals = db.prepare("SELECT g.id, g.title, COUNT(w.id) AS action_count, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM strategic_goals g LEFT JOIN work_items w ON w.goal_id = g.id AND w.plan_year = 1405 GROUP BY g.id ORDER BY g.id").all();
-  const monthlyTrend = db.prepare("SELECT substr(w.planned_end, 1, 7) AS month, COUNT(*) AS actions, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM work_items w WHERE w.plan_year = 1405 GROUP BY month ORDER BY month").all();
+  const departments = db.prepare("SELECT d.id, d.name, COUNT(w.id) AS action_count, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM departments d LEFT JOIN work_items w ON w.department_id = d.id AND w.plan_year = @planYear GROUP BY d.id ORDER BY d.name").all({ planYear: planning.planYear });
+  const goals = db.prepare("SELECT g.id, g.title, COUNT(w.id) AS action_count, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM strategic_goals g LEFT JOIN work_items w ON w.goal_id = g.id AND w.plan_year = @planYear GROUP BY g.id ORDER BY g.id").all({ planYear: planning.planYear });
+  const monthlyTrend = db.prepare("SELECT substr(w.planned_end, 1, 7) AS month, COUNT(*) AS actions, COALESCE(ROUND(AVG(w.progress)),0) AS progress FROM work_items w WHERE w.plan_year = @planYear GROUP BY month ORDER BY month").all({ planYear: planning.planYear });
   const highRisks = db.prepare("SELECT COUNT(*) AS count FROM risks WHERE probability * impact >= 15 AND status <> 'بسته'").get() as { count: number };
   const unresolvedDependencies = db.prepare("SELECT COUNT(*) AS count FROM dependencies WHERE status <> 'حل‌شده' OR delay_days > 0").get() as { count: number };
   const completed = actions.filter((row) => row.status === "تکمیل شده").length;
@@ -52,10 +53,10 @@ export function buildReport(filters: ReportFilters, user?: SessionUser | null) {
     generatedAt: new Date().toISOString(),
     filters,
     summary: {
-      totalGoals: (db.prepare("SELECT COUNT(*) AS count FROM strategic_goals WHERE plan_year = 1405").get() as { count: number }).count,
+      totalGoals: (db.prepare("SELECT COUNT(*) AS count FROM strategic_goals WHERE plan_year = @planYear").get({ planYear: planning.planYear }) as { count: number }).count,
       totalActions: actions.length,
       completionPercentage: actions.length ? Math.round((completed / actions.length) * 100) : 0,
-      overdueActions: actions.filter((row) => row.status !== "تکمیل شده" && row.status !== "لغو شده" && String(row.planned_end) < "۱۴۰۵/۰۶/۱۵").length,
+      overdueActions: actions.filter((row) => row.status !== "تکمیل شده" && row.status !== "لغو شده" && String(row.planned_end) < planning.today).length,
       highRisks: highRisks.count,
       unresolvedDependencies: unresolvedDependencies.count,
       averageProgress: actions.length ? Math.round(actions.reduce((sum, row) => sum + Number(row.progress), 0) / actions.length) : 0

@@ -1,4 +1,4 @@
-import { currentPlanDate } from "../../../lib/data";
+import { getPlanningContext } from "../../../domain/planning";
 import { calculatePulseScore, getKpiHealth, inspectProgramQuality, riskSeverity, type KpiRecord, type RiskRecord, type WorkItem } from "../../../lib/domain";
 import { ensureRuntimeData, handleApiError, json, requirePermission } from "../_lib";
 import { ActionRepository, DependencyRepository, DepartmentRepository, GoalRepository, KPIRepository, RiskRepository } from "../../../server/repositories";
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     ensureRuntimeData();
+    const planning = getPlanningContext();
     const user = await requirePermission("actions.view");
     const goalRows = new GoalRepository().list() as Array<{ id: string; title: string }>;
     const actionRows = new ActionRepository().list(user) as Array<Record<string, unknown>>;
@@ -45,18 +46,18 @@ export async function GET() {
       const health = progress >= 70 ? "سبز" : progress >= 45 ? "زرد" : related.length ? "قرمز" : "خاکستری";
       return { ...goal, progress, health, actionCount: related.length };
     });
-    const score = calculatePulseScore(goals.map((goal) => goal.progress), items, kpis, risks, currentPlanDate);
+    const score = calculatePulseScore(goals.map((goal) => goal.progress), items, kpis, risks, planning.today);
     const quality = inspectProgramQuality(items, new Set(goalRows.map((goal) => goal.id)), new Set(kpiRows.map((row) => String(row.work_item_id ?? row.id))), dependencyRows.map((row) => ({
       sourceWorkItemId: String(row.source_work_item_id),
       targetWorkItemId: String(row.target_work_item_id),
       status: row.status as "باز" | "حل‌شده",
       delayDays: Number(row.delay_days)
-    })), currentPlanDate);
+    })), planning.today);
     const departmentRows = new DepartmentRepository().list() as Array<{ id: string; name: string }>;
     const departments = departmentRows.map((department) => {
       const related = actionRows.filter((row) => row.department_id === department.id);
       const progress = related.length ? Math.round(related.reduce((sum, row) => sum + Number(row.progress), 0) / related.length) : 0;
-      const attentionCount = related.filter((row) => row.status === "مسدود" || String(row.planned_end) < currentPlanDate).length;
+      const attentionCount = related.filter((row) => row.status === "مسدود" || String(row.planned_end) < planning.today).length;
       return { ...department, actionCount: related.length, progress, attentionCount, health: progress >= 70 ? "سبز" : progress >= 45 ? "زرد" : related.length ? "قرمز" : "خاکستری" };
     });
     return json({

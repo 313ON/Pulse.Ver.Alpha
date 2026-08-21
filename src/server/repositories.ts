@@ -3,6 +3,7 @@ import { getDatabase } from "./db";
 import { inspectProgramQuality, validateWorkItem, type Dependency, type KpiRecord, type RiskRecord, type WorkItem } from "../lib/domain";
 import type { SessionUser } from "./auth";
 import { hashPasswordForStorage } from "./auth";
+import { getPlanningContext } from "../domain/planning";
 
 export class RepositoryError extends Error {
   constructor(public code: "NOT_FOUND" | "DUPLICATE" | "VALIDATION" | "DATABASE", message: string) {
@@ -18,11 +19,11 @@ function mapDatabaseError(error: unknown): never {
 }
 
 export class GoalRepository {
-  list() { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE plan_year = 1405 ORDER BY id").all(); }
+  list() { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE plan_year = @planYear ORDER BY id").all({ planYear: getPlanningContext().planYear }); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE id = ?").get(id); }
   create(input: { id: string; title: string }) {
     if (!/^G\d{2}$/.test(input.id) || !input.title.trim()) throw new RepositoryError("VALIDATION", "Goal ID and title are required.");
-    try { getDatabase().prepare("INSERT INTO strategic_goals (id, title, plan_year) VALUES (@id,@title,1405)").run(input); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+    try { getDatabase().prepare("INSERT INTO strategic_goals (id, title, plan_year) VALUES (@id,@title,@planYear)").run({ ...input, planYear: getPlanningContext().planYear }); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { title?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The goal was not found.");
@@ -265,8 +266,8 @@ export class ActionRepository {
       JOIN people p ON p.id = w.owner_person_id
       JOIN departments d ON d.id = w.department_id
       LEFT JOIN activities a ON a.id = w.activity_id
-      WHERE w.plan_year = 1405 ${scopeClause} ORDER BY w.planned_end, w.public_id
-    `).all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id });
+      WHERE w.plan_year = @planYear ${scopeClause} ORDER BY w.planned_end, w.public_id
+    `).all({ planYear: getPlanningContext().planYear, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
   get(publicId: string, user?: SessionUser) {
     const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
@@ -288,8 +289,8 @@ export class ActionRepository {
       db.prepare(`
         INSERT INTO work_items
         (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, activity_id, description, role_id, external_source_id, plan_year)
-        VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @activityId, @description, @roleId, @externalSourceId, 1405)
-      `).run({ ...normalized, id: randomUUID(), publicId, plannedStart: input.plannedStart ?? "۱۴۰۵/۰۱/۰۱", activityId: input.activityId ?? null, description: input.description ?? null, roleId: input.roleId ?? null, externalSourceId: input.externalSourceId ?? null });
+        VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @activityId, @description, @roleId, @externalSourceId, @planYear)
+      `).run({ ...normalized, id: randomUUID(), publicId, planYear: getPlanningContext().planYear, plannedStart: input.plannedStart ?? getPlanningContext().startDate, activityId: input.activityId ?? null, description: input.description ?? null, roleId: input.roleId ?? null, externalSourceId: input.externalSourceId ?? null });
       return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS strategic_goals (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   owner_person_id TEXT,
-  plan_year INTEGER NOT NULL DEFAULT 1405 CHECK (plan_year = 1405),
+  plan_year INTEGER NOT NULL DEFAULT 1405,
   FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT
 );
 
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS work_items (
   external_source_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  plan_year INTEGER NOT NULL DEFAULT 1405 CHECK (plan_year = 1405),
+  plan_year INTEGER NOT NULL DEFAULT 1405,
   UNIQUE (goal_id, title),
   CHECK (planned_end >= planned_start),
   CHECK ((status = 'تکمیل شده' AND progress = 100) OR status <> 'تکمیل شده'),

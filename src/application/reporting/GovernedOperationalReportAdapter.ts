@@ -61,7 +61,7 @@ function fromOrganizationalFinding(
     reason: finding.reason,
     evidence: finding.evidence,
     provenance: stableProvenance(input.organizationalContext.context.provenance),
-    planYear: GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
+    planYear: input.planYear ?? GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
   };
 }
 
@@ -78,7 +78,7 @@ function fromProgramViolation(
     },
     reason: violation.message,
     provenance: stableProvenance(input.organizationalContext.context.provenance),
-    planYear: GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
+    planYear: input.planYear ?? GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
   };
 }
 
@@ -92,7 +92,7 @@ function fromAssessmentFinding(
     subject: { type: finding.entityType.toUpperCase() as GovernedFindingView["subject"]["type"], id: finding.entityId },
     reason: finding.message,
     provenance: stableProvenance(input.organizationalContext.context.provenance),
-    planYear: GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
+    planYear: input.planYear ?? GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
   };
 }
 
@@ -106,7 +106,7 @@ function fromQualityFinding(
     subject: { type: "PROGRAM_ENTITY", id: finding.entityId },
     reason: finding.message,
     provenance: stableProvenance(input.organizationalContext.context.provenance),
-    planYear: GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
+    planYear: input.planYear ?? GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR
   };
 }
 
@@ -175,9 +175,6 @@ function reportState(input: GovernedOperationalReportInput): GovernedOperational
 
 export class GovernedOperationalReportAdapter {
   project(input: GovernedOperationalReportInput): GovernedOperationalReport {
-    if (input.planYear !== undefined && input.planYear !== GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR) {
-      throw new Error("Governed operational reports support plan year 1405 only.");
-    }
     if (!input.generatedAt.trim()) {
       throw new Error("Governed operational reports require an explicit generatedAt value.");
     }
@@ -213,7 +210,7 @@ export class GovernedOperationalReportAdapter {
       reportId: "governed-operational-report",
       reportVersion: GOVERNED_OPERATIONAL_REPORT_VERSION,
       program: { id: program.id, title: program.title, status: program.status },
-      planYear: GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR,
+      planYear: input.planYear ?? GOVERNED_OPERATIONAL_REPORT_PLAN_YEAR,
       generatedAt: input.generatedAt,
       evaluationState: reportState(input),
       authorization: {
