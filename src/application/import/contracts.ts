@@ -1,4 +1,5 @@
 import type { ProgramNodeType } from "../../domain/program";
+import type { CellProvenance } from "./spreadsheet/evaluation/contracts";
 
 export type ImportSourceType = "EXCEL" | "API" | "MANUAL";
 
@@ -16,6 +17,11 @@ export type ImportRecord = {
   source: ImportSource;
   data: Record<string, unknown>;
   rowNumber?: number;
+  /**
+   * Source cells captured by the spreadsheet contract. This is the persisted
+   * Workbook → Sheet → Row → Column → Cell trace for mapped values.
+   */
+  provenance?: CellProvenance[];
   externalId?: string;
 };
 

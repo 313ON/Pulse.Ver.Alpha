@@ -15,6 +15,17 @@ type ImportRecord = {
   };
   data: Record<string, unknown>;
   rowNumber?: number;
+  provenance?: Array<{
+    sheetName: string;
+    sheetIndex: number;
+    rowIndex: number;
+    sourceRowNumber: number;
+    column: string;
+    address: string;
+    header?: string;
+    semanticType?: string;
+    rawValue: unknown;
+  }>;
 };
 
 type ImportJob = {
@@ -88,6 +99,49 @@ const semanticLabels: Record<string, string> = {
   progress: "پیشرفت"
 };
 
+const semanticTypeLabels: Record<string, string> = {
+  GOAL: "هدف کلان",
+  OBJECTIVE: "هدف جزئی",
+  ACTIVITY: "فعالیت",
+  ACTION: "اقدام",
+  KPI: "شاخص",
+  KPI_TARGET: "هدف شاخص",
+  KPI_VALUE: "مقدار شاخص",
+  KPI_UNIT: "واحد شاخص",
+  OWNER: "مالک",
+  EXECUTOR: "مجری / مسئول اجرا",
+  COLLABORATOR: "همکار",
+  UNIT: "واحد",
+  PERSON: "شخص",
+  START_DATE: "شروع",
+  END_DATE: "پایان",
+  DURATION: "مدت",
+  WORKING_DAYS: "روز کاری",
+  PERSON_HOURS: "نفرساعت",
+  PROGRESS: "پیشرفت"
+};
+const semanticTypeKeys: Record<string, string> = {
+  GOAL: "goal",
+  OBJECTIVE: "objective",
+  ACTIVITY: "activity",
+  ACTION: "action",
+  KPI: "kpi",
+  KPI_TARGET: "kpiTarget",
+  KPI_VALUE: "kpiValue",
+  KPI_UNIT: "kpiUnit",
+  OWNER: "owner",
+  EXECUTOR: "executor",
+  COLLABORATOR: "collaborator",
+  UNIT: "unit",
+  PERSON: "person",
+  START_DATE: "startDate",
+  END_DATE: "endDate",
+  DURATION: "duration",
+  WORKING_DAYS: "workingDays",
+  PERSON_HOURS: "personHours",
+  PROGRESS: "progress"
+};
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} بایت`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} کیلوبایت`;
@@ -141,6 +195,22 @@ function errorMessages(job: ImportJob): string[] {
   ].map((item) => item.message).filter((message): message is string => Boolean(message));
 }
 
+const assignmentKeys = new Set(["unit", "owner", "executor", "collaborator", "person"]);
+
+function assignmentState(key: string, _value: unknown): string | undefined {
+  if (!assignmentKeys.has(key)) return undefined;
+  return `مقدار متنی · هویت سازمانی: حل‌نشده`;
+}
+
+function semanticTypeForKey(key: string, record: ImportRecord): string {
+  const cell = record.provenance?.find((candidate) => semanticTypeKeys[candidate.semanticType ?? ""] === key);
+  return cell ? semanticTypeLabels[cell.semanticType ?? ""] : (semanticLabels[key] ?? key);
+}
+
+function provenanceForKey(key: string, record: ImportRecord) {
+  return record.provenance?.find((cell) => semanticTypeKeys[cell.semanticType ?? ""] === key);
+}
+
 export function ImportPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [jobs, setJobs] = useState<ImportJob[]>([]);
@@ -163,6 +233,9 @@ export function ImportPage() {
     const response = await fetch(`/api/imports/${encodeURIComponent(id)}`);
     const body = await response.json() as ImportJob | ImportResponse;
     if (!response.ok) throw new Error("error" in body ? body.error : "جزئیات کار ورود اطلاعات دریافت نشد.");
+    if (!body || typeof body !== "object" || !("status" in body) || !("records" in body)) {
+      throw new Error("پاسخ جزئیات بازبینی قابل استفاده نیست.");
+    }
     const job = body as ImportJob;
     setSelectedJob(job);
     setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
@@ -201,7 +274,9 @@ export function ImportPage() {
         body: form
       });
       const body = await response.json() as ImportResponse;
-      if (!response.ok || !body.job) throw new Error(body.error ?? "تحلیل فایل ناموفق بود.");
+      if (!response.ok || !body.job || !Array.isArray(body.job.records) || !body.job.status) {
+        throw new Error(body.error ?? "پاسخ تحلیل فایل قابل استفاده نیست.");
+      }
       setSelectedFile(null);
       if (inputRef.current) inputRef.current.value = "";
       setSelectedJob(body.job);
@@ -277,24 +352,21 @@ export function ImportPage() {
               onDragOver={(event) => event.preventDefault()}
               onDragLeave={(event) => { event.preventDefault(); setDragging(false); }}
               onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); }}
-              onClick={() => inputRef.current?.click()}
-              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }}
-              role="button"
-              tabIndex={0}
-              aria-label="انتخاب فایل XLSX برای تحلیل"
+              role="group"
+              aria-labelledby="import-file-label"
             >
               <input
                 ref={inputRef}
+                id="import-file-input"
                 className="import-file-input"
                 type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(event) => chooseFile(event.target.files?.[0])}
-                aria-label="فایل XLSX"
+                aria-describedby="import-file-help"
               />
               <span className="import-dropzone-icon" aria-hidden="true">⇩</span>
-              <strong>فایل برنامه را اینجا رها کنید</strong>
-              <span>یا برای انتخاب از رایانه کلیک کنید</span>
-              <small>فقط XLSX · حداکثر ۵ مگابایت</small>
+              <label id="import-file-label" htmlFor="import-file-input"><strong>فایل برنامه را اینجا رها کنید</strong><span>یا برای انتخاب از رایانه کلیک کنید</span></label>
+              <small id="import-file-help">فقط XLSX · حداکثر ۵ مگابایت</small>
             </div>
             {selectedFile && (
               <div className="import-file-summary" aria-live="polite">
@@ -378,14 +450,14 @@ export function ImportReview({
       </section>
 
       <section className="panel import-provenance-panel" aria-labelledby="import-provenance-title">
-        <div className="panel-head"><h2 id="import-provenance-title">منبع و ردیابی</h2><span>Provenance</span></div>
+        <div className="panel-head"><h2 id="import-provenance-title">منبع و ردیابی</h2><span>ردیابی منبع</span></div>
         <div className="import-provenance-grid">
           <div><span>فایل</span><strong>{job.source.name}</strong></div>
           <div><span>برگه‌ها</span><strong>{sheets.join("، ") || "—"}</strong></div>
-          <div><span>ردیف‌های منبع</span><strong>{job.records.length ? `${job.records[0].rowNumber ?? "—"} تا ${job.records[job.records.length - 1].rowNumber ?? "—"}` : "—"}</strong></div>
-          <div><span>سلول</span><strong>در دادهٔ ذخیره‌شده موجود نیست</strong></div>
+          <div><span>ردیف‌های منبع</span><strong>{job.records.length ? `${job.records[0].provenance?.[0]?.sourceRowNumber ?? "—"} تا ${job.records[job.records.length - 1].provenance?.[0]?.sourceRowNumber ?? "—"}` : "—"}</strong></div>
+          <div><span>سلول‌های ثبت‌شده</span><strong>{job.records.reduce((count, record) => count + (record.provenance?.length ?? 0), 0) || "—"}</strong></div>
         </div>
-        <small className="import-provenance-note">ردیابی موجود: Workbook → Sheet → Row. آدرس سلول در نتیجهٔ ذخیره‌شدهٔ این کار persist نشده است.</small>
+        <small className="import-provenance-note">ردیابی ثبت‌شده: Workbook → Sheet → Row → Column → Cell</small>
       </section>
 
       {warnings.length > 0 && (
@@ -429,7 +501,14 @@ function ImportRecordCard({ record }: { record: ImportRecord }) {
         {values.map(([key, value]) => (
           <div className="import-field" key={key}>
             <span>{semanticLabels[key] ?? key}</span>
-            <strong>{displayValue(value)}</strong>
+            <strong>خام: {displayValue(provenanceForKey(key, record)?.rawValue ?? value)}</strong>
+            <small>نوع معنایی: {semanticTypeForKey(key, record)}</small>
+            <small>مقدار نرمال‌شده: {displayValue(value)}</small>
+            {assignmentState(key, value) && <small>{assignmentState(key, value)}</small>}
+            <details>
+              <summary>جزئیات فنی</summary>
+              <small>منبع: {provenanceForKey(key, record)?.address ?? "—"}</small>
+            </details>
           </div>
         ))}
       </div>

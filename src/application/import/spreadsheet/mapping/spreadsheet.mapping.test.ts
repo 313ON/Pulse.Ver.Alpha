@@ -115,5 +115,15 @@ describe("Spreadsheet semantic mapping", () => {
         person: "سارا"
       }
     });
+    expect(records[0].provenance).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sheetName: "Programs",
+        sourceRowNumber: 2,
+        column: "B",
+        address: "B2",
+        semanticType: "EXECUTOR",
+        rawValue: "مجری اصلی"
+      })
+    ]));
   });
 });

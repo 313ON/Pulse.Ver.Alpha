@@ -1113,3 +1113,11 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 @media (max-width: 700px) { .import-job-row { grid-template-columns: 1fr auto; }.import-job-count { display: none; }.import-review-hero, .import-review-boundary { flex-direction: column; }.import-field-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .import-review-summary, .import-provenance-grid, .import-field-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .import-entry-card { align-items: stretch; flex-direction: column; }.reports-page > .panel, .reports-page > .score-grid { margin-bottom: 18px; } }
+.import-dropzone:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent); }
+.import-dropzone label { display: grid; place-items: center; gap: 7px; cursor: pointer; }
+.import-dropzone label:focus-visible, .import-dropzone input:focus-visible + * { outline: 2px solid var(--primary); outline-offset: 4px; }
+.import-field small { display: block; margin-top: 5px; color: var(--text-secondary); font-size: 10px; overflow-wrap: anywhere; }
+.import-field details { margin-top: 8px; color: var(--text-secondary); font-size: 10px; }
+.import-field summary { color: var(--primary-strong); cursor: pointer; }
+.import-review-boundary { border-inline-start: 4px solid var(--primary); }
+.import-review-actions button:focus-visible, .import-upload-actions button:focus-visible, .import-file-summary button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }

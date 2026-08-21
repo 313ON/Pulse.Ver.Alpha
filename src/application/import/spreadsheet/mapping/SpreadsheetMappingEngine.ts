@@ -1,5 +1,6 @@
 import type { ImportRecord, ImportSource } from "../../contracts";
 import type { CellContract, RowContract, SheetContract, WorkbookContract } from "../contracts";
+import type { CellProvenance } from "../evaluation/contracts";
 import {
   HIERARCHY_SEMANTIC_TYPES,
   SEMANTIC_DATA_KEYS,
@@ -37,6 +38,7 @@ export type SpreadsheetMappingEngineOptions = {
 type SemanticValue = {
   semanticType: ColumnSemanticType;
   value: string | number | boolean | Date;
+  provenance: CellProvenance;
 };
 
 export class SpreadsheetMappingEngine {
@@ -76,19 +78,24 @@ export class SpreadsheetMappingEngine {
     for (const row of sheet.rows) {
       if (row.index <= headerRow.index || row.rowType === "empty") continue;
 
-      const values = this.readRowValues(row, semanticColumns);
+      const values = this.readRowValues(workbook, sheet, row, semanticColumns, sheetIndex);
       this.updateHierarchy(values, inherited);
       const entityType = this.entityTypeFor(values, inherited);
       if (!entityType) continue;
 
       const data: Record<string, unknown> = {};
+      const provenance = new Map<ColumnSemanticType, CellProvenance>();
       for (const semanticType of HIERARCHY_SEMANTIC_TYPES) {
         const value = inherited.get(semanticType);
-        if (value) data[SEMANTIC_DATA_KEYS[semanticType]] = value.value;
+        if (value) {
+          data[SEMANTIC_DATA_KEYS[semanticType]] = value.value;
+          provenance.set(semanticType, value.provenance);
+        }
       }
       for (const value of values) {
         if (!HIERARCHY_SEMANTIC_TYPES.includes(value.semanticType)) {
           data[SEMANTIC_DATA_KEYS[value.semanticType]] = value.value;
+          provenance.set(value.semanticType, value.provenance);
         }
       }
 
@@ -99,7 +106,8 @@ export class SpreadsheetMappingEngine {
         entityType,
         source,
         data,
-        rowNumber: row.index
+        rowNumber: row.index,
+        provenance: [...provenance.values()]
       });
     }
 
@@ -107,15 +115,35 @@ export class SpreadsheetMappingEngine {
   }
 
   private readRowValues(
+    workbook: WorkbookContract,
+    sheet: SheetContract,
     row: RowContract,
-    semanticColumns: ReturnType<HeaderSemanticResolver["resolveRow"]>
+    semanticColumns: ReturnType<HeaderSemanticResolver["resolveRow"]>,
+    sheetIndex: number
   ): SemanticValue[] {
     const cellsByColumn = new Map(row.cells.map((cell) => [cell.column, cell]));
     return semanticColumns.flatMap(({ column, semanticType }) => {
       const cell = cellsByColumn.get(column);
       const value = this.cellValue(cell);
       if (value === undefined || this.isEmpty(value)) return [];
-      return [{ semanticType, value }];
+      return [{
+        semanticType,
+        value,
+        provenance: {
+          workbookName: workbook.name,
+          sourceType: "EXCEL",
+          sheetName: sheet.name,
+          sheetIndex,
+          headerRowIndex: sheet.metadata.headerRowIndex ?? 0,
+          rowIndex: row.index,
+          sourceRowNumber: row.index + 1,
+          column: cell?.column ?? column,
+          address: `${cell?.column ?? column}${row.index + 1}`,
+          header: semanticColumns.find((candidate) => candidate.column === column)?.header,
+          semanticType,
+          rawValue: cell?.rawValue
+        }
+      }];
     });
   }
 

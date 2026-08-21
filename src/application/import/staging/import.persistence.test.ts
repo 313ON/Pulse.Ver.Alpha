@@ -35,7 +35,19 @@ function records(): ImportRecord[] {
     externalId: "external-1",
     entityType: "action",
     source,
-    data: { title: "اقدام", plannedEnd: "۱۴۰۵/۱۲/۲۹" }
+    data: { title: "اقدام", plannedEnd: "۱۴۰۵/۱۲/۲۹" },
+    provenance: [{
+      workbookName: "persistence-test.xlsx",
+      sheetName: "Program",
+      sheetIndex: 0,
+      headerRowIndex: 0,
+      rowIndex: 1,
+      sourceRowNumber: 2,
+      column: "A",
+      address: "A2",
+      rawValue: "اقدام",
+      semanticType: "ACTION"
+    }]
   }];
 }
 
@@ -51,6 +63,21 @@ describe("Import persistence boundaries", () => {
     expect(recordRepository.getByJobId("job-lifecycle")).toHaveLength(1);
     expect(service.getJob("job-lifecycle").records).toEqual(records());
     expect(jobRepository.get("job-lifecycle")?.status).toBe("DRAFT");
+  });
+
+  it("keeps cell provenance on the persisted record contract", () => {
+    const jobRepository = new InMemoryImportJobRepository();
+    const recordRepository = new InMemoryImportRecordRepository();
+    const service = new ImportReviewService(undefined, jobRepository, recordRepository);
+
+    service.createJob(source, "job-provenance");
+    service.attachRecords("job-provenance", records());
+
+    expect(service.getJob("job-provenance").records[0].provenance?.[0]).toMatchObject({
+      address: "A2",
+      sourceRowNumber: 2,
+      rawValue: "اقدام"
+    });
   });
 
   it("persists approval state after analysis and approval", () => {
@@ -83,5 +110,16 @@ describe("Import persistence boundaries", () => {
     service.reject("job-rejected");
 
     expect(jobRepository.get("job-rejected")?.status).toBe("REJECTED");
+  });
+
+  it("rejects invalid status transitions on the server service", () => {
+    const jobRepository = new InMemoryImportJobRepository();
+    const recordRepository = new InMemoryImportRecordRepository();
+    const service = new ImportReviewService(undefined, jobRepository, recordRepository);
+
+    service.createJob(source, "job-invalid-transition");
+
+    expect(() => service.approve("job-invalid-transition")).toThrow(/must be in REVIEW_REQUIRED/);
+    expect(() => service.reject("job-invalid-transition")).toThrow(/must be in REVIEW_REQUIRED or ANALYZING/);
   });
 });

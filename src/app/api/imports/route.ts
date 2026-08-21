@@ -85,8 +85,15 @@ export async function PATCH(request: Request) {
     const body = await readJson(request);
     const id = typeof body.id === "string" ? body.id : "";
     if (!id) throw new RepositoryError("VALIDATION", "شناسه کار ورود اطلاعات الزامی است.");
+    if (body.action !== "approve" && body.action !== "reject") {
+      throw new RepositoryError("VALIDATION", "عملیات بازبینی نامعتبر است.");
+    }
     const job = new ImportReviewService(undefined, new SQLiteImportJobRepository(), new SQLiteImportRecordRepository());
-    return json(body.action === "approve" ? job.approve(id) : job.reject(id));
+    try {
+      return json(body.action === "approve" ? job.approve(id) : job.reject(id));
+    } catch (error) {
+      throw new RepositoryError("VALIDATION", error instanceof Error ? error.message : "گذار وضعیت بازبینی نامعتبر است.");
+    }
   } catch (error) {
     return handleApiError(error);
   }
