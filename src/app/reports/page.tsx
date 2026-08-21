@@ -4,6 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { PulseShell } from "../../components/PulseShell";
 
 type Report = {
+  planYear: number;
+  generatedAt: string;
+  authorization: {
+    scope: string;
+    subjectVisible: boolean;
+  };
+  provenance: Array<unknown>;
+  unresolvedReferences: Array<unknown>;
+  historicalEvidence: Array<unknown>;
   evaluationState: "PASS" | "WARNING" | "BLOCKED";
   summary: {
     goals: number;
@@ -45,10 +54,11 @@ export default function ReportsPage() {
 
   const exportUrl = (format: string) => `/api/reports/export?format=${format}&${query}`;
   const stateLabel = report?.evaluationState ?? "—";
+  const findingKeyCounts = new Map<string, number>();
 
   return (
     <PulseShell>
-      <div className="page">
+      <div className="page reports-page">
         <div className="page-heading">
           <div>
             <div className="eyebrow">گزارش‌گیری مدیریتی</div>
@@ -86,6 +96,21 @@ export default function ReportsPage() {
                 <h2>وضعیت ارزیابی: {stateLabel}</h2>
                 <span>گزارش حاکمیتی / فقط خواندنی</span>
               </div>
+            </div>
+            <div className="panel report-evidence">
+              <div className="panel-head">
+                <h2>شواهد و مرز دسترسی</h2>
+                <span>منبع همان گزارش governed</span>
+              </div>
+              <div className="report-evidence-grid">
+                <div><span>سال برنامه</span><strong>{report.planYear}</strong></div>
+                <div><span>محدوده کاربر</span><strong>{report.authorization.scope}</strong></div>
+                <div><span>موضوع قابل مشاهده</span><strong>{report.authorization.subjectVisible ? "بله" : "خیر"}</strong></div>
+                <div><span>منابع ردیابی</span><strong>{report.provenance.length}</strong></div>
+                <div><span>ارجاع‌های حل‌نشده</span><strong>{report.unresolvedReferences.length}</strong></div>
+                <div><span>شواهد تاریخی</span><strong>{report.historicalEvidence.length}</strong></div>
+              </div>
+              <small className="report-generated-at">تولید شده در {report.generatedAt}</small>
             </div>
             <div className="score-grid">
               {Object.entries({
@@ -127,11 +152,16 @@ export default function ReportsPage() {
             </div>
             <div className="panel">
               <div className="panel-head"><h2>یافته‌های governed</h2></div>
-              {report.findings.map((finding) => (
-                <div className="report-row" key={`${finding.ruleId}:${finding.reason}`}>
+              {report.findings.map((finding) => {
+                const baseKey = `${finding.ruleId}:${finding.severity}:${finding.reason}`;
+                const occurrence = findingKeyCounts.get(baseKey) ?? 0;
+                findingKeyCounts.set(baseKey, occurrence + 1);
+                return (
+                <div className="report-row" key={`${baseKey}:${occurrence}`}>
                   <strong>{finding.ruleId}</strong><span>{finding.severity}</span><b>{finding.reason}</b>
                 </div>
-              ))}
+                );
+              })}
             </div>
             {report.legacyCompatibilityMetrics.length > 0 && (
               <div className="panel">

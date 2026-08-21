@@ -16,6 +16,7 @@ const sectionNames: Record<string, string> = {
   "/kpis": "شاخص‌های کلیدی",
   "/risks": "ریسک‌ها",
   "/dependencies": "وابستگی‌ها",
+  "/imports": "ورودی داده‌ها",
   "/reports": "گزارش‌ها",
   "/settings": "تنظیمات"
 };
