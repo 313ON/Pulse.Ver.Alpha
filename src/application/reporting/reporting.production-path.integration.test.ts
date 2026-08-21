@@ -9,6 +9,8 @@ import { ReadOnlyProgramQueryService, ProductionGovernedOperationalReportService
 import { programIdentity } from "./ProgramEntityIdentity";
 
 const generatedAt = "2026-08-19T00:00:00.000Z";
+const collaboratorActionId = "G10-O02-A01-T001";
+const collaboratorAssignmentId = `wi-${collaboratorActionId}:COLLABORATOR:maintenance-engineer`;
 
 function user(scope: SessionUser["scope"], person_id?: string, department_id?: string): SessionUser {
   return {
@@ -68,7 +70,34 @@ beforeEach(() => {
 
 describe("governed reporting production data path", () => {
   it("reads SQLite actions, reconstructs only missing structural hierarchy, and preserves authoritative assignments", () => {
+    const database = getDatabase();
+    expect(database.prepare(`
+      SELECT 1
+      FROM work_item_collaborators wc
+      JOIN work_items w ON w.id = wc.work_item_id
+      WHERE w.public_id = ? AND wc.person_id = ?
+    `).get(collaboratorActionId, "maintenance-engineer")).toEqual({ 1: 1 });
+    closeDatabase();
+
+    const repositoryAssignments = new SQLiteOperationalProgramReadRepository()
+      .listActionAssignments(1405)
+      .get(collaboratorActionId);
+    expect(repositoryAssignments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: collaboratorAssignmentId,
+        entityId: "maintenance-engineer",
+        displayName: "مهندس مکانیک - نت",
+        role: "COLLABORATOR",
+        responsibilityType: "SUPPORT"
+      })
+    ]));
+
     const program = productionProgram();
+    const action = program.goals
+      .flatMap((goal) => goal.objectives)
+      .flatMap((objective) => objective.activities)
+      .flatMap((activity) => activity.actions)
+      .find((candidate) => candidate.id === collaboratorActionId);
     const report = new ProductionGovernedOperationalReportService().report(
       program,
       user("COMPANY"),
@@ -83,6 +112,16 @@ describe("governed reporting production data path", () => {
     expect(report.rows.some((row) => row.id === "G10-O02-A01-T001")).toBe(true);
     expect(report.rows.some((row) => row.type === "activity" && row.title.includes("عنوان ثبت نشده"))).toBe(true);
     expect(report.provenance.length).toBeGreaterThan(0);
+    expect(action?.assignments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: collaboratorAssignmentId,
+        entityId: "maintenance-engineer",
+        role: "COLLABORATOR"
+      })
+    ]));
+    expect(report.rows.find((row) => row.id === collaboratorActionId)?.eligibleAssignmentIds)
+      .toContain(collaboratorAssignmentId);
+    expect(report.eligibleAssignmentIds).toContain(collaboratorAssignmentId);
 
     const identity = program.goals
       .find((goal) => goal.id === "G10")
@@ -98,11 +137,16 @@ describe("governed reporting production data path", () => {
     const company = service.report(program, user("COMPANY"), generatedAt);
     const itDepartment = service.report(program, user("DEPARTMENT", undefined, "it"), generatedAt);
     const own = service.report(program, user("OWN", "it-engineer"), generatedAt);
+    const collaboratorOwn = service.report(program, user("OWN", "maintenance-engineer"), generatedAt);
     const unrelatedOwner = service.report(program, user("OWN", "hr-specialist"), generatedAt);
 
     expect(company.rows.some((row) => row.id === "G10-O02-A01-T001")).toBe(true);
     expect(itDepartment.rows.some((row) => row.id === "G10-O02-A01-T001")).toBe(true);
     expect(own.rows.some((row) => row.id === "G10-O02-A01-T001")).toBe(true);
+    expect(collaboratorOwn.rows.find((row) => row.id === collaboratorActionId)?.eligibleAssignmentIds)
+      .toContain(collaboratorAssignmentId);
+    expect(own.rows.find((row) => row.id === collaboratorActionId)?.eligibleAssignmentIds)
+      .not.toContain(collaboratorAssignmentId);
     expect(unrelatedOwner.rows.some((row) => row.id === "G10-O02-A01-T001")).toBe(false);
     expect(unrelatedOwner.rows
       .find((row) => row.id === "G07-O02-A01-T003")
