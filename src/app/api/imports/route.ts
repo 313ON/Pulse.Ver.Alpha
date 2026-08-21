@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ensureRuntimeData, handleApiError, json, readJson, requireCsrf, requirePermission } from "../_lib";
+import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requireCsrf, requirePermission } from "../_lib";
 import { getDatabase } from "../../../server/db";
 import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "../../../server/import/SQLiteImportRepositories";
 import { ImportReviewService } from "../../../application/import/staging";
@@ -81,17 +81,35 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     ensureRuntimeData();
-    await requirePermission("imports.manage");
+    const user = await requirePermission("imports.manage");
     const body = await readJson(request);
     const id = typeof body.id === "string" ? body.id : "";
     if (!id) throw new RepositoryError("VALIDATION", "شناسه کار ورود اطلاعات الزامی است.");
     if (body.action !== "approve" && body.action !== "reject") {
       throw new RepositoryError("VALIDATION", "عملیات بازبینی نامعتبر است.");
     }
-    const job = new ImportReviewService(undefined, new SQLiteImportJobRepository(), new SQLiteImportRecordRepository());
+    const action = body.action;
+    const jobs = new SQLiteImportJobRepository();
+    const job = new ImportReviewService(undefined, jobs, new SQLiteImportRecordRepository());
     try {
-      return json(body.action === "approve" ? job.approve(id) : job.reject(id));
+      const database = getDatabase();
+      const transition = database.transaction(() => {
+        const before = jobs.get(id);
+        if (!before) throw new RepositoryError("NOT_FOUND", "کار ورود اطلاعات پیدا نشد.");
+        const result = action === "approve" ? job.approve(id) : job.reject(id);
+        auditMutation(
+          user,
+          "import-review",
+          id,
+          action,
+          { status: before.status },
+          { status: result.status, approvedAt: result.approvedAt ?? null }
+        );
+        return result;
+      });
+      return json(transition());
     } catch (error) {
+      if (error instanceof RepositoryError) throw error;
       throw new RepositoryError("VALIDATION", error instanceof Error ? error.message : "گذار وضعیت بازبینی نامعتبر است.");
     }
   } catch (error) {

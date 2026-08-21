@@ -12,6 +12,7 @@ beforeEach(() => {
   closeDatabase();
   testDatabasePath = path.join(os.tmpdir(), `pulse-test-${Date.now()}-${Math.random()}.sqlite`);
   process.env.PULSE_DB_PATH = testDatabasePath;
+  process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
   seedBaseline();
 });
 

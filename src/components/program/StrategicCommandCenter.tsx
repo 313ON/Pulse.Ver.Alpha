@@ -7,6 +7,7 @@ import { ProgramTree } from "./ProgramTree";
 import { ProgressIndicator } from "./ProgressIndicator";
 
 export function StrategicCommandCenter({ program }: { program: Program }) {
+  const planYear = program.timeline.start.split("/")[0];
   const goals = program.goals;
   const objectives = goals.reduce((total, goal) => total + goal.objectives.length, 0);
   const actions = goals.flatMap((goal) => goal.objectives.flatMap((objective) => objective.activities.flatMap((activity) => activity.actions)));
@@ -21,7 +22,7 @@ export function StrategicCommandCenter({ program }: { program: Program }) {
     <div className="page strategic-command-center">
       <div className="page-heading strategic-heading">
         <div>
-          <div className="eyebrow">مرکز فرمان راهبردی / چرخه ۱۴۰۵</div>
+          <div className="eyebrow">مرکز فرمان راهبردی / چرخه {planYear}</div>
           <h1>معماری برنامه سازمانی <span>✦</span></h1>
           <p>از ایده تا اجرا</p>
           <HierarchyBreadcrumb nodes={[program]} />
@@ -31,7 +32,7 @@ export function StrategicCommandCenter({ program }: { program: Program }) {
           <Link href="/actions" className="primary-button">＋ اقدام جدید</Link>
         </div>
       </div>
-      <ExecutivePulse score={pulseScore} progress={averageProgress} atRisk={atRisk} overdue={overdue} criticalKpis={criticalKpis} goals={goals} actions={actions} />
+      <ExecutivePulse score={pulseScore} progress={averageProgress} atRisk={atRisk} overdue={overdue} criticalKpis={criticalKpis} goals={goals} actions={actions} planYear={planYear} />
       <div className="strategic-summary">
         <div className="strategic-summary-main"><div><span className="program-panel-kicker">برنامه فعال</span><h2>{program.title}</h2><p>{program.description}</p></div><ProgressIndicator value={program.progress} /></div>
         <SummaryMetric label="اهداف راهبردی" value={goals.length} detail="در سطح برنامه" tone="cyan" />
@@ -44,7 +45,7 @@ export function StrategicCommandCenter({ program }: { program: Program }) {
   );
 }
 
-function ExecutivePulse({ score, progress, atRisk, overdue, criticalKpis, goals, actions }: { score: number; progress: number; atRisk: number; overdue: number; criticalKpis: number; goals: Program["goals"]; actions: Action[] }) {
+function ExecutivePulse({ score, progress, atRisk, overdue, criticalKpis, goals, actions, planYear }: { score: number; progress: number; atRisk: number; overdue: number; criticalKpis: number; goals: Program["goals"]; actions: Action[]; planYear: string }) {
   const departments = Array.from(new Set(actions.map((action) => action.department?.label ?? "سایر"))).map((department) => {
     const scoped = actions.filter((action) => (action.department?.label ?? "سایر") === department);
     return { department, progress: Math.round(scoped.reduce((sum, action) => sum + action.progress, 0) / Math.max(1, scoped.length)), count: scoped.length };
@@ -67,7 +68,7 @@ function ExecutivePulse({ score, progress, atRisk, overdue, criticalKpis, goals,
     <section className="executive-panel performance-panel"><PanelHeading kicker="روند تحقق برنامه" title="عملکرد راهبردی" meta="واقعی / هدف" /><Link className="executive-panel-link" href="/goals" aria-label="مشاهده عملکرد اهداف"><div className="performance-chart" role="img" aria-label="نمودار مقایسه پیشرفت اهداف راهبردی"><div className="chart-grid"><i /><i /><i /><i /></div><svg viewBox="0 0 640 180" preserveAspectRatio="none"><path className="chart-area" d={chartAreaPath} /><path className="chart-line" d={chartPath} /></svg><div className="chart-labels">{chartValues.map((_, index) => <span key={index}>هدف {index + 1}</span>)}</div></div></Link></section>
     <section className="executive-panel department-panel"><PanelHeading kicker="مقایسه واحدها" title="عملکرد واحدی" meta="بر اساس اقدام" /><div className="department-list">{departments.slice(0, 6).map((row) => <Link className="department-row" href="/departments" key={row.department}><div className="department-label"><strong>{row.department}</strong><small>{row.count} اقدام</small></div><div className="department-bar"><span style={{ width: `${row.progress}%` }} /></div><b>{row.progress}٪</b><span className={`status-dot ${row.progress >= 70 ? "green" : row.progress >= 50 ? "yellow" : "red"}`} aria-label="وضعیت عملکرد" /></Link>)}</div></section>
     <section className="executive-panel attention-panel"><PanelHeading kicker="سیگنال‌های مدیریتی" title="نیازمند توجه مدیریت" meta="اولویت‌بندی‌شده" /><div className="attention-grid"><AttentionGroup title="اقدام فوری" tone="critical" items={attention.slice(0, 1)} /><AttentionGroup title="نیازمند توجه" tone="warning" items={attention.slice(1, 2)} /><AttentionGroup title="در مسیر صحیح" tone="healthy" items={healthy} /></div></section>
-    <section className="executive-panel timeline-panel"><PanelHeading kicker="جریان عملیاتی" title="آخرین رویدادها" meta="امروز / چرخه ۱۴۰۵" /><div className="operational-timeline">{actions.slice(0, 4).map((action, index) => <div className="timeline-event" key={action.id}><time>{["۰۹:۴۲", "۰۹:۱۸", "۰۸:۵۵", "۰۸:۲۶"][index]}</time><i /><div><strong>{action.department?.label ?? "واحد عملیاتی"}</strong><p>اقدام «{action.title}» اکنون {action.progress}٪ پیشرفت دارد.</p></div></div>)}</div></section>
+    <section className="executive-panel timeline-panel"><PanelHeading kicker="جریان عملیاتی" title="آخرین رویدادها" meta={`امروز / چرخه ${planYear}`} /><div className="operational-timeline">{actions.slice(0, 4).map((action, index) => <div className="timeline-event" key={action.id}><time>{["۰۹:۴۲", "۰۹:۱۸", "۰۸:۵۵", "۰۸:۲۶"][index]}</time><i /><div><strong>{action.department?.label ?? "واحد عملیاتی"}</strong><p>اقدام «{action.title}» اکنون {action.progress}٪ پیشرفت دارد.</p></div></div>)}</div></section>
   </section>;
 }
 

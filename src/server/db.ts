@@ -75,6 +75,16 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
       FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
+    CREATE TRIGGER IF NOT EXISTS audit_log_immutable_update
+    BEFORE UPDATE ON audit_log
+    BEGIN
+      SELECT RAISE(ABORT, 'audit_log is append-only');
+    END;
+    CREATE TRIGGER IF NOT EXISTS audit_log_immutable_delete
+    BEFORE DELETE ON audit_log
+    BEGIN
+      SELECT RAISE(ABORT, 'audit_log is append-only');
+    END;
     CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
     CREATE TABLE IF NOT EXISTS import_jobs (
       id TEXT PRIMARY KEY,

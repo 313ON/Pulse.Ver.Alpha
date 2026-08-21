@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const sectionNames: Record<string, string> = {
@@ -23,7 +24,12 @@ const sectionNames: Record<string, string> = {
 
 export function CommandHeader() {
   const pathname = usePathname();
+  const [planYear, setPlanYear] = useState<string | null>(null);
   const section = sectionNames[pathname] ?? "نمای عملیاتی";
+
+  useEffect(() => {
+    setPlanYear(document.documentElement.dataset.planYear ?? null);
+  }, []);
 
   return (
     <header className="topbar command-header">
@@ -39,7 +45,7 @@ export function CommandHeader() {
           <kbd>⌘ K</kbd>
         </label>
         <button className="icon-button command-alert" aria-label="اعلان‌ها">♧<i /></button>
-        <div className="date-chip"><span>چرخه</span> ۱۴۰۵</div>
+        <div className="date-chip"><span>چرخه</span> {planYear ?? "—"}</div>
       </div>
     </header>
   );

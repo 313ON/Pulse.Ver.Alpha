@@ -24,4 +24,4 @@ npm run typecheck
 npm run build
 ```
 
-رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف و فرم ثبت اقدام است. Migration رابطه‌ای پایه در `db/migrations/0001_pulse.sql` نگهداری می‌شود و تمام داده‌های نمایشی این نسخه با سال برنامه‌ی ۱۴۰۵ برچسب‌گذاری شده‌اند.
+رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف و فرم ثبت اقدام است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند. Migration رابطه‌ای پایه در `db/migrations/0001_pulse.sql` نگهداری می‌شود.

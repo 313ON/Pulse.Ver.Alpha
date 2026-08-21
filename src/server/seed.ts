@@ -1,5 +1,6 @@
 import { actionRecords, departments, dependencyRecords, goals, kpiRecords, riskRecords } from "../lib/data";
 import { getDatabase } from "./db";
+import { getPlanningContext } from "../domain/planning";
 
 const departmentIds: Record<string, string> = {
   "تولید": "production",
@@ -20,6 +21,7 @@ const seatRecords = [
 
 export function seedBaseline(): void {
   const db = getDatabase();
+  const planning = getPlanningContext();
   const seed = db.transaction(() => {
     const insertDepartment = db.prepare("INSERT OR IGNORE INTO departments (id, name) VALUES (?, ?)");
     departments.forEach(([name]) => insertDepartment.run(departmentIds[name], name));
@@ -27,12 +29,12 @@ export function seedBaseline(): void {
     seatRecords.forEach(([id, title, departmentId]) => insertSeat.run(id, title, departmentId));
     const insertPerson = db.prepare("INSERT OR IGNORE INTO people (id, full_name, seat_id) VALUES (?, ?, ?)");
     seatRecords.forEach(([id, title]) => insertPerson.run(id, title, id));
-    const insertGoal = db.prepare("INSERT OR IGNORE INTO strategic_goals (id, title, plan_year) VALUES (?, ?, 1405)");
-    goals.forEach(([id, title]) => insertGoal.run(id, title));
+    const insertGoal = db.prepare("INSERT OR IGNORE INTO strategic_goals (id, title, plan_year) VALUES (@id, @title, @planYear)");
+    goals.forEach(([id, title]) => insertGoal.run({ id, title, planYear: planning.planYear }));
     const insertAction = db.prepare(`
       INSERT OR IGNORE INTO work_items
       (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, plan_year)
-      VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, '۱۴۰۵/۰۱/۰۱', @deadline, 1405)
+      VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @planYear)
     `);
     actionRecords.forEach((action) => insertAction.run({
       id: `wi-${action.publicId}`,
@@ -45,7 +47,9 @@ export function seedBaseline(): void {
       deliverable: action.deliverable,
       status: action.status,
       progress: action.progress,
-      deadline: action.deadline
+      plannedStart: planning.startDate,
+      deadline: action.deadline.replace(/^[^/]+(?=\/)/, String(planning.planYear)),
+      planYear: planning.planYear
     }));
     const insertKpi = db.prepare(`
       INSERT OR IGNORE INTO kpis

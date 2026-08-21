@@ -9,6 +9,7 @@ import { createPdfBuffer, createXlsxBuffer } from "./exporters";
 beforeEach(() => {
   closeDatabase();
   process.env.PULSE_DB_PATH = `:memory:`;
+  process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
   seedBaseline();
   seedAuthFoundation();
 });

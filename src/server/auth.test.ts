@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { closeDatabase } from "./db";
+import { closeDatabase, getDatabase } from "./db";
 import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
 import { authorizationStatus, csrfTokensMatch } from "../app/api/_lib";
 import { seedBaseline } from "./seed";
@@ -7,6 +7,7 @@ import { seedBaseline } from "./seed";
 beforeEach(() => {
   closeDatabase();
   process.env.PULSE_DB_PATH = `:memory:`;
+  process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
   seedBaseline();
   seedAuthFoundation();
 });
@@ -56,5 +57,20 @@ describe("authentication and scopes", () => {
     expect(isLoginRateLimited(key)).toBe(true);
     clearLoginFailures(key);
     expect(isLoginRateLimited(key)).toBe(false);
+  });
+  it("does not create a bootstrap administrator without an explicit password", () => {
+    closeDatabase();
+    process.env.PULSE_DB_PATH = ":memory:";
+    delete process.env.PULSE_ADMIN_PASSWORD;
+    seedBaseline();
+    expect(() => seedAuthFoundation()).toThrow(/PULSE_ADMIN_PASSWORD must be configured/);
+    process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
+  });
+  it("keeps governance audit events append-only", () => {
+    const db = getDatabase();
+    const actor = db.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: string };
+    db.prepare("INSERT INTO audit_log (id, actor_user_id, entity_type, entity_id, event_type) VALUES (?, ?, ?, ?, ?)").run("audit-immutable", actor.id, "import-review", "job-1", "approved");
+    expect(() => db.prepare("UPDATE audit_log SET event_type = 'tampered' WHERE id = ?").run("audit-immutable")).toThrow(/append-only/);
+    expect(() => db.prepare("DELETE FROM audit_log WHERE id = ?").run("audit-immutable")).toThrow(/append-only/);
   });
 });

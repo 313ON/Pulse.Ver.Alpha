@@ -21,6 +21,8 @@ export type SessionUser = {
   scope: DataScope;
 };
 
+export const ADMIN_PASSWORD_ENV = "PULSE_ADMIN_PASSWORD";
+
 export function secureCookiesEnabled() {
   return process.env.PULSE_HTTPS?.trim().toLowerCase() === "true";
 }
@@ -113,8 +115,12 @@ export function seedAuthFoundation() {
   }
   const existing = db.prepare("SELECT id FROM users WHERE username = ?").get("admin");
   if (!existing) {
+    const password = process.env[ADMIN_PASSWORD_ENV];
+    if (!password) {
+      throw new Error(`${ADMIN_PASSWORD_ENV} must be configured before the initial administrator can be created.`);
+    }
     db.prepare("INSERT INTO users (id, username, password_hash, role_id) VALUES (?, ?, ?, ?)").run(
-      randomUUID(), "admin", hashPassword(process.env.PULSE_ADMIN_PASSWORD ?? "pulse-local-change-me"), "role-super-admin"
+      randomUUID(), "admin", hashPasswordForStorage(password), "role-super-admin"
     );
   }
 }
