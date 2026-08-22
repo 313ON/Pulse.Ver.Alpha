@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { closeDatabase, checkDatabaseReadiness, getDatabase } from "./db";
+import { closeDatabase, checkDatabaseReadiness, getDatabase, getDatabaseOperationalConfiguration, getReadOnlyDatabase, SQLITE_BUSY_TIMEOUT_MS, SQLITE_WAL_AUTOCHECKPOINT_PAGES } from "./db";
 import { schemaContractErrors } from "./schema-contract";
 
 const environment = process.env as Record<string, string | undefined>;
@@ -24,6 +24,33 @@ describe("production database configuration", () => {
     environment.PULSE_DB_PATH = path.join(os.tmpdir(), `pulse-contract-${Date.now()}-${Math.random()}.sqlite`);
 
     expect(schemaContractErrors(getDatabase())).toEqual([]);
+  });
+
+  it("applies the operational SQLite configuration to writable and read-only connections", () => {
+    environment.NODE_ENV = "test";
+    environment.PULSE_DB_PATH = path.join(os.tmpdir(), `pulse-pragmas-${Date.now()}-${Math.random()}.sqlite`);
+
+    const writable = getDatabase();
+    expect(getDatabaseOperationalConfiguration(writable)).toMatchObject({
+      journalMode: "wal",
+      synchronous: 2,
+      foreignKeys: 1,
+      busyTimeout: SQLITE_BUSY_TIMEOUT_MS,
+      walAutocheckpoint: SQLITE_WAL_AUTOCHECKPOINT_PAGES,
+      lockingMode: "normal",
+      tempStore: 0
+    });
+
+    const readOnly = getReadOnlyDatabase();
+    expect(getDatabaseOperationalConfiguration(readOnly)).toMatchObject({
+      journalMode: "wal",
+      synchronous: 2,
+      foreignKeys: 1,
+      busyTimeout: SQLITE_BUSY_TIMEOUT_MS,
+      walAutocheckpoint: SQLITE_WAL_AUTOCHECKPOINT_PAGES,
+      lockingMode: "normal",
+      tempStore: 0
+    });
   });
 
   it("detects missing schema objects beyond table names", () => {
@@ -132,6 +159,49 @@ describe("production database configuration", () => {
     } finally {
       closeDatabase();
       fs.rmSync(databasePath, { force: true });
+    }
+  });
+
+  it("accepts an external absolute production database path", () => {
+    environment.NODE_ENV = "production";
+    const databasePath = path.join(os.tmpdir(), `pulse-production-path-${Date.now()}-${Math.random()}.sqlite`);
+    environment.PULSE_DB_PATH = databasePath;
+
+    try {
+      expect(getDatabase().pragma("journal_mode", { simple: true })).toBe("wal");
+      expect(() => checkDatabaseReadiness()).not.toThrow();
+    } finally {
+      closeDatabase();
+      fs.rmSync(databasePath, { force: true });
+      fs.rmSync(`${databasePath}-wal`, { force: true });
+      fs.rmSync(`${databasePath}-shm`, { force: true });
+    }
+  });
+
+  it("fails closed for a read-only connection when the configured file is missing", () => {
+    environment.NODE_ENV = "production";
+    const databasePath = path.join(os.tmpdir(), `pulse-readonly-missing-${Date.now()}-${Math.random()}.sqlite`);
+    environment.PULSE_DB_PATH = databasePath;
+
+    expect(() => getReadOnlyDatabase()).toThrow();
+    closeDatabase();
+  });
+
+  it("preserves data across close and reopen", () => {
+    environment.NODE_ENV = "test";
+    const databasePath = path.join(os.tmpdir(), `pulse-restart-${Date.now()}-${Math.random()}.sqlite`);
+    environment.PULSE_DB_PATH = databasePath;
+    getDatabase().prepare("INSERT INTO departments (id, name) VALUES (?, ?)").run("restart-department", "Restart department");
+    closeDatabase();
+
+    try {
+      expect(getDatabase().prepare("SELECT name FROM departments WHERE id = ?").get("restart-department")).toEqual({ name: "Restart department" });
+      expect(() => checkDatabaseReadiness()).not.toThrow();
+    } finally {
+      closeDatabase();
+      fs.rmSync(databasePath, { force: true });
+      fs.rmSync(`${databasePath}-wal`, { force: true });
+      fs.rmSync(`${databasePath}-shm`, { force: true });
     }
   });
 });
