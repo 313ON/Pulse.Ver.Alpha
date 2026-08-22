@@ -21,7 +21,7 @@ npm run dev
 | متغیر | الزامی | مقدار پیش‌فرض | کاربرد |
 |---|---:|---|---|
 | `PULSE_ADMIN_PASSWORD` | بله، در اولین راه‌اندازی | ندارد | گذرواژه‌ی مدیر اولیه؛ حداقل ۸ نویسه |
-| `PULSE_DB_PATH` | خیر | `db/pulse.sqlite` | مسیر فایل SQLite |
+| `PULSE_DB_PATH` | بله در production | — | مسیر مطلق فایل SQLite روی storage پایدار؛ در محیط توسعه مقدار پیش‌فرض `db/pulse.sqlite` است |
 | `PULSE_HTTPS` | خیر | `false` | فعال‌سازی ویژگی `Secure` برای کوکی‌های نشست و CSRF |
 | `PULSE_PLAN_YEAR` | خیر | `1405` | سال چرخه‌ی برنامه |
 | `PULSE_PLAN_START_DATE` | خیر | `${PULSE_PLAN_YEAR}/01/01` | شروع چرخه |

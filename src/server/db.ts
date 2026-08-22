@@ -6,7 +6,11 @@ let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
 
 function databasePath(): string {
-  return process.env.PULSE_DB_PATH ?? path.join(process.cwd(), "db", "pulse.sqlite");
+  const configuredPath = process.env.PULSE_DB_PATH?.trim();
+  if (process.env.NODE_ENV === "production" && !configuredPath) {
+    throw new Error("PULSE_DB_PATH must be configured in production.");
+  }
+  return configuredPath || path.join(process.cwd(), "db", "pulse.sqlite");
 }
 
 function ensurePhaseFiveSchema(database: Database.Database): void {

@@ -18,7 +18,7 @@
 PULSE_ADMIN_PASSWORD=<secret-at-least-8-characters>
 ```
 
-مقادیر اختیاری:
+مقدار الزامی production و مقادیر اختیاری:
 
 ```text
 PULSE_DB_PATH=/var/lib/pulse/pulse.sqlite
@@ -28,6 +28,10 @@ PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29
 PULSE_PLAN_TODAY=1405/06/15
 ```
+
+`PULSE_DB_PATH` در production الزامی است و باید به یک فایل SQLite روی
+storage پایدار، خارج از مسیر مخزن و build، اشاره کند. برنامه در production
+در صورت نبودن این مقدار با خطا متوقف می‌شود و به `db/pulse.sqlite` برنمی‌گردد.
 
 `PULSE_PLAN_TODAY` باید برای اجرای production به‌صورت آگاهانه تنظیم شود؛ مقدار پیش‌فرض برای محیط آزمایشی است و جایگزین فرایند تقویمی سازمان نیست.
 
