@@ -1,96 +1,91 @@
-# PULSE — راهنمای استقرار production
+# PULSE — راهنمای استقرار Release 1 روی Windows Server
 
-این راهنما برای استقرار نسخه‌ی production سامانه‌ی PULSE با Next.js و SQLite است. دامنه‌ی آن فقط اجرای موجود، تنظیمات محیطی و کنترل‌های عملیاتی است.
+این راهنما برای استقرار PULSE Release 1 با Next.js و SQLite است. مسیر واقعی
+سرور، حساب سرویس، پورت و service manager باید در change record ثبت شوند؛
+مقادیر داخل `<...>` فقط جای‌نگهدار هستند.
 
 ## پیش‌نیازها
 
-- Node.js 22 LTS؛ نسخه‌ی پشتیبانی‌شده در `package.json` با `engines` اعلام شده است
-- فضای دیسک پایدار برای فایل SQLite و فایل‌های journal آن
-- دسترسی نوشتن کاربر runtime به پوشه‌ی `PULSE_DB_PATH`
+- Node.js 22 LTS
+- فضای دیسک پایدار برای SQLite و فایل‌های WAL
+- دسترسی Administrator برای تنظیم سرویس، ACL و firewall
+- service manager تأییدشده‌ی سازمان؛ NSSM گزینه‌ی کوچک پیشنهادی است
 - نگهداری secretها خارج از مخزن
-- reverse proxy یا load balancer در صورت ارائه‌ی HTTPS
 - اجرای فقط یک process نویسنده برای هر فایل SQLite
 
-## تنظیمات محیطی
+## متغیرهای محیطی
 
-پیش از اولین راه‌اندازی این مقدار را تنظیم کنید:
+برای اولین راه‌اندازی:
 
 ```text
+NODE_ENV=production
+PULSE_DB_PATH=<absolute external Windows path>\pulse.sqlite
 PULSE_ADMIN_PASSWORD=<secret-at-least-8-characters>
-```
-
-مقدار الزامی production و مقادیر اختیاری:
-
-```text
-PULSE_DB_PATH=/var/lib/pulse/pulse.sqlite
-PULSE_HTTPS=true
+PULSE_SEED_MODE=reference
+PULSE_RELEASE_COMMIT=<deployed git commit>
 PULSE_PLAN_YEAR=1405
 PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29
-PULSE_PLAN_TODAY=1405/06/15
+PULSE_PLAN_TODAY=<approved operational reference date>
+PULSE_HTTPS=<true only when TLS terminates before Next.js>
 ```
 
-`PULSE_DB_PATH` در production الزامی است و باید به یک فایل SQLite روی
-storage پایدار، خارج از مسیر مخزن و build، اشاره کند. برنامه در production
-در صورت نبودن این مقدار با خطا متوقف می‌شود و به `db/pulse.sqlite` برنمی‌گردد.
+`PULSE_DB_PATH` باید absolute، persistent، ACL-protected و خارج از
+`RELEASE_DIR` باشد. `PULSE_SEED_MODE=reference` داده‌های نمایشی هدف، اقدام،
+KPI، ریسک و وابستگی را ایجاد نمی‌کند. `PULSE_ADMIN_PASSWORD` فقط برای ساخت
+مدیر اولیه است؛ پس از اولین provisioning آن را از environment سرویس حذف کنید.
+گذرواژه را در source، Git، command history یا log قرار ندهید.
 
-قرارداد canonical schema در `db/schema.sqlite.sql` قرار دارد. در startup،
-`src/server/db.ts` فقط compatibility repair محدود و idempotent برای databaseهای
-قدیمی انجام می‌دهد؛ readiness علاوه بر integrity، کامل بودن schema objects
-موردنیاز را بررسی می‌کند و در صورت drift با fail-closed پاسخ آماده نبودن می‌دهد.
+`PULSE_HTTPS=true` فقط وقتی مجاز است که TLS پیش از Next.js در reverse proxy
+خاتمه یابد؛ این متغیر به‌تنهایی HTTPS ایجاد نمی‌کند.
 
-`PULSE_PLAN_TODAY` باید برای اجرای production به‌صورت آگاهانه تنظیم شود؛ مقدار پیش‌فرض برای محیط آزمایشی است و جایگزین فرایند تقویمی سازمان نیست.
+## ساخت artifact
 
-در production مقدار `PULSE_HTTPS=true` را فقط زمانی تنظیم کنید که ترافیک کاربر
-پیش از رسیدن به Next.js در یک reverse proxy یا load balancer با TLS خاتمه یابد.
-این متغیر HTTPS ایجاد نمی‌کند؛ فقط ویژگی `Secure` را برای کوکی‌های نشست و CSRF
-فعال می‌کند.
-
-## ساخت و راه‌اندازی
-
-```bash
+```powershell
+Set-Location "<RELEASE_DIR>"
 npm ci
 npm test
 npm run typecheck
 npm run lint
 npm run build
-npm start
+git rev-parse HEAD
 ```
 
-برای تعیین پورت، آرگومان Next.js را به start بدهید:
+## مدل سرویس
 
-```bash
-npm start -- -p 3000
-```
-
-فایل SQLite را داخل image یا release package قرار ندهید. مسیر آن باید روی storage پایدار و خارج از مسیر build باشد. هم‌زمان فقط یک instance نویسنده برای هر فایل SQLite اجرا کنید، مگر اینکه معماری deployment به‌طور جداگانه برای این محدودیت طراحی و تأیید شده باشد.
-
-در محیط توسعه، fallback database در `db/pulse.sqlite` است. این فایل با production
-database متفاوت است و نباید در release یا deployment production استفاده شود.
-
-## مدل پیشنهادی Windows Server
-
-Repository evidence فعلی هیچ Windows Service، NSSM، IIS یا Task Scheduler
-configurationی تعریف نمی‌کند. بنابراین service manager باید قبل از production
-به‌صورت جداگانه approved و ثبت شود. مدل پیشنهادی:
+Repository evidence فعلی دسترسی به Windows Server و وجود NSSM را اثبات نمی‌کند.
+مدیر سرور باید service manager approved سازمان را قبل از اجرا ثبت کند. IIS
+برای اجرای برنامه لازم نیست.
 
 ```text
-D:\Apps\Pulse.Ver.Alpha       release/application files (read-only)
-C:\ProgramData\Pulse          persistent data root
-C:\ProgramData\Pulse\db       externally persisted SQLite database
-C:\ProgramData\Pulse\Backups  verified backups
-C:\ProgramData\Pulse\Logs     service logs
+<RELEASE_DIR>                 release/application files (read/execute)
+<DATA_ROOT>\db                external persistent SQLite database
+<DATA_ROOT>\Backups           verified backups
+<DATA_ROOT>\Logs              service logs
 ```
 
-مسیر واقعی production نباید از این مثال حدس زده شود و باید با
-`PULSE_DB_PATH` صریح تنظیم شود. حساب service باید روی release directory فقط
-read/execute و روی `C:\ProgramData\Pulse\db` read/write داشته باشد. دسترسی
-backup operator به `Backups` باید جدا و محدود باشد؛ حساب application نباید
-administrator یا owner همه‌ی backupها باشد.
+نمونه‌ی تنظیم NSSM پس از نصب approved آن:
 
-## SQLite runtime baseline
+```powershell
+nssm install <SERVICE_NAME> "C:\Program Files\nodejs\node.exe" "node_modules\next\dist\bin\next start -p <PORT>"
+nssm set <SERVICE_NAME> AppDirectory "<RELEASE_DIR>"
+nssm set <SERVICE_NAME> AppEnvironmentExtra "NODE_ENV=production" "PULSE_DB_PATH=<DB_DIR>\pulse.sqlite" "PULSE_SEED_MODE=reference" "PULSE_PLAN_YEAR=1405" "PULSE_PLAN_TODAY=<approved-date>" "PULSE_RELEASE_COMMIT=<commit>"
+nssm set <SERVICE_NAME> AppExit Default Restart
+nssm set <SERVICE_NAME> AppStdout "<LOG_DIR>\pulse.stdout.log"
+nssm set <SERVICE_NAME> AppStderr "<LOG_DIR>\pulse.stderr.log"
+nssm start <SERVICE_NAME>
+```
 
-برای file database، runtime در هر connection این تنظیمات را اعمال می‌کند:
+مقدارهای داخل `<...>` را از سازمان دریافت و در change record ثبت کنید. اگر
+NSSM نصب یا approved نیست، از service manager موجود و approved استفاده کنید؛
+برنامه را با session تعاملی توسعه‌دهنده به‌عنوان production اجرا نکنید.
+
+حساب سرویس روی release directory فقط read/execute و روی database directory
+read/write داشته باشد. دسترسی backup operator به Backups جدا و محدود باشد.
+
+## SQLite baseline
+
+runtime برای هر connection این تنظیمات را اعمال می‌کند:
 
 ```text
 journal_mode=WAL
@@ -102,27 +97,28 @@ locking_mode=NORMAL
 temp_store=DEFAULT
 ```
 
-WAL در فایل database پایدار است؛ سایر تنظیمات در هر connection دوباره اعمال
-می‌شوند. `:memory:` فقط برای test است و WAL برای آن درخواست نمی‌شود. health
-و startup باید در logهای server-side خطای path، permission، lock، corruption
-یا schema را قابل تشخیص کنند، بدون نمایش secret یا پاسخ دادن مسیر filesystem
-به کاربر.
+فایل SQLite را داخل release یا build قرار ندهید و آن را raw-copy نکنید. برای
+backup از SQLite online backup استفاده کنید.
 
 ## کنترل پس از استقرار
 
-1. `GET /api/health` را بررسی کنید؛ انتظار `200` و JSON با `status: "ok"` و `database: "ok"` است.
-2. صفحه‌ی `/login` را بررسی کنید.
-3. با حساب عملیاتی، ورود و `GET /api/auth/me` را بررسی کنید.
-4. یک مسیر خواندنی مجاز مانند `/api/dashboard` را بررسی کنید.
-5. لاگ‌های runtime را برای خطای SQLite، permission یا migration بررسی کنید.
+```powershell
+Get-Service -Name "<SERVICE_NAME>"
+Get-NetTCPConnection -LocalPort <PORT> -State Listen
+Invoke-WebRequest "http://127.0.0.1:<PORT>/api/health" -UseBasicParsing
+```
 
-اگر health check پاسخ `503` داد، ترافیک را به instance وارد نکنید و ابتدا وجود فایل، integrity، کامل بودن schema، دسترسی پوشه و مقدار `PULSE_DB_PATH` را بررسی کنید.
+انتظار: HTTP 200 و JSON شامل `status: "ok"` و `database: "ok"`. سپس `/login`,
+`/api/auth/me`, یک مسیر خواندنی و کل
+`docs/operations/RELEASE-1-SMOKE-TEST.md` را اجرا کنید.
 
-پاسخ health با `Cache-Control: no-store` ارائه می‌شود و نباید در reverse proxy
-یا load balancer cache شود.
+اگر health پاسخ 503 داد، ترافیک را وارد نکنید و path، ACL، integrity، schema،
+فضای دیسک و processهای writer را بررسی کنید.
 
-## انتشار نسخه‌ی جدید
+## انتشار و rollback
 
-نسخه‌ی جدید را در یک release directory جداگانه build کنید، validationها را اجرا کنید، سپس process را با روش مدیریت سرویس approved متوقف و با artifact جدید راه‌اندازی کنید. فایل database را جابه‌جا یا overwrite نکنید. قبل از هر release از آن backup بگیرید. rollback برنامه فقط زمانی مجاز است که نسخه‌ی قبلی schema فعلی را بفهمد؛ در غیر این صورت restore رسمی database لازم است.
-
-فرایند backup و rollback در `docs/operations/RUNBOOK.md` آمده است.
+هر نسخه را در release directory جدا build کنید و قبل از فعال‌سازی backup
+بگیرید. در خطای application، artifact قبلی را برگردانید و database را
+downgrade نکنید مگر compatibility آن اثبات شده باشد. برای corruption یا
+import اشتباه، طبق RUNBOOK سرویس را متوقف، database فعلی را قرنطینه، backup
+verified را restore و health/login/read/report/restart را تکرار کنید.
