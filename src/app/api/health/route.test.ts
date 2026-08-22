@@ -22,6 +22,7 @@ describe("health endpoint", () => {
     const response = GET();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ status: "ok", database: "ok" });
     expect(get).toHaveBeenCalledOnce();
   });
@@ -34,6 +35,7 @@ describe("health endpoint", () => {
     const response = GET();
 
     expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ status: "degraded", database: "unavailable" });
   });
 });

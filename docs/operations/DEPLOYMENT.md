@@ -4,7 +4,7 @@
 
 ## پیش‌نیازها
 
-- Node.js 22 یا نسخه‌ی سازگار با `package.json`
+- Node.js 22 LTS؛ نسخه‌ی پشتیبانی‌شده در `package.json` با `engines` اعلام شده است
 - فضای دیسک پایدار برای فایل SQLite و فایل‌های journal آن
 - دسترسی نوشتن کاربر runtime به پوشه‌ی `PULSE_DB_PATH`
 - نگهداری secretها خارج از مخزن
@@ -30,6 +30,11 @@ PULSE_PLAN_TODAY=1405/06/15
 ```
 
 `PULSE_PLAN_TODAY` باید برای اجرای production به‌صورت آگاهانه تنظیم شود؛ مقدار پیش‌فرض برای محیط آزمایشی است و جایگزین فرایند تقویمی سازمان نیست.
+
+در production مقدار `PULSE_HTTPS=true` را فقط زمانی تنظیم کنید که ترافیک کاربر
+پیش از رسیدن به Next.js در یک reverse proxy یا load balancer با TLS خاتمه یابد.
+این متغیر HTTPS ایجاد نمی‌کند؛ فقط ویژگی `Secure` را برای کوکی‌های نشست و CSRF
+فعال می‌کند.
 
 ## ساخت و راه‌اندازی
 
@@ -59,6 +64,9 @@ npm start -- -p 3000
 5. لاگ‌های runtime را برای خطای SQLite، permission یا migration بررسی کنید.
 
 اگر health check پاسخ `503` داد، ترافیک را به instance وارد نکنید و ابتدا وجود فایل، دسترسی پوشه و مقدار `PULSE_DB_PATH` را بررسی کنید.
+
+پاسخ health با `Cache-Control: no-store` ارائه می‌شود و نباید در reverse proxy
+یا load balancer cache شود.
 
 ## انتشار نسخه‌ی جدید
 

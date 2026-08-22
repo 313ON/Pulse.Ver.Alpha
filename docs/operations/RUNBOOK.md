@@ -63,6 +63,9 @@ sqlite3 /secure/backups/pulse-YYYYMMDD-HHMMSS.sqlite "PRAGMA integrity_check;"
 
 - `PULSE_ADMIN_PASSWORD` و سایر secretها در مخزن، command history یا log قرار نگیرند.
 - در HTTPS مقدار `PULSE_HTTPS=true` تنظیم شود.
+- `PULSE_HTTPS=true` فقط برای TLS termination تأییدشده در reverse proxy یا load balancer
+  تنظیم شود؛ این متغیر جایگزین certificate، redirect یا HTTPS listener نیست.
 - فایل database و backupها public یا قابل دانلود از web root نباشند.
 - دسترسی backupها به حداقل افراد و سرویس‌های لازم محدود شود.
 - health endpoint عمداً اطلاعات هویتی، schema یا مسیر فایل را برنمی‌گرداند.
+- health endpoint با `Cache-Control: no-store` پاسخ می‌دهد و نباید cache شود.
