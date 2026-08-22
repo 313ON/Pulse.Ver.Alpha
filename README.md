@@ -53,4 +53,12 @@ npm run build
 
 SQLite تنها موتور persistence فعلی است و `db/schema.sqlite.sql` قرارداد canonical schema است. `src/server/db.ts` فقط برای databaseهای قدیمی، ستون‌های پشتیبانی‌شده‌ی غایب را به‌صورت idempotent repair می‌کند. readiness علاوه بر integrity، کامل بودن tables، columns، indexes، triggers، foreign keys، defaults و constraints مهم را بررسی می‌کند. database توسعه در `db/pulse.sqlite` قرار دارد؛ database production باید خارج از مسیر application و با `PULSE_DB_PATH` مطلق تنظیم شود. وضعیت admin موجود با تغییر `PULSE_ADMIN_PASSWORD` عوض نمی‌شود و باید از مسیر secure password rotation استفاده شود.
 
+برای Windows Server، runtime file database را با WAL، `synchronous=FULL`,
+`foreign_keys=ON`, `busy_timeout=5000`, `wal_autocheckpoint=1000`,
+`locking_mode=NORMAL` و `temp_store=DEFAULT` باز می‌کند. فقط یک process writer
+برای هر database مجاز است. backup باید با SQLite online backup انجام شود و
+پیش از retention با integrity، foreign-key و schema checks تأیید شود. مدل
+service manager و ACLهای Windows بخشی از deployment approval هستند و در این
+repository service configuration ندارند.
+
 فایل `db/migrations/0001_pulse.sql` یک artifact تاریخی/رهاشده‌ی PostgreSQL است و برای runtime فعلی اجرا نمی‌شود.

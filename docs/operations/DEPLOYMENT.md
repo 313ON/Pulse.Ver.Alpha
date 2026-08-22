@@ -9,6 +9,7 @@
 - دسترسی نوشتن کاربر runtime به پوشه‌ی `PULSE_DB_PATH`
 - نگهداری secretها خارج از مخزن
 - reverse proxy یا load balancer در صورت ارائه‌ی HTTPS
+- اجرای فقط یک process نویسنده برای هر فایل SQLite
 
 ## تنظیمات محیطی
 
@@ -67,6 +68,46 @@ npm start -- -p 3000
 در محیط توسعه، fallback database در `db/pulse.sqlite` است. این فایل با production
 database متفاوت است و نباید در release یا deployment production استفاده شود.
 
+## مدل پیشنهادی Windows Server
+
+Repository evidence فعلی هیچ Windows Service، NSSM، IIS یا Task Scheduler
+configurationی تعریف نمی‌کند. بنابراین service manager باید قبل از production
+به‌صورت جداگانه approved و ثبت شود. مدل پیشنهادی:
+
+```text
+D:\Apps\Pulse.Ver.Alpha       release/application files (read-only)
+C:\ProgramData\Pulse          persistent data root
+C:\ProgramData\Pulse\db       externally persisted SQLite database
+C:\ProgramData\Pulse\Backups  verified backups
+C:\ProgramData\Pulse\Logs     service logs
+```
+
+مسیر واقعی production نباید از این مثال حدس زده شود و باید با
+`PULSE_DB_PATH` صریح تنظیم شود. حساب service باید روی release directory فقط
+read/execute و روی `C:\ProgramData\Pulse\db` read/write داشته باشد. دسترسی
+backup operator به `Backups` باید جدا و محدود باشد؛ حساب application نباید
+administrator یا owner همه‌ی backupها باشد.
+
+## SQLite runtime baseline
+
+برای file database، runtime در هر connection این تنظیمات را اعمال می‌کند:
+
+```text
+journal_mode=WAL
+synchronous=FULL
+foreign_keys=ON
+busy_timeout=5000
+wal_autocheckpoint=1000
+locking_mode=NORMAL
+temp_store=DEFAULT
+```
+
+WAL در فایل database پایدار است؛ سایر تنظیمات در هر connection دوباره اعمال
+می‌شوند. `:memory:` فقط برای test است و WAL برای آن درخواست نمی‌شود. health
+و startup باید در logهای server-side خطای path، permission، lock، corruption
+یا schema را قابل تشخیص کنند، بدون نمایش secret یا پاسخ دادن مسیر filesystem
+به کاربر.
+
 ## کنترل پس از استقرار
 
 1. `GET /api/health` را بررسی کنید؛ انتظار `200` و JSON با `status: "ok"` و `database: "ok"` است.
@@ -82,6 +123,6 @@ database متفاوت است و نباید در release یا deployment producti
 
 ## انتشار نسخه‌ی جدید
 
-نسخه‌ی جدید را در یک release directory جداگانه build کنید، validationها را اجرا کنید، سپس process را با روش مدیریت سرویس محیط متوقف و با artifact جدید راه‌اندازی کنید. فایل database را جابه‌جا یا overwrite نکنید. قبل از هر release از آن backup بگیرید.
+نسخه‌ی جدید را در یک release directory جداگانه build کنید، validationها را اجرا کنید، سپس process را با روش مدیریت سرویس approved متوقف و با artifact جدید راه‌اندازی کنید. فایل database را جابه‌جا یا overwrite نکنید. قبل از هر release از آن backup بگیرید. rollback برنامه فقط زمانی مجاز است که نسخه‌ی قبلی schema فعلی را بفهمد؛ در غیر این صورت restore رسمی database لازم است.
 
 فرایند backup و rollback در `docs/operations/RUNBOOK.md` آمده است.
