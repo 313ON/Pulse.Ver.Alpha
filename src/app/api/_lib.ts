@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { seedBaseline } from "../../server/seed";
 import { RepositoryError } from "../../server/repositories";
-import { audit, can, canScope, getSessionUser, seedAuthFoundation, secureCookiesEnabled, type PermissionCode, type SessionUser } from "../../server/auth";
+import { isDatabaseUnavailableError } from "../../server/db";
+import { assertAuthConfiguration, audit, can, canScope, getSessionUser, seedAuthFoundation, secureCookiesEnabled, type PermissionCode, type SessionUser } from "../../server/auth";
 
 export class AuthorizationError extends Error {
   constructor(public code: "UNAUTHORIZED" | "FORBIDDEN", message: string) {
@@ -20,6 +21,7 @@ export const csrfCookieName = "pulse_csrf";
 export const csrfHeaderName = "x-csrf-token";
 
 export function ensureRuntimeData(): void {
+  assertAuthConfiguration();
   seedBaseline();
   seedAuthFoundation();
 }
@@ -33,8 +35,11 @@ export function handleApiError(error: unknown) {
     return json({ error: error.message, code: error.code }, { status: authorizationStatus(error.code) });
   }
   if (error instanceof RepositoryError) {
-    const status = error.code === "NOT_FOUND" ? 404 : error.code === "DUPLICATE" || error.code === "VALIDATION" ? 400 : 500;
+    const status = error.code === "NOT_FOUND" ? 404 : error.code === "DUPLICATE" || error.code === "VALIDATION" ? 400 : 503;
     return json({ error: error.message, code: error.code }, { status });
+  }
+  if (isDatabaseUnavailableError(error)) {
+    return json({ error: "The request could not be completed.", code: "DATABASE_UNAVAILABLE" }, { status: 503 });
   }
   return json({ error: "The request could not be completed.", code: "INTERNAL_ERROR" }, { status: 500 });
 }

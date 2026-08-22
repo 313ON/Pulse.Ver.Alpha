@@ -67,7 +67,7 @@ npm start -- -p 3000
 4. یک مسیر خواندنی مجاز مانند `/api/dashboard` را بررسی کنید.
 5. لاگ‌های runtime را برای خطای SQLite، permission یا migration بررسی کنید.
 
-اگر health check پاسخ `503` داد، ترافیک را به instance وارد نکنید و ابتدا وجود فایل، دسترسی پوشه و مقدار `PULSE_DB_PATH` را بررسی کنید.
+اگر health check پاسخ `503` داد، ترافیک را به instance وارد نکنید و ابتدا وجود فایل، integrity، کامل بودن schema، دسترسی پوشه و مقدار `PULSE_DB_PATH` را بررسی کنید.
 
 پاسخ health با `Cache-Control: no-store` ارائه می‌شود و نباید در reverse proxy
 یا load balancer cache شود.

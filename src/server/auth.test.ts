@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getDatabase } from "./db";
 import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
-import { authorizationStatus, csrfTokensMatch } from "../app/api/_lib";
+import { authorizationStatus, csrfTokensMatch, ensureRuntimeData } from "../app/api/_lib";
 import { seedBaseline } from "./seed";
 
 beforeEach(() => {
@@ -62,8 +62,9 @@ describe("authentication and scopes", () => {
     closeDatabase();
     process.env.PULSE_DB_PATH = ":memory:";
     delete process.env.PULSE_ADMIN_PASSWORD;
-    seedBaseline();
-    expect(() => seedAuthFoundation()).toThrow(/PULSE_ADMIN_PASSWORD must be configured/);
+    expect(() => ensureRuntimeData()).toThrow(/PULSE_ADMIN_PASSWORD must be configured/);
+    expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM app_roles").get()).toEqual({ count: 0 });
+    expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM permissions").get()).toEqual({ count: 0 });
     process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
   });
   it("keeps governance audit events append-only", () => {

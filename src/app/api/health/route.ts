@@ -1,9 +1,8 @@
-import { getReadOnlyDatabase } from "../../../server/db";
+import { checkDatabaseReadiness } from "../../../server/db";
 
 export function GET() {
   try {
-    const database = getReadOnlyDatabase();
-    database.prepare("SELECT 1 AS ok").get();
+    checkDatabaseReadiness();
     return Response.json(
       { status: "ok", database: "ok" },
       { headers: { "Cache-Control": "no-store" } }

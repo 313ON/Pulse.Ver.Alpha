@@ -12,7 +12,7 @@ curl -i http://127.0.0.1:3000/api/health
 {"status":"ok","database":"ok"}
 ```
 
-کد `503` با `database: "unavailable"` یعنی فایل SQLite وجود ندارد، قابل خواندن نیست یا اتصال runtime به آن برقرار نشده است.
+کد `503` با `database: "unavailable"` یعنی فایل SQLite وجود ندارد، قابل خواندن نیست، integrity check ناموفق است، schema ناقص است یا اتصال runtime به آن برقرار نشده است.
 
 ## بررسی‌های اولیه‌ی incident
 

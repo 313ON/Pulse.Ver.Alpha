@@ -78,8 +78,21 @@ export function resetLoginRateLimitForTests() {
   loginAttempts.clear();
 }
 
+export function assertAuthConfiguration() {
+  const db = getDatabase();
+  const existing = db.prepare("SELECT id FROM users WHERE username = ?").get("admin");
+  if (!existing && !process.env[ADMIN_PASSWORD_ENV]) {
+    throw new Error(`${ADMIN_PASSWORD_ENV} must be configured before the initial administrator can be created.`);
+  }
+}
+
 export function seedAuthFoundation() {
   const db = getDatabase();
+  const existing = db.prepare("SELECT id FROM users WHERE username = ?").get("admin");
+  const adminPassword = process.env[ADMIN_PASSWORD_ENV];
+  if (!existing && !adminPassword) {
+    throw new Error(`${ADMIN_PASSWORD_ENV} must be configured before the initial administrator can be created.`);
+  }
   const insertRole = db.prepare("INSERT OR IGNORE INTO app_roles (id, code, title, scope) VALUES (?, ?, ?, ?)");
   const roles: Array<[string, string, string, DataScope]> = [
     ["role-super-admin", "SUPER_ADMIN", "مدیر ارشد سامانه", "COMPANY"],
@@ -113,14 +126,9 @@ export function seedAuthFoundation() {
       if (permission) assign.run(role.id, permission.id);
     }
   }
-  const existing = db.prepare("SELECT id FROM users WHERE username = ?").get("admin");
-  if (!existing) {
-    const password = process.env[ADMIN_PASSWORD_ENV];
-    if (!password) {
-      throw new Error(`${ADMIN_PASSWORD_ENV} must be configured before the initial administrator can be created.`);
-    }
+  if (!existing && adminPassword) {
     db.prepare("INSERT INTO users (id, username, password_hash, role_id) VALUES (?, ?, ?, ?)").run(
-      randomUUID(), "admin", hashPasswordForStorage(password), "role-super-admin"
+      randomUUID(), "admin", hashPasswordForStorage(adminPassword), "role-super-admin"
     );
   }
 }

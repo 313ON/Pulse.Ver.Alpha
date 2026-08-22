@@ -5,6 +5,53 @@ import path from "node:path";
 let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
 
+export class DatabaseUnavailableError extends Error {
+  constructor(message = "The database is unavailable.") {
+    super(message);
+    this.name = "DatabaseUnavailableError";
+  }
+}
+
+const unavailableSqliteCodes = new Set([
+  "SQLITE_BUSY",
+  "SQLITE_CANTOPEN",
+  "SQLITE_CORRUPT",
+  "SQLITE_IOERR",
+  "SQLITE_LOCKED",
+  "SQLITE_NOTADB",
+  "SQLITE_READONLY"
+]);
+
+export function isDatabaseUnavailableError(error: unknown): boolean {
+  if (error instanceof DatabaseUnavailableError) return true;
+  const code = error && typeof error === "object" && "code" in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  return typeof code === "string" && unavailableSqliteCodes.has(code);
+}
+
+const requiredTables = [
+  "strategic_goals",
+  "departments",
+  "seats",
+  "people",
+  "sub_goals",
+  "work_items",
+  "kpis",
+  "risks",
+  "dependencies",
+  "monthly_reviews",
+  "activities",
+  "app_roles",
+  "permissions",
+  "role_permissions",
+  "users",
+  "sessions",
+  "audit_log",
+  "import_jobs",
+  "import_records"
+] as const;
+
 function databasePath(): string {
   const configuredPath = process.env.PULSE_DB_PATH?.trim();
   if (process.env.NODE_ENV === "production") {
@@ -146,12 +193,19 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
 export function getDatabase(): Database.Database {
   if (!database) {
     const filePath = databasePath();
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    database = new Database(filePath);
-    database.pragma("foreign_keys = ON");
-    const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
-    database.exec(schema);
-    ensurePhaseFiveSchema(database);
+    let candidate: Database.Database | undefined;
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      candidate = new Database(filePath);
+      candidate.pragma("foreign_keys = ON");
+      const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
+      candidate.exec(schema);
+      ensurePhaseFiveSchema(candidate);
+      database = candidate;
+    } catch {
+      candidate?.close();
+      throw new DatabaseUnavailableError("The database could not be initialized.");
+    }
   }
   return database;
 }
@@ -170,6 +224,26 @@ export function getReadOnlyDatabase(): Database.Database {
     readOnlyDatabase.pragma("foreign_keys = ON");
   }
   return readOnlyDatabase;
+}
+
+export function checkDatabaseReadiness(): void {
+  try {
+    const candidate = getReadOnlyDatabase();
+    const integrity = candidate.pragma("integrity_check", { simple: true });
+    if (integrity !== "ok") throw new DatabaseUnavailableError("The database integrity check failed.");
+    const availableTables = new Set(
+      (candidate.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>)
+        .map((table) => table.name)
+    );
+    if (requiredTables.some((table) => !availableTables.has(table))) {
+      throw new DatabaseUnavailableError("The database schema is incomplete.");
+    }
+  } catch (error) {
+    readOnlyDatabase?.close();
+    readOnlyDatabase = undefined;
+    if (isDatabaseUnavailableError(error)) throw error;
+    throw new DatabaseUnavailableError();
+  }
 }
 
 export function closeDatabase(): void {

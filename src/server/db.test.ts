@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { closeDatabase, getDatabase } from "./db";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { closeDatabase, checkDatabaseReadiness, getDatabase } from "./db";
 
 const environment = process.env as Record<string, string | undefined>;
 const originalNodeEnv = environment.NODE_ENV;
@@ -33,5 +36,36 @@ describe("production database configuration", () => {
     environment.PULSE_DB_PATH = `${process.cwd()}\\db\\runtime.sqlite`;
 
     expect(() => getDatabase()).toThrow("PULSE_DB_PATH must point outside the application directory in production.");
+  });
+
+  it("does not cache a database connection when initialization fails", () => {
+    environment.NODE_ENV = "production";
+    const databasePath = path.join(os.tmpdir(), `pulse-invalid-${Date.now()}-${Math.random()}.sqlite`);
+    fs.writeFileSync(databasePath, "not a sqlite database");
+    environment.PULSE_DB_PATH = databasePath;
+
+    try {
+      expect(() => getDatabase()).toThrow("The database could not be initialized.");
+      closeDatabase();
+      expect(() => getDatabase()).toThrow("The database could not be initialized.");
+    } finally {
+      closeDatabase();
+      fs.rmSync(databasePath, { force: true });
+    }
+  });
+
+  it("rejects an existing database with an incomplete schema as not ready", () => {
+    environment.NODE_ENV = "test";
+    const databasePath = path.join(os.tmpdir(), `pulse-incomplete-${Date.now()}-${Math.random()}.sqlite`);
+    environment.PULSE_DB_PATH = databasePath;
+    const db = getDatabase();
+    db.exec("DROP TABLE audit_log");
+
+    try {
+      expect(() => checkDatabaseReadiness()).toThrow("The database schema is incomplete.");
+    } finally {
+      closeDatabase();
+      fs.rmSync(databasePath, { force: true });
+    }
   });
 });
