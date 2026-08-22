@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getDatabase } from "./db";
-import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
+import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, rotateAdminPassword, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
 import { authorizationStatus, csrfTokensMatch, ensureRuntimeData } from "../app/api/_lib";
 import { seedBaseline } from "./seed";
 
@@ -66,6 +66,15 @@ describe("authentication and scopes", () => {
     expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM app_roles").get()).toEqual({ count: 0 });
     expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM permissions").get()).toEqual({ count: 0 });
     process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
+  });
+  it("rotates an existing administrator password through the hashing boundary", () => {
+    const before = getDatabase().prepare("SELECT password_hash FROM users WHERE username = 'admin'").get() as { password_hash: string };
+    rotateAdminPassword("rotated-admin-password-123");
+    const after = getDatabase().prepare("SELECT password_hash FROM users WHERE username = 'admin'").get() as { password_hash: string };
+
+    expect(after.password_hash).not.toBe(before.password_hash);
+    expect(verifyPassword("rotated-admin-password-123", after.password_hash)).toBe(true);
+    expect(verifyPassword("test-admin-password-123", after.password_hash)).toBe(false);
   });
   it("keeps governance audit events append-only", () => {
     const db = getDatabase();

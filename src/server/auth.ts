@@ -47,6 +47,14 @@ export function hashPasswordForStorage(password: string) {
   return hashPassword(password);
 }
 
+export function rotateAdminPassword(password: string): void {
+  const passwordHash = hashPasswordForStorage(password);
+  const result = getDatabase()
+    .prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = 'admin'")
+    .run(passwordHash);
+  if (result.changes !== 1) throw new Error("The administrator account was not found.");
+}
+
 export function loginRateLimitKey(username: string, clientKey: string) {
   return `${clientKey}:${username.trim().toLowerCase()}`;
 }
