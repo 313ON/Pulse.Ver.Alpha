@@ -101,44 +101,47 @@ export function seedAuthFoundation() {
   if (!existing && !adminPassword) {
     throw new Error(`${ADMIN_PASSWORD_ENV} must be configured before the initial administrator can be created.`);
   }
-  const insertRole = db.prepare("INSERT OR IGNORE INTO app_roles (id, code, title, scope) VALUES (?, ?, ?, ?)");
-  const roles: Array<[string, string, string, DataScope]> = [
-    ["role-super-admin", "SUPER_ADMIN", "مدیر ارشد سامانه", "COMPANY"],
-    ["role-admin", "ADMIN", "مدیر سامانه", "COMPANY"],
-    ["role-management", "MANAGEMENT", "مدیریت", "COMPANY"],
-    ["role-unit-manager", "UNIT_MANAGER", "مدیر واحد", "DEPARTMENT"],
-    ["role-project-owner", "PROJECT_OWNER", "مالک پروژه", "OWN"],
-    ["role-employee", "EMPLOYEE", "کارمند", "OWN"],
-    ["role-viewer", "VIEWER", "مشاهده‌گر", "COMPANY"]
-  ];
-  for (const role of roles) insertRole.run(...role);
-  const updateRoleScope = db.prepare("UPDATE app_roles SET scope = ?, title = ? WHERE code = ?");
-  for (const [, code, title, scope] of roles) updateRoleScope.run(scope, title, code);
-  const insertPermission = db.prepare("INSERT OR IGNORE INTO permissions (id, code, title) VALUES (?, ?, ?)");
-  for (const code of permissionCodes) insertPermission.run(`permission-${code}`, code, code);
-  const all = db.prepare("SELECT id FROM permissions").all() as Array<{ id: string }>;
-  const rolePermissionMap: Record<string, PermissionCode[]> = {
-    SUPER_ADMIN: [...permissionCodes],
-    ADMIN: [...permissionCodes],
-    MANAGEMENT: ["goals.view", "actions.view", "activities.view", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view", "reports.export"],
-    UNIT_MANAGER: ["goals.view", "actions.view", "actions.create", "actions.edit-department", "actions.progress", "activities.view", "activities.create", "activities.edit-department", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
-    PROJECT_OWNER: ["goals.view", "actions.view", "actions.create", "actions.edit-own", "actions.progress", "activities.view", "activities.create", "activities.edit-own", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
-    EMPLOYEE: ["goals.view", "actions.view", "actions.edit-own", "actions.progress", "activities.view", "activities.edit-own", "reports.view"],
-    VIEWER: ["goals.view", "actions.view", "activities.view", "reports.view"]
-  };
-  const roleRows = db.prepare("SELECT id, code FROM app_roles").all() as Array<{ id: string; code: string }>;
-  const assign = db.prepare("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
-  for (const role of roleRows) {
-    for (const code of rolePermissionMap[role.code] ?? []) {
-      const permission = all.find((candidate) => candidate.id === `permission-${code}`);
-      if (permission) assign.run(role.id, permission.id);
+  const seed = db.transaction(() => {
+    const insertRole = db.prepare("INSERT OR IGNORE INTO app_roles (id, code, title, scope) VALUES (?, ?, ?, ?)");
+    const roles: Array<[string, string, string, DataScope]> = [
+      ["role-super-admin", "SUPER_ADMIN", "مدیر ارشد سامانه", "COMPANY"],
+      ["role-admin", "ADMIN", "مدیر سامانه", "COMPANY"],
+      ["role-management", "MANAGEMENT", "مدیریت", "COMPANY"],
+      ["role-unit-manager", "UNIT_MANAGER", "مدیر واحد", "DEPARTMENT"],
+      ["role-project-owner", "PROJECT_OWNER", "مالک پروژه", "OWN"],
+      ["role-employee", "EMPLOYEE", "کارمند", "OWN"],
+      ["role-viewer", "VIEWER", "مشاهده‌گر", "COMPANY"]
+    ];
+    for (const role of roles) insertRole.run(...role);
+    const updateRoleScope = db.prepare("UPDATE app_roles SET scope = ?, title = ? WHERE code = ?");
+    for (const [, code, title, scope] of roles) updateRoleScope.run(scope, title, code);
+    const insertPermission = db.prepare("INSERT OR IGNORE INTO permissions (id, code, title) VALUES (?, ?, ?)");
+    for (const code of permissionCodes) insertPermission.run(`permission-${code}`, code, code);
+    const all = db.prepare("SELECT id FROM permissions").all() as Array<{ id: string }>;
+    const rolePermissionMap: Record<string, PermissionCode[]> = {
+      SUPER_ADMIN: [...permissionCodes],
+      ADMIN: [...permissionCodes],
+      MANAGEMENT: ["goals.view", "actions.view", "activities.view", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view", "reports.export"],
+      UNIT_MANAGER: ["goals.view", "actions.view", "actions.create", "actions.edit-department", "actions.progress", "activities.view", "activities.create", "activities.edit-department", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
+      PROJECT_OWNER: ["goals.view", "actions.view", "actions.create", "actions.edit-own", "actions.progress", "activities.view", "activities.create", "activities.edit-own", "kpis.manage", "risks.manage", "dependencies.manage", "reports.view"],
+      EMPLOYEE: ["goals.view", "actions.view", "actions.edit-own", "actions.progress", "activities.view", "activities.edit-own", "reports.view"],
+      VIEWER: ["goals.view", "actions.view", "activities.view", "reports.view"]
+    };
+    const roleRows = db.prepare("SELECT id, code FROM app_roles").all() as Array<{ id: string; code: string }>;
+    const assign = db.prepare("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
+    for (const role of roleRows) {
+      for (const code of rolePermissionMap[role.code] ?? []) {
+        const permission = all.find((candidate) => candidate.id === `permission-${code}`);
+        if (permission) assign.run(role.id, permission.id);
+      }
     }
-  }
-  if (!existing && adminPassword) {
-    db.prepare("INSERT INTO users (id, username, password_hash, role_id) VALUES (?, ?, ?, ?)").run(
-      randomUUID(), "admin", hashPasswordForStorage(adminPassword), "role-super-admin"
-    );
-  }
+    if (!existing && adminPassword) {
+      db.prepare("INSERT OR IGNORE INTO users (id, username, password_hash, role_id) VALUES (?, ?, ?, ?)").run(
+        randomUUID(), "admin", hashPasswordForStorage(adminPassword), "role-super-admin"
+      );
+    }
+  });
+  seed();
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {

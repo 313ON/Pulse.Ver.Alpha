@@ -6,6 +6,9 @@ import { schemaContractErrors } from "./schema-contract";
 let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
 
+export const SQLITE_BUSY_TIMEOUT_MS = 5000;
+export const SQLITE_WAL_AUTOCHECKPOINT_PAGES = 1000;
+
 export class DatabaseUnavailableError extends Error {
   constructor(message = "The database is unavailable.") {
     super(message);
@@ -50,6 +53,28 @@ function databasePath(): string {
   return configuredPath || path.join(process.cwd(), "db", "pulse.sqlite");
 }
 
+function configureWritableConnection(database: Database.Database, filePath: string): void {
+  database.pragma("busy_timeout = " + SQLITE_BUSY_TIMEOUT_MS);
+  if (filePath !== ":memory:") {
+    const journalMode = String(database.pragma("journal_mode = WAL", { simple: true })).toLowerCase();
+    if (journalMode !== "wal") throw new Error(`SQLite WAL mode could not be enabled (actual mode: ${journalMode}).`);
+  }
+  database.pragma("synchronous = FULL");
+  database.pragma("foreign_keys = ON");
+  database.pragma("wal_autocheckpoint = " + SQLITE_WAL_AUTOCHECKPOINT_PAGES);
+  database.pragma("locking_mode = NORMAL");
+  database.pragma("temp_store = DEFAULT");
+}
+
+function configureReadOnlyConnection(database: Database.Database): void {
+  database.pragma("busy_timeout = " + SQLITE_BUSY_TIMEOUT_MS);
+  database.pragma("synchronous = FULL");
+  database.pragma("foreign_keys = ON");
+  database.pragma("wal_autocheckpoint = " + SQLITE_WAL_AUTOCHECKPOINT_PAGES);
+  database.pragma("locking_mode = NORMAL");
+  database.pragma("temp_store = DEFAULT");
+}
+
 function ensurePhaseFiveSchema(database: Database.Database): void {
   // Canonical schema ownership lives in db/schema.sqlite.sql. This function
   // only repairs columns that may be absent from legacy databases.
@@ -83,14 +108,15 @@ export function getDatabase(): Database.Database {
     try {
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
       candidate = new Database(filePath);
-      candidate.pragma("foreign_keys = ON");
+      configureWritableConnection(candidate, filePath);
       const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
       candidate.exec(schema);
       ensurePhaseFiveSchema(candidate);
       database = candidate;
-    } catch {
+    } catch (error) {
       candidate?.close();
-      throw new DatabaseUnavailableError("The database could not be initialized.");
+      const detail = error instanceof Error ? ` ${error.message}` : "";
+      throw new DatabaseUnavailableError(`The database could not be initialized.${detail}`);
     }
   }
   return database;
@@ -107,7 +133,7 @@ export function getReadOnlyDatabase(): Database.Database {
       readonly: true,
       fileMustExist: true
     });
-    readOnlyDatabase.pragma("foreign_keys = ON");
+    configureReadOnlyConnection(readOnlyDatabase);
   }
   return readOnlyDatabase;
 }
@@ -135,4 +161,16 @@ export function closeDatabase(): void {
   database = undefined;
   readOnlyDatabase?.close();
   readOnlyDatabase = undefined;
+}
+
+export function getDatabaseOperationalConfiguration(database: Database.Database) {
+  return {
+    journalMode: String(database.pragma("journal_mode", { simple: true })).toLowerCase(),
+    synchronous: Number(database.pragma("synchronous", { simple: true })),
+    foreignKeys: Number(database.pragma("foreign_keys", { simple: true })),
+    busyTimeout: Number(database.pragma("busy_timeout", { simple: true })),
+    walAutocheckpoint: Number(database.pragma("wal_autocheckpoint", { simple: true })),
+    lockingMode: String(database.pragma("locking_mode", { simple: true })).toLowerCase(),
+    tempStore: Number(database.pragma("temp_store", { simple: true }))
+  };
 }
