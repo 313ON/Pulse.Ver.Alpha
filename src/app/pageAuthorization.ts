@@ -12,6 +12,7 @@ export const pagePermissions: Partial<Record<string, PermissionCode>> = {
   kpis: "kpis.manage",
   risks: "risks.manage",
   dependencies: "dependencies.manage",
+  "monthly-reviews": "reports.view",
   reports: "reports.view",
   imports: "imports.manage"
 };

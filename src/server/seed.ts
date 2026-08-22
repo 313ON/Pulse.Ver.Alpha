@@ -19,9 +19,23 @@ const seatRecords = [
   ["hr-specialist", "کارشناس منابع انسانی", "hr"]
 ];
 
+export type SeedMode = "demo" | "reference";
+
+export function getSeedMode(): SeedMode {
+  const configured = process.env.PULSE_SEED_MODE?.trim().toLowerCase();
+  if (configured === "demo" || configured === "reference") {
+    if (process.env.NODE_ENV === "production" && configured === "demo") {
+      throw new Error("PULSE_SEED_MODE=demo is not permitted in production.");
+    }
+    return configured;
+  }
+  return process.env.NODE_ENV === "production" ? "reference" : "demo";
+}
+
 export function seedBaseline(): void {
   const db = getDatabase();
   const planning = getPlanningContext();
+  const mode = getSeedMode();
   const seed = db.transaction(() => {
     const insertDepartment = db.prepare("INSERT OR IGNORE INTO departments (id, name) VALUES (?, ?)");
     departments.forEach(([name]) => insertDepartment.run(departmentIds[name], name));
@@ -29,6 +43,7 @@ export function seedBaseline(): void {
     seatRecords.forEach(([id, title, departmentId]) => insertSeat.run(id, title, departmentId));
     const insertPerson = db.prepare("INSERT OR IGNORE INTO people (id, full_name, seat_id) VALUES (?, ?, ?)");
     seatRecords.forEach(([id, title]) => insertPerson.run(id, title, id));
+    if (mode !== "demo") return;
     const insertGoal = db.prepare("INSERT OR IGNORE INTO strategic_goals (id, title, plan_year) VALUES (@id, @title, @planYear)");
     goals.forEach(([id, title]) => insertGoal.run({ id, title, planYear: planning.planYear }));
     const insertAction = db.prepare(`

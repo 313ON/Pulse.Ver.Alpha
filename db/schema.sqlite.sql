@@ -235,6 +235,15 @@ CREATE TABLE IF NOT EXISTS import_records (
   FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS pulse_release_metadata (
+  id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+  release_name TEXT NOT NULL,
+  application_version TEXT NOT NULL,
+  schema_version TEXT NOT NULL,
+  released_commit TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS work_items_goal_idx ON work_items(goal_id);
 CREATE INDEX IF NOT EXISTS work_items_owner_idx ON work_items(owner_person_id);
 CREATE INDEX IF NOT EXISTS work_items_due_idx ON work_items(planned_end);

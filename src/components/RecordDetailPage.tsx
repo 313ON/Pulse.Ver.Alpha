@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { PulseShell } from "./PulseShell";
 
-const endpoints: Record<string, string> = { activities: "/api/activities", departments: "/api/departments", roles: "/api/roles", persons: "/api/persons", users: "/api/users" };
+const endpoints: Record<string, string> = { activities: "/api/activities", departments: "/api/departments", roles: "/api/roles", persons: "/api/persons", users: "/api/users", "monthly-reviews": "/api/monthly-reviews" };
 const fields: Record<string, Array<[string, string]>> = {
   activities: [["subGoalId", "شناسه زیرهدف"], ["title", "عنوان"], ["description", "شرح"], ["ownerPersonId", "شناسه مسئول"]],
   departments: [["name", "نام واحد"], ["active", "فعال"]],
   roles: [["title", "عنوان سمت"], ["departmentId", "شناسه واحد"]],
   persons: [["fullName", "نام و نام خانوادگی"], ["seatId", "سمت / نقش"], ["active", "فعال"]],
-  users: [["username", "نام کاربری"], ["password", "گذرواژه جدید"], ["roleId", "شناسه نقش"], ["departmentId", "شناسه واحد"], ["active", "فعال"]]
+  users: [["username", "نام کاربری"], ["password", "گذرواژه جدید"], ["roleId", "شناسه نقش"], ["departmentId", "شناسه واحد"], ["active", "فعال"]],
+  "monthly-reviews": [["monthKey", "ماه"], ["departmentId", "واحد"], ["planSummary", "خلاصه برنامه"], ["actualSummary", "عملکرد واقعی"], ["deviation", "انحراف"], ["rootCause", "علت ریشه‌ای"], ["correctiveAction", "اقدام اصلاحی"], ["managementDecision", "تصمیم مدیریت"], ["nextMonthCommitment", "تعهد ماه بعد"]]
 };
 
 export function RecordDetailPage({ section, id }: { section: string; id: string }) {
@@ -22,7 +23,19 @@ export function RecordDetailPage({ section, id }: { section: string; id: string 
   useEffect(() => {
     fetch(`${endpoint}/${encodeURIComponent(id)}`).then((response) => response.json()).then((body) => {
       setRecord(body);
-      setForm({ ...Object.fromEntries(Object.entries(body).map(([key, value]) => [key, String(value ?? "")])), seatId: String(body.seatId ?? body.seat_id ?? "") });
+      const monthlyReviewForm = section === "monthly-reviews" ? {
+        id: String(body.id ?? ""),
+        monthKey: String(body.month_key ?? ""),
+        departmentId: String(body.department_id ?? ""),
+        planSummary: String(body.plan_summary ?? ""),
+        actualSummary: String(body.actual_summary ?? ""),
+        deviation: String(body.deviation ?? ""),
+        rootCause: String(body.root_cause ?? ""),
+        correctiveAction: String(body.corrective_action ?? ""),
+        managementDecision: String(body.management_decision ?? ""),
+        nextMonthCommitment: String(body.next_month_commitment ?? "")
+      } : null;
+      setForm(monthlyReviewForm ?? { ...Object.fromEntries(Object.entries(body).map(([key, value]) => [key, String(value ?? "")])), seatId: String(body.seatId ?? body.seat_id ?? "") });
     }).catch(() => setMessage("اطلاعات دریافت نشد."));
     if (section === "persons") {
       Promise.all([fetch("/api/roles").then((response) => response.json()), fetch("/api/departments").then((response) => response.json())]).then(([roleBody, departmentBody]) => {

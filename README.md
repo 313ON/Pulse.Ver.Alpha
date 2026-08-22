@@ -1,4 +1,4 @@
-# PULSE
+# PULSE — Release 1.0.0
 
 PULSE سامانه‌ی فارسی و راست‌به‌چپ برنامه‌ریزی، اجرا و پایش عملکرد شرکت چرب شیمی است.
 
@@ -7,6 +7,7 @@ PULSE سامانه‌ی فارسی و راست‌به‌چپ برنامه‌ری
 - Node.js 22 یا نسخه‌ی سازگار با `package.json`
 - دسترسی نوشتن فرآیند به مسیر پایگاه‌داده‌ی SQLite
 - مقداردهی `PULSE_ADMIN_PASSWORD` برای ایجاد مدیر اولیه
+- در production مقداردهی `PULSE_SEED_MODE=reference` برای جلوگیری از ورود داده‌ی نمایشی
 - اجرای build روی همان محیطی که `npm start` اجرا می‌شود
 
 ## اجرای محلی
@@ -27,6 +28,8 @@ npm run dev
 | `PULSE_PLAN_START_DATE` | خیر | `${PULSE_PLAN_YEAR}/01/01` | شروع چرخه |
 | `PULSE_PLAN_END_DATE` | خیر | `${PULSE_PLAN_YEAR}/12/29` | پایان چرخه |
 | `PULSE_PLAN_TODAY` | خیر | `${PULSE_PLAN_YEAR}/06/15` | تاریخ مرجع محاسبات عملیاتی |
+| `PULSE_SEED_MODE` | خیر | `reference` در production، `demo` در توسعه | جداسازی داده‌ی مرجع از داده‌ی نمایشی |
+| `PULSE_RELEASE_COMMIT` | خیر | `unrecorded` | commit ثبت‌شده در metadata پایگاه‌داده |
 
 مقادیر محیطی را خارج از مخزن و با دسترسی محدود نگهداری کنید. پس از ایجاد مدیر اولیه، مقدار `PULSE_ADMIN_PASSWORD` همچنان باید در محیط امن deployment نگهداری شود؛ برنامه آن را در پایگاه‌داده ذخیره نمی‌کند.
 
@@ -52,6 +55,13 @@ npm run build
 رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف، ورود و بازبینی XLSX، گزارش‌های governed و جستجوی سراسری است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند.
 
 SQLite تنها موتور persistence فعلی است و `db/schema.sqlite.sql` قرارداد canonical schema است. `src/server/db.ts` فقط برای databaseهای قدیمی، ستون‌های پشتیبانی‌شده‌ی غایب را به‌صورت idempotent repair می‌کند. readiness علاوه بر integrity، کامل بودن tables، columns، indexes، triggers، foreign keys، defaults و constraints مهم را بررسی می‌کند. database توسعه در `db/pulse.sqlite` قرار دارد؛ database production باید خارج از مسیر application و با `PULSE_DB_PATH` مطلق تنظیم شود. وضعیت admin موجود با تغییر `PULSE_ADMIN_PASSWORD` عوض نمی‌شود و باید از مسیر secure password rotation استفاده شود.
+
+این نسخه با شناسه‌ی `PULSE Release 1`، نسخه‌ی برنامه‌ی `1.0.0` و نسخه‌ی schema
+`1` منتشر می‌شود. جدول `pulse_release_metadata` در همان پایگاه‌داده مشخص می‌کند
+چه نسخه‌ای از برنامه و قرارداد schema روی آن اجرا شده است. در production،
+`PULSE_SEED_MODE=reference` فقط داده‌های پایه‌ی سازمانی و RBAC را ایجاد می‌کند؛
+اهداف، اقدامات، KPIها، ریسک‌ها و وابستگی‌های نمونه فقط در حالت توسعه/آزمون
+`demo` seed می‌شوند.
 
 برای Windows Server، runtime file database را با WAL، `synchronous=FULL`,
 `foreign_keys=ON`, `busy_timeout=5000`, `wal_autocheckpoint=1000`,

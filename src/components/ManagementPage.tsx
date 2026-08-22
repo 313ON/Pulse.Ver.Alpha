@@ -19,7 +19,8 @@ const config: Record<string, { title: string; endpoint: string; columns: Array<[
   actions: { title: "اقدامات", endpoint: "/api/actions", columns: [["public_id", "شناسه اقدام"], ["title", "عنوان"], ["status", "وضعیت"], ["progress", "پیشرفت"], ["planned_end", "موعد"]] },
   kpis: { title: "شاخص‌ها", endpoint: "/api/kpis", columns: [["id", "شناسه"], ["name", "نام شاخص"], ["actual", "مقدار فعلی"], ["target", "هدف"]] },
   risks: { title: "ریسک‌ها", endpoint: "/api/risks", columns: [["id", "شناسه"], ["title", "عنوان"], ["severity", "شدت"], ["status", "وضعیت"]] },
-  dependencies: { title: "وابستگی‌ها", endpoint: "/api/dependencies", columns: [["id", "شناسه"], ["source_work_item_id", "مبدأ"], ["target_work_item_id", "مقصد"], ["status", "وضعیت"]], }
+  dependencies: { title: "وابستگی‌ها", endpoint: "/api/dependencies", columns: [["id", "شناسه"], ["source_work_item_id", "مبدأ"], ["target_work_item_id", "مقصد"], ["status", "وضعیت"]] },
+  "monthly-reviews": { title: "بازبینی‌های ماهانه", endpoint: "/api/monthly-reviews", columns: [["id", "شناسه"], ["month_key", "ماه"], ["department_id", "واحد"], ["actual_summary", "عملکرد واقعی"], ["management_decision", "تصمیم مدیریت"]] }
 };
 
 const fieldsBySection: Record<string, Field[]> = {
@@ -29,7 +30,19 @@ const fieldsBySection: Record<string, Field[]> = {
   departments: [{ key: "id", label: "شناسه واحد", required: true }, { key: "name", label: "نام واحد", required: true }],
   roles: [{ key: "id", label: "شناسه سمت / نقش", required: true }, { key: "title", label: "عنوان سمت / نقش", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }],
   persons: [{ key: "id", label: "کد پرسنلی", required: true }, { key: "fullName", label: "نام و نام خانوادگی", required: true }, { key: "seatId", label: "سمت / نقش", select: "roles", required: true }],
-  actions: [{ key: "goalId", label: "هدف کلی", select: "goals", required: true }, { key: "objectiveId", label: "هدف جزئی", select: "subGoals" }, { key: "activityId", label: "فعالیت", select: "activities" }, { key: "title", label: "عنوان اقدام", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }, { key: "ownerPersonId", label: "مجری", select: "persons", required: true }, { key: "roleId", label: "سمت / نقش مسئول", select: "roles" }, { key: "workType", label: "نوع کار", required: true }, { key: "deliverable", label: "خروجی مورد انتظار", required: true }, { key: "deadline", label: "موعد پایان", required: true }]
+  actions: [{ key: "goalId", label: "هدف کلی", select: "goals", required: true }, { key: "objectiveId", label: "هدف جزئی", select: "subGoals" }, { key: "activityId", label: "فعالیت", select: "activities" }, { key: "title", label: "عنوان اقدام", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }, { key: "ownerPersonId", label: "مجری", select: "persons", required: true }, { key: "roleId", label: "سمت / نقش مسئول", select: "roles" }, { key: "workType", label: "نوع کار", required: true }, { key: "deliverable", label: "خروجی مورد انتظار", required: true }, { key: "deadline", label: "موعد پایان", required: true }],
+  "monthly-reviews": [
+    { key: "id", label: "شناسه بازبینی" },
+    { key: "monthKey", label: "ماه (مثلاً 1405/06)", required: true },
+    { key: "departmentId", label: "واحد", select: "departments", required: true },
+    { key: "planSummary", label: "خلاصه برنامه" },
+    { key: "actualSummary", label: "عملکرد واقعی" },
+    { key: "deviation", label: "انحراف" },
+    { key: "rootCause", label: "علت ریشه‌ای" },
+    { key: "correctiveAction", label: "اقدام اصلاحی" },
+    { key: "managementDecision", label: "تصمیم مدیریت" },
+    { key: "nextMonthCommitment", label: "تعهد ماه بعد" }
+  ]
 };
 
 export function ManagementPage({ section }: { section: string }) {

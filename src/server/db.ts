@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { schemaContractErrors } from "./schema-contract";
+import { ensureReleaseMetadata } from "./release";
 
 let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
@@ -112,6 +113,7 @@ export function getDatabase(): Database.Database {
       const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
       candidate.exec(schema);
       ensurePhaseFiveSchema(candidate);
+      ensureReleaseMetadata(candidate);
       database = candidate;
     } catch (error) {
       candidate?.close();

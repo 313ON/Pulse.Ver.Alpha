@@ -35,7 +35,8 @@ export const requiredTables = [
   "sessions",
   "audit_log",
   "import_jobs",
-  "import_records"
+  "import_records",
+  "pulse_release_metadata"
 ] as const;
 
 export const requiredIndexes = [
@@ -227,6 +228,14 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     id: column("TEXT", { notNull: true }),
     job_id: column("TEXT", { notNull: true }),
     record_json: column("TEXT", { notNull: true })
+  },
+  pulse_release_metadata: {
+    id: column("INTEGER", { notNull: true }),
+    release_name: column("TEXT", { notNull: true }),
+    application_version: column("TEXT", { notNull: true }),
+    schema_version: column("TEXT", { notNull: true }),
+    released_commit: column("TEXT", { notNull: true }),
+    updated_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" })
   }
 };
 
@@ -276,7 +285,8 @@ const requiredConstraintFragments: Record<string, string[]> = {
   permissions: ["unique"],
   users: ["unique"],
   role_permissions: ["primary key(role_id,permission_id)"],
-  import_records: ["primary key(job_id,id)"]
+  import_records: ["primary key(job_id,id)"],
+  pulse_release_metadata: ["primary key", "check(id=1)"]
 };
 
 function normalizeSql(sql: string): string {
