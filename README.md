@@ -47,6 +47,6 @@ npm run lint
 npm run build
 ```
 
-پس از اجرای production server با `npm start`، endpoint بررسی سلامت `GET /api/health` در دسترس است. پاسخ `200` با وضعیت `ok` نشان می‌دهد فرآیند و فایل SQLite قابل خواندن هستند؛ پاسخ `503` به معنی آماده نبودن پایگاه‌داده یا عدم دسترسی runtime به آن است.
+پس از اجرای production server با `npm start`، endpoint بررسی سلامت `GET /api/health` در دسترس است. پاسخ `200` با وضعیت `ok` نشان می‌دهد فرآیند، integrity پایگاه‌داده و schema موردنیاز آماده هستند؛ پاسخ `503` به معنی آماده نبودن پایگاه‌داده یا عدم دسترسی runtime به آن است.
 
-رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف و فرم ثبت اقدام است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند. Migration رابطه‌ای پایه در `db/migrations/0001_pulse.sql` نگهداری می‌شود.
+رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف، ورود و بازبینی XLSX، گزارش‌های governed و جستجوی سراسری است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند. Migration رابطه‌ای پایه در `db/migrations/0001_pulse.sql` نگهداری می‌شود.
