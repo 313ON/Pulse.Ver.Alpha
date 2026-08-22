@@ -75,9 +75,12 @@ export class SQLiteImportJobRepository implements ImportJobRepository {
 export class SQLiteImportRecordRepository implements ImportRecordRepository {
   attach(jobId: string, records: ImportRecord[]): ImportRecord[] {
     const database = getDatabase();
-    database.prepare("DELETE FROM import_records WHERE job_id = ?").run(jobId);
-    const insert = database.prepare("INSERT INTO import_records (id, job_id, record_json) VALUES (?, ?, ?)");
-    for (const record of records) insert.run(record.id, jobId, JSON.stringify(record));
+    const replaceRecords = database.transaction(() => {
+      database.prepare("DELETE FROM import_records WHERE job_id = ?").run(jobId);
+      const insert = database.prepare("INSERT INTO import_records (id, job_id, record_json) VALUES (?, ?, ?)");
+      for (const record of records) insert.run(record.id, jobId, JSON.stringify(record));
+    });
+    replaceRecords();
     return records;
   }
 
