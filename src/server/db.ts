@@ -7,8 +7,19 @@ let readOnlyDatabase: Database.Database | undefined;
 
 function databasePath(): string {
   const configuredPath = process.env.PULSE_DB_PATH?.trim();
-  if (process.env.NODE_ENV === "production" && !configuredPath) {
-    throw new Error("PULSE_DB_PATH must be configured in production.");
+  if (process.env.NODE_ENV === "production") {
+    if (!configuredPath) {
+      throw new Error("PULSE_DB_PATH must be configured in production.");
+    }
+    if (!path.isAbsolute(configuredPath)) {
+      throw new Error("PULSE_DB_PATH must be an absolute path in production.");
+    }
+    const repositoryPath = path.resolve(process.cwd());
+    const configuredDatabasePath = path.resolve(configuredPath);
+    const relativePath = path.relative(repositoryPath, configuredDatabasePath);
+    if (relativePath === "" || (!relativePath.startsWith(".." + path.sep) && relativePath !== ".." && !path.isAbsolute(relativePath))) {
+      throw new Error("PULSE_DB_PATH must point outside the application directory in production.");
+    }
   }
   return configuredPath || path.join(process.cwd(), "db", "pulse.sqlite");
 }

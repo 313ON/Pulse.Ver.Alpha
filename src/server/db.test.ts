@@ -20,4 +20,18 @@ describe("production database configuration", () => {
 
     expect(() => getDatabase()).toThrow("PULSE_DB_PATH must be configured in production.");
   });
+
+  it("rejects relative database paths in production", () => {
+    environment.NODE_ENV = "production";
+    environment.PULSE_DB_PATH = "db/runtime.sqlite";
+
+    expect(() => getDatabase()).toThrow("PULSE_DB_PATH must be an absolute path in production.");
+  });
+
+  it("rejects database paths inside the application directory in production", () => {
+    environment.NODE_ENV = "production";
+    environment.PULSE_DB_PATH = `${process.cwd()}\\db\\runtime.sqlite`;
+
+    expect(() => getDatabase()).toThrow("PULSE_DB_PATH must point outside the application directory in production.");
+  });
 });
