@@ -33,6 +33,11 @@ PULSE_PLAN_TODAY=1405/06/15
 storage پایدار، خارج از مسیر مخزن و build، اشاره کند. برنامه در production
 در صورت نبودن این مقدار با خطا متوقف می‌شود و به `db/pulse.sqlite` برنمی‌گردد.
 
+قرارداد canonical schema در `db/schema.sqlite.sql` قرار دارد. در startup،
+`src/server/db.ts` فقط compatibility repair محدود و idempotent برای databaseهای
+قدیمی انجام می‌دهد؛ readiness علاوه بر integrity، کامل بودن schema objects
+موردنیاز را بررسی می‌کند و در صورت drift با fail-closed پاسخ آماده نبودن می‌دهد.
+
 `PULSE_PLAN_TODAY` باید برای اجرای production به‌صورت آگاهانه تنظیم شود؛ مقدار پیش‌فرض برای محیط آزمایشی است و جایگزین فرایند تقویمی سازمان نیست.
 
 در production مقدار `PULSE_HTTPS=true` را فقط زمانی تنظیم کنید که ترافیک کاربر
@@ -58,6 +63,9 @@ npm start -- -p 3000
 ```
 
 فایل SQLite را داخل image یا release package قرار ندهید. مسیر آن باید روی storage پایدار و خارج از مسیر build باشد. هم‌زمان فقط یک instance نویسنده برای هر فایل SQLite اجرا کنید، مگر اینکه معماری deployment به‌طور جداگانه برای این محدودیت طراحی و تأیید شده باشد.
+
+در محیط توسعه، fallback database در `db/pulse.sqlite` است. این فایل با production
+database متفاوت است و نباید در release یا deployment production استفاده شود.
 
 ## کنترل پس از استقرار
 

@@ -145,7 +145,111 @@ CREATE TABLE IF NOT EXISTS monthly_reviews (
   FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS activities (
+  id TEXT PRIMARY KEY,
+  sub_goal_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  owner_person_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sub_goal_id) REFERENCES sub_goals(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT,
+  UNIQUE (sub_goal_id, title)
+);
+
+CREATE TABLE IF NOT EXISTS app_roles (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'COMPANY' CHECK (scope IN ('COMPANY','DEPARTMENT','OWN')),
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id TEXT NOT NULL,
+  permission_id TEXT NOT NULL,
+  PRIMARY KEY (role_id, permission_id),
+  FOREIGN KEY (role_id) REFERENCES app_roles(id) ON DELETE CASCADE,
+  FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  person_id TEXT,
+  role_id TEXT NOT NULL,
+  department_id TEXT,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE RESTRICT,
+  FOREIGN KEY (role_id) REFERENCES app_roles(id) ON DELETE RESTRICT,
+  FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  actor_user_id TEXT,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  before_json TEXT,
+  after_json TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS import_jobs (
+  id TEXT PRIMARY KEY,
+  source_json TEXT NOT NULL,
+  status TEXT NOT NULL,
+  validation_json TEXT,
+  assessment_json TEXT,
+  quality_score_json TEXT,
+  created_at TEXT NOT NULL,
+  approved_at TEXT,
+  failure_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS import_records (
+  id TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  record_json TEXT NOT NULL,
+  PRIMARY KEY (job_id, id),
+  FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS work_items_goal_idx ON work_items(goal_id);
 CREATE INDEX IF NOT EXISTS work_items_owner_idx ON work_items(owner_person_id);
 CREATE INDEX IF NOT EXISTS work_items_due_idx ON work_items(planned_end);
 CREATE INDEX IF NOT EXISTS risks_severity_idx ON risks(probability, impact);
+CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
+
+CREATE TRIGGER IF NOT EXISTS audit_log_immutable_update
+BEFORE UPDATE ON audit_log
+BEGIN
+  SELECT RAISE(ABORT, 'audit_log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS audit_log_immutable_delete
+BEFORE DELETE ON audit_log
+BEGIN
+  SELECT RAISE(ABORT, 'audit_log is append-only');
+END;

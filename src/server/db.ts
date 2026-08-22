@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { schemaContractErrors } from "./schema-contract";
 
 let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
@@ -30,28 +31,6 @@ export function isDatabaseUnavailableError(error: unknown): boolean {
   return typeof code === "string" && unavailableSqliteCodes.has(code);
 }
 
-const requiredTables = [
-  "strategic_goals",
-  "departments",
-  "seats",
-  "people",
-  "sub_goals",
-  "work_items",
-  "kpis",
-  "risks",
-  "dependencies",
-  "monthly_reviews",
-  "activities",
-  "app_roles",
-  "permissions",
-  "role_permissions",
-  "users",
-  "sessions",
-  "audit_log",
-  "import_jobs",
-  "import_records"
-] as const;
-
 function databasePath(): string {
   const configuredPath = process.env.PULSE_DB_PATH?.trim();
   if (process.env.NODE_ENV === "production") {
@@ -72,101 +51,8 @@ function databasePath(): string {
 }
 
 function ensurePhaseFiveSchema(database: Database.Database): void {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS activities (
-      id TEXT PRIMARY KEY,
-      sub_goal_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      owner_person_id TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (sub_goal_id) REFERENCES sub_goals(id) ON DELETE RESTRICT,
-      FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT,
-      UNIQUE (sub_goal_id, title)
-    );
-    CREATE TABLE IF NOT EXISTS app_roles (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      scope TEXT NOT NULL DEFAULT 'COMPANY' CHECK (scope IN ('COMPANY','DEPARTMENT','OWN')),
-      active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
-    );
-    CREATE TABLE IF NOT EXISTS permissions (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS role_permissions (
-      role_id TEXT NOT NULL,
-      permission_id TEXT NOT NULL,
-      PRIMARY KEY (role_id, permission_id),
-      FOREIGN KEY (role_id) REFERENCES app_roles(id) ON DELETE CASCADE,
-      FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      person_id TEXT,
-      role_id TEXT NOT NULL,
-      department_id TEXT,
-      active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE RESTRICT,
-      FOREIGN KEY (role_id) REFERENCES app_roles(id) ON DELETE RESTRICT,
-      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id TEXT PRIMARY KEY,
-      actor_user_id TEXT,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      event_type TEXT NOT NULL,
-      before_json TEXT,
-      after_json TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
-    );
-    CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
-    CREATE TRIGGER IF NOT EXISTS audit_log_immutable_update
-    BEFORE UPDATE ON audit_log
-    BEGIN
-      SELECT RAISE(ABORT, 'audit_log is append-only');
-    END;
-    CREATE TRIGGER IF NOT EXISTS audit_log_immutable_delete
-    BEFORE DELETE ON audit_log
-    BEGIN
-      SELECT RAISE(ABORT, 'audit_log is append-only');
-    END;
-    CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
-    CREATE TABLE IF NOT EXISTS import_jobs (
-      id TEXT PRIMARY KEY,
-      source_json TEXT NOT NULL,
-      status TEXT NOT NULL,
-      validation_json TEXT,
-      assessment_json TEXT,
-      quality_score_json TEXT,
-      created_at TEXT NOT NULL,
-      approved_at TEXT,
-      failure_reason TEXT
-    );
-    CREATE TABLE IF NOT EXISTS import_records (
-      id TEXT NOT NULL,
-      job_id TEXT NOT NULL,
-      record_json TEXT NOT NULL,
-      PRIMARY KEY (job_id, id),
-      FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
-    );
-  `);
+  // Canonical schema ownership lives in db/schema.sqlite.sql. This function
+  // only repairs columns that may be absent from legacy databases.
   const columns = database.prepare("PRAGMA table_info(work_items)").all() as Array<{ name: string }>;
   const known = new Set(columns.map((column) => column.name));
   const additions: Array<[string, string]> = [
@@ -228,16 +114,14 @@ export function getReadOnlyDatabase(): Database.Database {
 
 export function checkDatabaseReadiness(): void {
   try {
+    // Opening through the normal boundary applies only the documented,
+    // idempotent legacy-column repair before the read-only contract check.
+    getDatabase();
     const candidate = getReadOnlyDatabase();
     const integrity = candidate.pragma("integrity_check", { simple: true });
     if (integrity !== "ok") throw new DatabaseUnavailableError("The database integrity check failed.");
-    const availableTables = new Set(
-      (candidate.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>)
-        .map((table) => table.name)
-    );
-    if (requiredTables.some((table) => !availableTables.has(table))) {
-      throw new DatabaseUnavailableError("The database schema is incomplete.");
-    }
+    const errors = schemaContractErrors(candidate);
+    if (errors.length) throw new DatabaseUnavailableError(`The database schema is incomplete: ${errors.join("; ")}`);
   } catch (error) {
     readOnlyDatabase?.close();
     readOnlyDatabase = undefined;

@@ -14,6 +14,11 @@ curl -i http://127.0.0.1:3000/api/health
 
 کد `503` با `database: "unavailable"` یعنی فایل SQLite وجود ندارد، قابل خواندن نیست، integrity check ناموفق است، schema ناقص است یا اتصال runtime به آن برقرار نشده است.
 
+Readiness علاوه بر `PRAGMA integrity_check`، قرارداد canonical موجود در
+`db/schema.sqlite.sql` را بررسی می‌کند؛ شامل table، column، index، trigger،
+foreign key، default و constraintهای مهم. خطای schema را با restore یا repair
+database بررسی کنید و schema را به‌صورت دستی downgrade نکنید.
+
 ## بررسی‌های اولیه‌ی incident
 
 1. وضعیت process و پورت سرویس را بررسی کنید.
@@ -62,6 +67,9 @@ sqlite3 /secure/backups/pulse-YYYYMMDD-HHMMSS.sqlite "PRAGMA integrity_check;"
 ## امنیت عملیاتی
 
 - `PULSE_ADMIN_PASSWORD` و سایر secretها در مخزن، command history یا log قرار نگیرند.
+- تغییر `PULSE_ADMIN_PASSWORD`، password کاربر `admin` موجود را تغییر نمی‌دهد.
+  برای rotation از مسیر secure password rotation استفاده کنید تا hash جدید با
+  salt تازه تولید شود؛ plaintext یا hash در log ثبت نشود.
 - در HTTPS مقدار `PULSE_HTTPS=true` تنظیم شود.
 - `PULSE_HTTPS=true` فقط برای TLS termination تأییدشده در reverse proxy یا load balancer
   تنظیم شود؛ این متغیر جایگزین certificate، redirect یا HTTPS listener نیست.

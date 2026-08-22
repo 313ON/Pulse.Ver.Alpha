@@ -86,7 +86,7 @@ describe("SQLite organizational foundation", () => {
     expect(repository.listBusinessRoles()).toEqual([]);
   });
 
-  it("reads the base schema without triggering runtime schema initialization", () => {
+  it("reads the canonical schema without triggering runtime schema initialization", () => {
     closeDatabase();
     const baseSchemaDatabasePath = path.join(os.tmpdir(), `pulse-organization-base-${Date.now()}-${Math.random()}.sqlite`);
     const database = new Database(baseSchemaDatabasePath);
@@ -96,8 +96,8 @@ describe("SQLite organizational foundation", () => {
       .all() as Array<{ name: string }>;
     database.close();
 
-    expect(before.some((table) => table.name === "activities")).toBe(false);
-    expect(before.some((table) => table.name === "app_roles")).toBe(false);
+    expect(before.some((table) => table.name === "activities")).toBe(true);
+    expect(before.some((table) => table.name === "app_roles")).toBe(true);
 
     process.env.PULSE_DB_PATH = baseSchemaDatabasePath;
     const repository = new SQLiteOrganizationRepository();

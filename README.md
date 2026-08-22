@@ -49,4 +49,8 @@ npm run build
 
 پس از اجرای production server با `npm start`، endpoint بررسی سلامت `GET /api/health` در دسترس است. پاسخ `200` با وضعیت `ok` نشان می‌دهد فرآیند، integrity پایگاه‌داده و schema موردنیاز آماده هستند؛ پاسخ `503` به معنی آماده نبودن پایگاه‌داده یا عدم دسترسی runtime به آن است.
 
-رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف، ورود و بازبینی XLSX، گزارش‌های governed و جستجوی سراسری است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند. Migration رابطه‌ای پایه در `db/migrations/0001_pulse.sql` نگهداری می‌شود.
+رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف، ورود و بازبینی XLSX، گزارش‌های governed و جستجوی سراسری است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند.
+
+SQLite تنها موتور persistence فعلی است و `db/schema.sqlite.sql` قرارداد canonical schema است. `src/server/db.ts` فقط برای databaseهای قدیمی، ستون‌های پشتیبانی‌شده‌ی غایب را به‌صورت idempotent repair می‌کند. readiness علاوه بر integrity، کامل بودن tables، columns، indexes، triggers، foreign keys، defaults و constraints مهم را بررسی می‌کند. database توسعه در `db/pulse.sqlite` قرار دارد؛ database production باید خارج از مسیر application و با `PULSE_DB_PATH` مطلق تنظیم شود. وضعیت admin موجود با تغییر `PULSE_ADMIN_PASSWORD` عوض نمی‌شود و باید از مسیر secure password rotation استفاده شود.
+
+فایل `db/migrations/0001_pulse.sql` یک artifact تاریخی/رهاشده‌ی PostgreSQL است و برای runtime فعلی اجرا نمی‌شود.
