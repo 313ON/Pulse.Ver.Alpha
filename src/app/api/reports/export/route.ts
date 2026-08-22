@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       const pdf = await createGovernedPdfBuffer(report);
       return new Response(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": "attachment; filename=pulse-governed-report.pdf" } });
     }
-    const output = createGovernedXlsxBuffer(report);
+    const output = await createGovernedXlsxBuffer(report);
     return new Response(new Uint8Array(output), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": "attachment; filename=pulse-governed-report.xlsx" } });
   } catch (error) {
     return handleApiError(error);

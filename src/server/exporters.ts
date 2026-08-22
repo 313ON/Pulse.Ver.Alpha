@@ -1,10 +1,19 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 import fs from "node:fs";
 import type { buildReport } from "./reporting";
 import type { GovernedOperationalReport } from "../application/reporting";
 
 type Report = ReturnType<typeof buildReport>;
+
+function addWorksheetRows<T extends Record<string, unknown>>(worksheet: ExcelJS.Worksheet, rows: T[]) {
+  const headers = rows.length > 0
+    ? Object.keys(rows[0])
+    : [];
+  worksheet.views = [{ rightToLeft: true }];
+  worksheet.addRow(headers);
+  rows.forEach((row) => worksheet.addRow(headers.map((header) => row[header])));
+}
 
 function governedRows(report: GovernedOperationalReport) {
   return report.rows.map((row) => ({
@@ -19,8 +28,8 @@ function governedRows(report: GovernedOperationalReport) {
   }));
 }
 
-export function createXlsxBuffer(report: Report): Buffer {
-  const worksheet = XLSX.utils.json_to_sheet(report.actions.map((action) => ({
+export async function createXlsxBuffer(report: Report): Promise<Buffer> {
+  const rows = report.actions.map((action) => ({
     "شناسه اقدام": action.public_id,
     "عنوان": action.title,
     "هدف": action.goal_title,
@@ -32,11 +41,10 @@ export function createXlsxBuffer(report: Report): Buffer {
     "پیشرفت": action.progress,
     "شروع": action.planned_start,
     "موعد": action.planned_end
-  })));
-  worksheet["!sheetViews"] = [{ rightToLeft: true }];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "گزارش برنامه");
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  }));
+  const workbook = new ExcelJS.Workbook();
+  addWorksheetRows(workbook.addWorksheet("گزارش برنامه"), rows);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 export function createPdfBuffer(report: Report): Promise<Buffer> {
@@ -65,20 +73,19 @@ export function createPdfBuffer(report: Report): Promise<Buffer> {
   });
 }
 
-export function createGovernedXlsxBuffer(report: GovernedOperationalReport): Buffer {
-  const worksheet = XLSX.utils.json_to_sheet(governedRows(report));
-  const findingsWorksheet = XLSX.utils.json_to_sheet(report.findings.map((finding) => ({
+export async function createGovernedXlsxBuffer(report: GovernedOperationalReport): Promise<Buffer> {
+  const rows = governedRows(report);
+  const findings = report.findings.map((finding) => ({
     "قاعده": finding.ruleId,
     "شدت": finding.severity,
     "موضوع": `${finding.subject.type}:${finding.subject.id ?? ""}`,
     "توضیح": finding.reason,
     "سال برنامه": finding.planYear
-  })));
-  worksheet["!sheetViews"] = [{ rightToLeft: true }];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "گزارش حاکمیتی");
-  XLSX.utils.book_append_sheet(workbook, findingsWorksheet, "یافته‌های حاکمیتی");
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  }));
+  const workbook = new ExcelJS.Workbook();
+  addWorksheetRows(workbook.addWorksheet("گزارش حاکمیتی"), rows);
+  addWorksheetRows(workbook.addWorksheet("یافته‌های حاکمیتی"), findings);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 export function createGovernedPdfBuffer(report: GovernedOperationalReport): Promise<Buffer> {

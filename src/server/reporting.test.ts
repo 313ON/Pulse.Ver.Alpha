@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { closeDatabase } from "./db";
 import { seedBaseline } from "./seed";
 import { seedAuthFoundation } from "./auth";
@@ -25,9 +25,10 @@ describe("live reporting and exports", () => {
   });
   it("creates a real XLSX workbook and PDF document", async () => {
     const report = buildReport({});
-    const xlsx = createXlsxBuffer(report);
-    const workbook = XLSX.read(xlsx, { type: "buffer" });
-    expect(workbook.SheetNames).toContain("گزارش برنامه");
+    const xlsx = await createXlsxBuffer(report);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(xlsx as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    expect(workbook.worksheets.map((worksheet) => worksheet.name)).toContain("گزارش برنامه");
     const pdf = await createPdfBuffer(report);
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
   });

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { programFixture } from "../../domain/program/program.fixture";
 import type { Person, Position, Unit } from "../../domain/organization";
@@ -333,9 +333,11 @@ describe("10E GovernedOperationalReportAdapter", () => {
 
   it("renders equivalent governed facts to XLSX and PDF", async () => {
     const report = new GovernedOperationalReportAdapter().project(input());
-    const workbook = createGovernedXlsxBuffer(report);
+    const workbookBuffer = await createGovernedXlsxBuffer(report);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(workbookBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
     const pdf = await createGovernedPdfBuffer(report);
-    expect(XLSX.read(workbook, { type: "buffer" }).SheetNames).toEqual([
+    expect(workbook.worksheets.map((worksheet) => worksheet.name)).toEqual([
       "گزارش حاکمیتی",
       "یافته‌های حاکمیتی"
     ]);

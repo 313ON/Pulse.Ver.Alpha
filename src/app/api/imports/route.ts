@@ -3,7 +3,7 @@ import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requi
 import { getDatabase } from "../../../server/db";
 import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "../../../server/import/SQLiteImportRepositories";
 import { ImportReviewService } from "../../../application/import/staging";
-import { XlsxWorkbookReader } from "../../../application/import/spreadsheet/xlsx";
+import { XlsxWorkbookError, XlsxWorkbookReader, hasXlsxZipSignature } from "../../../application/import/spreadsheet/xlsx";
 import { SpreadsheetMappingEngine } from "../../../application/import/spreadsheet/mapping";
 import { SpreadsheetEvaluationEngine } from "../../../application/import/spreadsheet/evaluation";
 import { ImportNormalizer } from "../../../application/import/normalization";
@@ -48,7 +48,11 @@ export async function POST(request: Request) {
     const source = { type: "EXCEL" as const, name: sourceName, metadata: { uploadedAt: new Date().toISOString(), planYear: planning.planYear } };
     jobs.create({ id: jobId, source, status: "DRAFT", records: [], createdAt: new Date().toISOString() });
 
-    const workbook = new XlsxWorkbookReader().read(await file.arrayBuffer(), { name: sourceName });
+    const input = await file.arrayBuffer();
+    if (!hasXlsxZipSignature(input)) {
+      throw new RepositoryError("VALIDATION", "فایل XLSX معتبر نیست.");
+    }
+    const workbook = await new XlsxWorkbookReader().read(input, { name: sourceName });
     const mapped = new SpreadsheetMappingEngine({ sourceName }).map(workbook);
     if (mapped.length === 0) throw new RepositoryError("VALIDATION", "فایل قابل نگاشت نیست.");
     const normalized = new ImportNormalizer().normalize(mapped);
@@ -71,6 +75,9 @@ export async function POST(request: Request) {
     });
     return json({ job: process(), evaluation: evaluation.summary }, { status: 201 });
   } catch (error) {
+    if (error instanceof XlsxWorkbookError) {
+      error = new RepositoryError("VALIDATION", "فایل XLSX معتبر نیست یا از حدود مجاز فراتر رفته است.");
+    }
     if (jobId) {
       try { new SQLiteImportJobRepository().saveFailure(jobId, error instanceof Error ? error.message : "Import failed."); } catch { /* preserve original response */ }
     }
