@@ -3,6 +3,7 @@ import { programFixture } from "../../../domain/program/program.fixture";
 import type { Assignment } from "../../../domain/program/Assignment";
 import type { Program } from "../../../domain/program/types";
 import type { ImportRecord, ImportSource } from "../contracts";
+import type { SpreadsheetEvaluationReport } from "../spreadsheet/evaluation/contracts";
 import { ImportReviewService } from "./ImportReviewService";
 
 const source: ImportSource = {
@@ -41,6 +42,34 @@ function importRecord(id: string, plannedEnd: string): ImportRecord {
     entityType: "action",
     source,
     data: { title: "Imported action", plannedEnd }
+  };
+}
+
+function evaluationReport(marker: string): SpreadsheetEvaluationReport {
+  return {
+    workbook: { workbookName: `${marker}.xlsx`, sourceType: "EXCEL", sheetCount: 0 },
+    sheets: [],
+    summary: {
+      totalSheets: 0,
+      totalRows: 0,
+      mappedRecords: 0,
+      passedChecks: 0,
+      failedChecks: 0,
+      unknownHeaders: 0,
+      ambiguousHeaders: 0,
+      issueCounts: {
+        UNKNOWN_HEADER: 0,
+        AMBIGUOUS_HEADER: 0,
+        MISSING_VALUE: 0,
+        INVALID_HIERARCHY: 0,
+        INHERITANCE_FAILURE: 0,
+        UNRESOLVED_ASSIGNMENT: 0,
+        UNSUPPORTED_STRUCTURE: 0,
+        SOURCE_TRACE_FAILURE: 0
+      },
+      scorePercent: 100,
+      status: "PASS"
+    }
   };
 }
 
@@ -98,5 +127,36 @@ describe("ImportReviewService", () => {
       generatedAt: expect.any(String)
     });
     expect(job.qualityScore?.overallScore).toBeGreaterThan(0);
+  });
+
+  it("stores a supplied evaluation report during analysis", () => {
+    const service = new ImportReviewService();
+    const evaluation = evaluationReport("new-evaluation");
+    service.createJob(source, "job-new-evaluation");
+    service.attachRecords("job-new-evaluation", [importRecord("record-1", "۱۴۰۵/۱۲/۲۹")]);
+
+    const job = service.analyze("job-new-evaluation", reviewProgram(), {}, evaluation);
+
+    expect(job.evaluationResult).toEqual(evaluation);
+  });
+
+  it("leaves evaluation undefined when none exists and no replacement is supplied", () => {
+    const service = new ImportReviewService();
+    service.createJob(source, "job-no-evaluation");
+    service.attachRecords("job-no-evaluation", [importRecord("record-1", "۱۴۰۵/۱۲/۲۹")]);
+
+    expect(service.analyze("job-no-evaluation", reviewProgram()).evaluationResult).toBeUndefined();
+  });
+
+  it("preserves an existing evaluation when analysis omits a replacement", () => {
+    const service = new ImportReviewService();
+    const evaluation = evaluationReport("existing-evaluation");
+    service.createJob(source, "job-existing-evaluation");
+    service.attachRecords("job-existing-evaluation", [importRecord("record-1", "۱۴۰۵/۱۲/۲۹")]);
+    service.analyze("job-existing-evaluation", reviewProgram(), {}, evaluation);
+
+    const reanalyzed = service.analyze("job-existing-evaluation", reviewProgram());
+
+    expect(reanalyzed.evaluationResult).toEqual(evaluation);
   });
 });

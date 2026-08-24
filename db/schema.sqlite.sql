@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS import_jobs (
   source_json TEXT NOT NULL,
   status TEXT NOT NULL,
   validation_json TEXT,
+  evaluation_json TEXT,
   assessment_json TEXT,
   quality_score_json TEXT,
   created_at TEXT NOT NULL,

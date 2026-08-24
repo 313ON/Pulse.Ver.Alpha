@@ -7,6 +7,7 @@ import type { ImportJob, ImportJobStatus } from "./ImportJob";
 import type { GovernedProgramEvaluationResult } from "../../program/GovernedProgramEvaluationService";
 import type { SessionUser } from "../../../server/auth";
 import { ProductionGovernedProgramEvaluationService } from "../../program/ProductionGovernedProgramEvaluationService";
+import type { SpreadsheetEvaluationReport } from "../spreadsheet/evaluation/contracts";
 
 export type ImportApprovalResult = {
   ready: boolean;
@@ -44,7 +45,12 @@ export class ImportReviewService {
     return this.getJob(id);
   }
 
-  analyze(id: string, program: Program, options: ImportReadinessOptions = {}): ImportJob {
+  analyze(
+    id: string,
+    program: Program,
+    options: ImportReadinessOptions = {},
+    evaluationResult?: SpreadsheetEvaluationReport
+  ): ImportJob {
     if (options.organizationalGovernance) {
       throw new Error("Governed 10D evaluation must use evaluateGoverned and cannot persist evaluation results.");
     }
@@ -57,7 +63,7 @@ export class ImportReviewService {
     this.jobs.saveAnalysisResult(id, validationResult, {
       governance: evaluation.governance,
       findings: evaluation.assessment
-    }, evaluation.qualityScore);
+    }, evaluation.qualityScore, evaluationResult);
     this.jobs.updateStatus(id, "REVIEW_REQUIRED");
     return this.getJob(id);
   }

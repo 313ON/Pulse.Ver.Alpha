@@ -1,6 +1,7 @@
 import type { ProgramQualityScore } from "../../../domain/program";
 import type { ImportValidationResult } from "../contracts";
 import type { ImportAssessmentResult, ImportJob, ImportJobStatus } from "../staging/ImportJob";
+import type { SpreadsheetEvaluationReport } from "../spreadsheet/evaluation/contracts";
 
 export type ImportJobRepository = {
   create(job: ImportJob): ImportJob;
@@ -11,7 +12,8 @@ export type ImportJobRepository = {
     id: string,
     validationResult: ImportValidationResult,
     assessmentResult: ImportAssessmentResult,
-    qualityScore: ProgramQualityScore
+    qualityScore: ProgramQualityScore,
+    evaluationResult?: SpreadsheetEvaluationReport
   ): ImportJob;
   saveFailure(id: string, reason: string): ImportJob;
 };

@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { normalizeImportText } from "../../normalization";
+import { HeaderSemanticResolver } from "../mapping";
 import type {
   CellContract,
   MergedCellRange,
@@ -33,6 +34,8 @@ export function hasXlsxZipSignature(input: XlsxBinaryInput): boolean {
 }
 
 export class XlsxWorkbookReader {
+  private readonly headerResolver = new HeaderSemanticResolver();
+
   async read(input: XlsxBinaryInput, options: XlsxWorkbookReaderOptions = {}): Promise<WorkbookContract> {
     if (!hasXlsxZipSignature(input)) {
       throw new XlsxWorkbookError("The uploaded file is not a valid XLSX container.");
@@ -97,9 +100,18 @@ export class XlsxWorkbookReader {
       metadata: {
         sheetIndex,
         range: this.rangeForSheet(sheet),
-        mergedCells: sheet.model.merges.map((merge) => this.toMergedCellRange(merge))
+        mergedCells: sheet.model.merges.map((merge) => this.toMergedCellRange(merge)),
+        headerRowIndex: this.findHeaderRowIndex(rows)
       }
     };
+  }
+
+  private findHeaderRowIndex(rows: RowContract[]): number | undefined {
+    for (const row of rows.slice(0, 30)) {
+      const resolved = row.cells.filter((cell) => this.headerResolver.resolve(cell.rawValue));
+      if (resolved.length >= 2) return row.index;
+    }
+    return undefined;
   }
 
   private toMergedCellRange(merge: string): MergedCellRange {

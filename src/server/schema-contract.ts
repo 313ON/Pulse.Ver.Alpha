@@ -218,6 +218,7 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     source_json: column("TEXT", { notNull: true }),
     status: column("TEXT", { notNull: true }),
     validation_json: column("TEXT"),
+    evaluation_json: column("TEXT"),
     assessment_json: column("TEXT"),
     quality_score_json: column("TEXT"),
     created_at: column("TEXT", { notNull: true }),

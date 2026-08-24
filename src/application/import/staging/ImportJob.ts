@@ -5,6 +5,7 @@ import type {
 } from "../contracts";
 import type { GovernanceValidationReport, ResponsibilityAssessmentFinding } from "../../../domain/program";
 import type { ProgramQualityScore } from "../../../domain/program";
+import type { SpreadsheetEvaluationReport } from "../spreadsheet/evaluation/contracts";
 
 export type ImportJobStatus =
   | "DRAFT"
@@ -25,6 +26,7 @@ export type ImportJob = {
   status: ImportJobStatus;
   records: ImportRecord[];
   validationResult?: ImportValidationResult;
+  evaluationResult?: SpreadsheetEvaluationReport;
   assessmentResult?: ImportAssessmentResult;
   qualityScore?: ProgramQualityScore;
   createdAt: string;

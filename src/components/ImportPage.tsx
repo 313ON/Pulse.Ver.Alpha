@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PulseShell } from "./PulseShell";
+import type { EvaluationIssue, SpreadsheetEvaluationReport } from "../application/import/spreadsheet/evaluation/contracts";
 
 type ImportStatus = "DRAFT" | "ANALYZING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "FAILED";
 
@@ -16,8 +17,10 @@ type ImportRecord = {
   data: Record<string, unknown>;
   rowNumber?: number;
   provenance?: Array<{
+    workbookName?: string;
     sheetName: string;
     sheetIndex: number;
+    headerRowIndex?: number;
     rowIndex: number;
     sourceRowNumber: number;
     column: string;
@@ -41,12 +44,14 @@ type ImportJob = {
     errors?: Array<{ code?: string; message?: string; field?: string }>;
     warnings?: Array<{ code?: string; message?: string; field?: string }>;
   };
+  evaluationResult?: SpreadsheetEvaluationReport;
   assessmentResult?: {
     findings?: Array<{ code?: string; severity?: string; message?: string }>;
   };
   qualityScore?: {
     overallScore?: number;
-    findings?: Array<{ code?: string; severity?: string; message?: string }>;
+    dimensions?: Record<string, number>;
+    findings?: Array<{ dimension?: string; code?: string; severity?: string; message?: string; entityId?: string }>;
   };
   createdAt: string;
   failureReason?: string;
@@ -193,6 +198,63 @@ function errorMessages(job: ImportJob): string[] {
     ...(job.assessmentResult?.findings ?? []),
     ...(job.qualityScore?.findings ?? [])
   ].map((item) => item.message).filter((message): message is string => Boolean(message));
+}
+
+type ReviewEvaluationFinding = EvaluationIssue & {
+  record?: ImportRecord;
+};
+
+function evaluationFindings(job: ImportJob): ReviewEvaluationFinding[] {
+  const recordsById = new Map(job.records.map((record) => [record.id, record]));
+  return (job.evaluationResult?.sheets ?? []).flatMap((sheet) =>
+    sheet.rows.flatMap((row) =>
+      row.issues.map((issue) => ({
+        ...issue,
+        record: issue.recordId ? recordsById.get(issue.recordId) : undefined
+      }))
+    )
+  );
+}
+
+type ReviewSheetFinding = EvaluationIssue & {
+  sheetName: string;
+  sheetIndex: number;
+  sheetProvenance: SpreadsheetEvaluationReport["sheets"][number]["provenance"];
+};
+
+function sheetEvaluationFindings(job: ImportJob): ReviewSheetFinding[] {
+  return (job.evaluationResult?.sheets ?? []).flatMap((sheet) =>
+    sheet.checks
+      .filter((check) => check.name === "header-detection")
+      .flatMap((check) => check.issues.map((issue) => ({
+        ...issue,
+        sheetName: sheet.provenance.sheetName,
+        sheetIndex: sheet.provenance.sheetIndex,
+        sheetProvenance: sheet.provenance
+      })))
+  );
+}
+
+function evaluationProvenanceText(provenance: EvaluationIssue["provenance"]): string | undefined {
+  if (!provenance) return undefined;
+  const parts = [`Workbook: ${provenance.workbookName}`, `Sheet: ${provenance.sheetName}`];
+  if ("sourceRowNumber" in provenance) parts.push(`Row: ${provenance.sourceRowNumber}`);
+  if ("address" in provenance) parts.push(`Cell: ${provenance.address}`);
+  return parts.join(" · ");
+}
+
+function evaluationCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    INHERITANCE_FAILURE: "شکست وراثت سلسله‌مراتب",
+    INVALID_HIERARCHY: "سلسله‌مراتب نامعتبر",
+    MISSING_VALUE: "مقدار مفقود",
+    SOURCE_TRACE_FAILURE: "خطای ردیابی منبع",
+    UNSUPPORTED_STRUCTURE: "ساختار پشتیبانی‌نشده",
+    UNKNOWN_HEADER: "سربرگ ناشناخته",
+    AMBIGUOUS_HEADER: "سربرگ مبهم",
+    UNRESOLVED_ASSIGNMENT: "تخصیص حل‌نشده"
+  };
+  return labels[category] ?? category;
 }
 
 const assignmentKeys = new Set(["unit", "owner", "executor", "collaborator", "person"]);
@@ -462,10 +524,14 @@ export function ImportReview({
 
       {warnings.length > 0 && (
         <section className="panel import-warning-panel" aria-labelledby="import-warning-title">
-          <div className="panel-head"><h2 id="import-warning-title">هشدارها و یافته‌ها</h2><span>{warnings.length} مورد</span></div>
+          <div className="panel-head"><h2 id="import-warning-title">هشدارها و یافته‌های حاکمیتی</h2><span>{warnings.length} مورد</span></div>
           <ul>{warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul>
         </section>
       )}
+
+      <SheetEvaluationFindings findings={sheetEvaluationFindings(job)} />
+
+      <EvaluationFindings findings={evaluationFindings(job)} />
 
       <section className="panel import-records-panel" aria-labelledby="import-records-title">
         <div className="panel-head"><h2 id="import-records-title">داده‌های استخراج‌شده</h2><span>نمایش فقط برای بازبینی انسانی</span></div>
@@ -486,6 +552,92 @@ export function ImportReview({
         )}
       </div>
     </div>
+  );
+}
+
+function SheetEvaluationFindings({ findings }: { findings: ReviewSheetFinding[] }) {
+  if (findings.length === 0) return null;
+  return (
+    <section className="panel import-sheet-findings-panel" aria-labelledby="import-sheet-findings-title">
+      <div className="panel-head">
+        <div>
+          <h2 id="import-sheet-findings-title">یافته‌های سطح برگه</h2>
+          <small>یافته‌های ساختاری و سربرگ فایل</small>
+        </div>
+        <span>{findings.length} مورد</span>
+      </div>
+      <div className="import-evaluation-findings-list">
+        {findings.map((finding, index) => (
+          <article className="import-evaluation-finding" key={`${finding.sheetIndex}-${finding.category}-${index}`}>
+            <div className="import-evaluation-finding-head">
+              <strong>{evaluationCategoryLabel(finding.category)}</strong>
+              <span>{finding.sheetProvenance.workbookName} · {finding.sheetName}</span>
+            </div>
+            <div className="import-evaluation-finding-body">
+              <div><span>دسته</span><strong>{evaluationCategoryLabel(finding.category)}</strong></div>
+              <div><span>پیام ارزیابی</span><strong>{finding.message}</strong></div>
+              <div><span>منبع</span><strong>{evaluationProvenanceText(finding.provenance) ?? `${finding.sheetProvenance.workbookName} · ${finding.sheetName}`}</strong></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EvaluationFindings({ findings }: { findings: ReviewEvaluationFinding[] }) {
+  if (findings.length === 0) return null;
+  return (
+    <section className="panel import-evaluation-findings-panel" aria-labelledby="import-evaluation-findings-title">
+      <div className="panel-head">
+        <div>
+          <h2 id="import-evaluation-findings-title">یافته‌های سلسله‌مراتبی</h2>
+          <small>یافته‌های ارزیابی فایل برای تصمیم بازبینی</small>
+        </div>
+        <span>{findings.length} مورد</span>
+      </div>
+      <div className="import-evaluation-findings-intro">
+        این موارد خطای خواندن XLSX نیستند؛ ساختار منبع با سلسله‌مراتب canonical سامانه تطابق کامل ندارد.
+      </div>
+      <div className="import-evaluation-findings-list">
+        {findings.map((finding, index) => {
+          const record = finding.record;
+          const missingActivity = finding.category === "INHERITANCE_FAILURE"
+            && record?.entityType === "action"
+            && !Object.prototype.hasOwnProperty.call(record.data, "activity");
+          const rowNumber = finding.provenance && "sourceRowNumber" in finding.provenance
+            ? finding.provenance.sourceRowNumber
+            : record?.rowNumber;
+          const source = record?.provenance?.filter((cell) =>
+            ["GOAL", "OBJECTIVE", "ACTIVITY", "ACTION"].includes(cell.semanticType ?? "")
+          ) ?? [];
+          return (
+            <article className="import-evaluation-finding" key={`${finding.recordId ?? "finding"}-${index}`}>
+              <div className="import-evaluation-finding-head">
+                <strong>{missingActivity ? "فعالیت مفقود است" : evaluationCategoryLabel(finding.category)}</strong>
+                <span>ردیف منبع: {rowNumber ?? "—"}</span>
+              </div>
+              <div className="import-evaluation-finding-body">
+                <div><span>دسته</span><strong>{evaluationCategoryLabel(finding.category)}</strong></div>
+                <div><span>پیام ارزیابی</span><strong>{missingActivity ? "در این ردیف، Activity وجود ندارد." : finding.message}</strong></div>
+                {missingActivity && (
+                  <>
+                    <div><span>ساختار منبع</span><strong>هدف جزئی → اقدام</strong></div>
+                    <div><span>ساختار canonical مورد انتظار</span><strong>هدف جزئی → فعالیت → اقدام</strong></div>
+                    <div><span>توضیح</span><strong>این یک یافته ساختار منبع/بازسازی است، نه خطای parser فایل XLSX.</strong></div>
+                  </>
+                )}
+                {record && <div><span>مقادیر مرتبط</span><strong>{displayValue(record.data.objective)}{record.data.action ? ` → ${displayValue(record.data.action)}` : ""}</strong></div>}
+                <div><span>ردیابی</span><strong>{String(record?.source.metadata?.sheetName ?? "—")} · ردیف {rowNumber ?? "—"}</strong></div>
+                {source.length > 0 && (
+                  <div><span>سلول‌های مرتبط</span><strong>{source.map((cell) => `${cell.address}: ${displayValue(cell.rawValue)}`).join(" · ")}</strong></div>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

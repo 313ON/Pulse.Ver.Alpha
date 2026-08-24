@@ -16,14 +16,21 @@ function row(index: number, values: Array<string | undefined>, rowType?: RowCont
   };
 }
 
-function workbook(rows: RowContract[]): WorkbookContract {
+function workbook(rows: RowContract[], mergedCells: NonNullable<WorkbookContract["sheets"][number]["metadata"]["mergedCells"]> = []): WorkbookContract {
   return {
     name: "semantic-import.xlsx",
     sheets: [{
       name: "Programs",
       rows,
-      metadata: { headerRowIndex: 0 }
+      metadata: { headerRowIndex: 0, mergedCells }
     }]
+  };
+}
+
+function workbookWithSheets(sheets: WorkbookContract["sheets"]): WorkbookContract {
+  return {
+    name: "semantic-import.xlsx",
+    sheets
   };
 }
 
@@ -96,6 +103,160 @@ describe("Spreadsheet semantic mapping", () => {
         action: "اقدام"
       }
     });
+  });
+
+  it("preserves an objective whose merged range remains active when the goal changes", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, ["Previous goal", undefined, undefined, undefined]),
+      row(2, [undefined, undefined, undefined, undefined]),
+      row(3, [undefined, undefined, undefined, undefined]),
+      row(4, [undefined, "Active objective", undefined, undefined]),
+      row(5, [undefined, undefined, undefined, undefined]),
+      row(6, [undefined, undefined, undefined, undefined]),
+      row(7, [undefined, undefined, undefined, undefined]),
+      row(8, [undefined, undefined, undefined, undefined]),
+      row(9, ["Current goal", undefined, "Current activity", "Action 1"])
+    ], [
+      { startColumn: "A", startRow: 1, endColumn: "A", endRow: 8 },
+      { startColumn: "A", startRow: 9, endColumn: "A", endRow: 11 },
+      { startColumn: "B", startRow: 4, endColumn: "B", endRow: 11 },
+      { startColumn: "C", startRow: 9, endColumn: "C", endRow: 11 }
+    ]));
+
+    expect(records.find((record) => record.entityType === "action")?.data).toMatchObject({
+      goal: "Current goal",
+      objective: "Active objective",
+      activity: "Current activity",
+      action: "Action 1"
+    });
+  });
+
+  it("preserves a merged descendant across every row covered by its own range", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, [undefined, undefined, undefined, undefined]),
+      row(2, [undefined, undefined, undefined, undefined]),
+      row(3, [undefined, undefined, undefined, undefined]),
+      row(4, [undefined, "Active objective", undefined, undefined]),
+      row(5, [undefined, undefined, undefined, undefined]),
+      row(6, [undefined, undefined, undefined, undefined]),
+      row(7, [undefined, undefined, undefined, undefined]),
+      row(8, [undefined, undefined, undefined, undefined]),
+      row(9, ["Current goal", undefined, "Current activity", "Action 1"]),
+      row(10, [undefined, undefined, undefined, "Action 2"]),
+      row(11, [undefined, undefined, undefined, "Action 3"])
+    ], [
+      { startColumn: "A", startRow: 9, endColumn: "A", endRow: 11 },
+      { startColumn: "B", startRow: 4, endColumn: "B", endRow: 11 },
+      { startColumn: "C", startRow: 9, endColumn: "C", endRow: 11 }
+    ]));
+
+    expect(records.filter((record) => record.entityType === "action")).toHaveLength(3);
+    expect(records.filter((record) => record.entityType === "action").map((record) => record.data.objective))
+      .toEqual(["Active objective", "Active objective", "Active objective"]);
+  });
+
+  it("clears a descendant after its own merged range expires", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, [undefined, "Expired objective", undefined, undefined]),
+      row(2, [undefined, undefined, undefined, undefined]),
+      row(3, [undefined, undefined, undefined, undefined]),
+      row(4, [undefined, undefined, undefined, undefined]),
+      row(5, ["Current goal", undefined, undefined, "Action after objective"])
+    ], [
+      { startColumn: "A", startRow: 1, endColumn: "A", endRow: 4 },
+      { startColumn: "B", startRow: 1, endColumn: "B", endRow: 3 }
+    ]));
+
+    expect(records.find((record) => record.entityType === "action")?.data).toMatchObject({
+      goal: "Current goal",
+      action: "Action after objective"
+    });
+    expect(records.find((record) => record.entityType === "action")?.data.objective).toBeUndefined();
+  });
+
+  it("expires an inherited objective before an action-only row", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, ["Goal 1", "Objective 1", "Activity 1", undefined]),
+      row(2, [undefined, undefined, undefined, undefined]),
+      row(3, [undefined, undefined, undefined, "Action after objective"])
+    ], [
+      { startColumn: "A", startRow: 1, endColumn: "A", endRow: 3 },
+      { startColumn: "B", startRow: 1, endColumn: "B", endRow: 2 },
+      { startColumn: "C", startRow: 1, endColumn: "C", endRow: 3 }
+    ]));
+
+    expect(records.find((record) => record.entityType === "action")?.data).toMatchObject({
+      goal: "Goal 1",
+      activity: "Activity 1",
+      action: "Action after objective"
+    });
+    expect(records.find((record) => record.entityType === "action")?.data.objective).toBeUndefined();
+  });
+
+  it("expires an inherited activity when its merged range ends", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, ["Goal 1", "Objective 1", "Activity 1", undefined]),
+      row(2, [undefined, undefined, undefined, "Action 1"]),
+      row(3, [undefined, undefined, undefined, "Action 2"])
+    ], [
+      { startColumn: "A", startRow: 1, endColumn: "A", endRow: 3 },
+      { startColumn: "B", startRow: 1, endColumn: "B", endRow: 3 },
+      { startColumn: "C", startRow: 1, endColumn: "C", endRow: 2 }
+    ]));
+
+    expect(records.find((record) => record.id === "Programs:2:action")?.data.activity).toBe("Activity 1");
+    expect(records.find((record) => record.id === "Programs:3:action")?.data.activity).toBeUndefined();
+  });
+
+  it("does not carry hierarchy state across sheets", () => {
+    const records = new SpreadsheetMappingEngine().map(workbookWithSheets([
+      {
+        name: "First",
+        rows: [
+          row(0, ["Goal", "Objective", "Activity", "Action"]),
+          row(1, ["Goal 1", "Objective 1", undefined, undefined])
+        ],
+        metadata: { headerRowIndex: 0 }
+      },
+      {
+        name: "Second",
+        rows: [
+          row(0, ["Goal", "Objective", "Activity", "Action"]),
+          row(1, [undefined, undefined, undefined, "Action without parents"])
+        ],
+        metadata: { headerRowIndex: 0 }
+      }
+    ]));
+
+    expect(records.find((record) => record.id === "Second:1:action")?.data).toEqual({
+      action: "Action without parents"
+    });
+  });
+
+  it("does not preserve an inherited value through a later unrelated merge in the same column", () => {
+    const records = new SpreadsheetMappingEngine().map(workbook([
+      row(0, ["Goal", "Objective", "Activity", "Action"]),
+      row(1, ["Goal 1", "Objective 1", "Activity 1", undefined]),
+      row(2, [undefined, undefined, undefined, undefined]),
+      row(3, [undefined, "Objective 2", undefined, "Action 2"])
+    ], [
+      { startColumn: "A", startRow: 1, endColumn: "A", endRow: 3 },
+      { startColumn: "B", startRow: 1, endColumn: "B", endRow: 3 },
+      { startColumn: "C", startRow: 1, endColumn: "C", endRow: 2 },
+      { startColumn: "C", startRow: 3, endColumn: "C", endRow: 4 }
+    ]));
+
+    expect(records.find((record) => record.entityType === "action")?.data).toMatchObject({
+      goal: "Goal 1",
+      objective: "Objective 2",
+      action: "Action 2"
+    });
+    expect(records.find((record) => record.entityType === "action")?.data.activity).toBeUndefined();
   });
 
   it("maps assignment columns into normalized import data", () => {

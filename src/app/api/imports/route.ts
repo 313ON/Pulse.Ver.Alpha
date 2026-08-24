@@ -58,8 +58,6 @@ export async function POST(request: Request) {
     const normalized = new ImportNormalizer().normalize(mapped);
     if (!normalized.valid) throw new RepositoryError("VALIDATION", normalized.errors.map((issue) => issue.message).join(" "));
     const evaluation = new SpreadsheetEvaluationEngine().evaluate(workbook, normalized.normalizedData);
-    if (evaluation.summary.status === "FAIL") throw new RepositoryError("VALIDATION", "ارزیابی معنایی فایل ناموفق است.");
-
     const program = createProgramServices().query.getProgram({
       id: `program-${planning.planYear}`,
       title: `برنامه سالانه تحول دیجیتال ${planning.planYear}`,
@@ -71,7 +69,7 @@ export async function POST(request: Request) {
     const database = getDatabase();
     const process = database.transaction(() => {
       review.attachRecords(jobId!, normalized.normalizedData);
-      return review.analyze(jobId!, program, { today: planning.today });
+      return review.analyze(jobId!, program, { today: planning.today }, evaluation);
     });
     return json({ job: process(), evaluation: evaluation.summary }, { status: 201 });
   } catch (error) {

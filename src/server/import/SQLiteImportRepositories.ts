@@ -3,7 +3,18 @@ import type { ImportValidationResult, ImportRecord } from "../../application/imp
 import type { ImportAssessmentResult, ImportJob, ImportJobStatus } from "../../application/import/staging/ImportJob";
 import type { ImportJobRepository } from "../../application/import/ports/ImportJobRepository";
 import type { ImportRecordRepository } from "../../application/import/ports/ImportRecordRepository";
+import type { SpreadsheetEvaluationReport } from "../../application/import/spreadsheet/evaluation/contracts";
 import { getDatabase } from "../db";
+import { RepositoryError } from "../repositories";
+
+function parseEvaluationResult(value: unknown): SpreadsheetEvaluationReport | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  try {
+    return JSON.parse(String(value)) as SpreadsheetEvaluationReport;
+  } catch {
+    throw new RepositoryError("DATABASE", "Persisted import evaluation is malformed.");
+  }
+}
 
 export class SQLiteImportJobRepository implements ImportJobRepository {
   create(job: ImportJob): ImportJob {
@@ -33,6 +44,7 @@ export class SQLiteImportJobRepository implements ImportJobRepository {
       status: String(row.status) as ImportJobStatus,
       records: [],
       validationResult: row.validation_json ? JSON.parse(String(row.validation_json)) : undefined,
+      evaluationResult: parseEvaluationResult(row.evaluation_json),
       assessmentResult: row.assessment_json ? JSON.parse(String(row.assessment_json)) : undefined,
       qualityScore: row.quality_score_json ? JSON.parse(String(row.quality_score_json)) : undefined,
       createdAt: String(row.created_at),
@@ -52,11 +64,23 @@ export class SQLiteImportJobRepository implements ImportJobRepository {
     return this.require(id);
   }
 
-  saveAnalysisResult(id: string, validationResult: ImportValidationResult, assessmentResult: ImportAssessmentResult, qualityScore: ProgramQualityScore): ImportJob {
+  saveAnalysisResult(
+    id: string,
+    validationResult: ImportValidationResult,
+    assessmentResult: ImportAssessmentResult,
+    qualityScore: ProgramQualityScore,
+    evaluationResult?: SpreadsheetEvaluationReport
+  ): ImportJob {
     getDatabase().prepare(`
-      UPDATE import_jobs SET validation_json = ?, assessment_json = ?, quality_score_json = ?, failure_reason = NULL
+      UPDATE import_jobs SET validation_json = ?, evaluation_json = COALESCE(?, evaluation_json), assessment_json = ?, quality_score_json = ?, failure_reason = NULL
       WHERE id = ?
-    `).run(JSON.stringify(validationResult), JSON.stringify(assessmentResult), JSON.stringify(qualityScore), id);
+    `).run(
+      JSON.stringify(validationResult),
+      evaluationResult === undefined ? null : JSON.stringify(evaluationResult),
+      JSON.stringify(assessmentResult),
+      JSON.stringify(qualityScore),
+      id
+    );
     return this.require(id);
   }
 

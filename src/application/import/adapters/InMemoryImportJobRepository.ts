@@ -2,6 +2,7 @@ import type { ProgramQualityScore } from "../../../domain/program";
 import type { ImportValidationResult } from "../contracts";
 import type { ImportAssessmentResult, ImportJob, ImportJobStatus } from "../staging/ImportJob";
 import type { ImportJobRepository } from "../ports";
+import type { SpreadsheetEvaluationReport } from "../spreadsheet/evaluation/contracts";
 
 export class InMemoryImportJobRepository implements ImportJobRepository {
   private readonly jobs = new Map<string, ImportJob>();
@@ -31,10 +32,12 @@ export class InMemoryImportJobRepository implements ImportJobRepository {
     id: string,
     validationResult: ImportValidationResult,
     assessmentResult: ImportAssessmentResult,
-    qualityScore: ProgramQualityScore
+    qualityScore: ProgramQualityScore,
+    evaluationResult?: SpreadsheetEvaluationReport
   ): ImportJob {
     const job = this.require(id);
     job.validationResult = validationResult;
+    if (evaluationResult !== undefined) job.evaluationResult = evaluationResult;
     job.assessmentResult = assessmentResult;
     job.qualityScore = qualityScore;
     return job;

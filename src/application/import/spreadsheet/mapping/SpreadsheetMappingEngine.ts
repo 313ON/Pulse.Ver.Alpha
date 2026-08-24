@@ -79,7 +79,7 @@ export class SpreadsheetMappingEngine {
       if (row.index <= headerRow.index || row.rowType === "empty") continue;
 
       const values = this.readRowValues(workbook, sheet, row, semanticColumns, sheetIndex);
-      this.updateHierarchy(values, inherited);
+      this.updateHierarchy(values, inherited, sheet, row.index);
       const entityType = this.entityTypeFor(values, inherited);
       if (!entityType) continue;
 
@@ -149,17 +149,47 @@ export class SpreadsheetMappingEngine {
 
   private updateHierarchy(
     values: SemanticValue[],
-    inherited: Map<ColumnSemanticType, SemanticValue>
+    inherited: Map<ColumnSemanticType, SemanticValue>,
+    sheet: SheetContract,
+    rowIndex: number
   ): void {
+    for (const [semanticType, inheritedValue] of inherited) {
+      const hasOriginatingMerge = this.hasOriginatingMergedRange(inheritedValue, sheet);
+      if (hasOriginatingMerge && !this.isMergedRangeActive(inheritedValue, sheet, rowIndex)) {
+        inherited.delete(semanticType);
+      }
+    }
+
     for (const semanticType of HIERARCHY_SEMANTIC_TYPES) {
       const value = values.find((candidate) => candidate.semanticType === semanticType);
       if (!value) continue;
       inherited.set(semanticType, value);
       const semanticIndex = HIERARCHY_SEMANTIC_TYPES.indexOf(semanticType);
       for (const descendant of HIERARCHY_SEMANTIC_TYPES.slice(semanticIndex + 1)) {
-        inherited.delete(descendant);
+        const inheritedDescendant = inherited.get(descendant);
+        if (!inheritedDescendant || !this.isMergedRangeActive(inheritedDescendant, sheet, rowIndex)) {
+          inherited.delete(descendant);
+        }
       }
     }
+  }
+
+  private hasOriginatingMergedRange(value: SemanticValue, sheet: SheetContract): boolean {
+    return (sheet.metadata.mergedCells ?? []).some((range) =>
+      range.startColumn === value.provenance.column
+      && range.startRow <= value.provenance.rowIndex
+      && range.endRow >= value.provenance.rowIndex
+    );
+  }
+
+  private isMergedRangeActive(value: SemanticValue, sheet: SheetContract, rowIndex: number): boolean {
+    return (sheet.metadata.mergedCells ?? []).some((range) =>
+      range.startColumn === value.provenance.column
+      && range.startRow <= value.provenance.rowIndex
+      && range.endRow >= value.provenance.rowIndex
+      && range.startRow <= rowIndex
+      && range.endRow >= rowIndex
+    );
   }
 
   private entityTypeFor(

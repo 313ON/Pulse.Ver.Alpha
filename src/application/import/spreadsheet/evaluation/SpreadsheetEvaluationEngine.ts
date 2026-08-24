@@ -14,6 +14,7 @@ import {
 } from "./contracts";
 
 const ASSIGNMENT_TYPES: ColumnSemanticType[] = ["OWNER", "EXECUTOR", "COLLABORATOR", "UNIT", "PERSON"];
+const IGNORED_LAYOUT_HEADERS = new Set(["ردیف", "رویکرد", "ردیف اقدام", "شماره"]);
 
 export class SpreadsheetEvaluationEngine {
   constructor(private readonly resolver = new HeaderSemanticResolver()) {}
@@ -90,7 +91,9 @@ export class SpreadsheetEvaluationEngine {
     const semanticColumns = headerRow ? this.resolver.resolveRow(headerRow) : [];
     const unknownHeaders = headerRow
       ? headerRow.cells
-        .filter((cell) => !this.isEmpty(cell.rawValue) && !this.resolver.resolve(cell.rawValue))
+        .filter((cell) => !this.isEmpty(cell.rawValue)
+          && !this.resolver.resolve(cell.rawValue)
+          && !IGNORED_LAYOUT_HEADERS.has(this.normalizeHeader(cell.rawValue)))
         .map((cell) => String(cell.rawValue))
       : [];
     const ambiguousHeaders = this.duplicateSemanticHeaders(semanticColumns);
@@ -214,6 +217,10 @@ export class SpreadsheetEvaluationEngine {
 
   private isEmpty(value: unknown): boolean {
     return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+  }
+
+  private normalizeHeader(value: unknown): string {
+    return String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
   }
 
   private title(value: string): string {

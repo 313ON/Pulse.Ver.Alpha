@@ -4,7 +4,7 @@ import type { ColumnSemanticType } from "./ColumnSemanticType";
 
 const HEADER_ALIASES: Record<ColumnSemanticType, string[]> = {
   GOAL: ["هدف", "هدف کل", "هدف اصلی", "goal", "main goal", "strategic goal"],
-  OBJECTIVE: ["هدف جزئی", "هدف عملیاتی", "objective", "sub goal", "sub-goal"],
+  OBJECTIVE: ["هدف جزئی", "هدف جزیی", "هدف عملیاتی", "objective", "sub goal", "sub-goal"],
   ACTIVITY: ["فعالیت", "activity"],
   ACTION: ["اقدام", "اقدامات", "action", "actions"],
   KPI: ["شاخص", "شاخص کلیدی", "kpi", "key performance indicator"],

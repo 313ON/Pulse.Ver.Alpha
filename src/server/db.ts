@@ -100,6 +100,10 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
   if (!roleColumns.some((column) => column.name === "scope")) database.exec("ALTER TABLE app_roles ADD COLUMN scope TEXT NOT NULL DEFAULT 'COMPANY'");
   const userColumns = database.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
   if (!userColumns.some((column) => column.name === "department_id")) database.exec("ALTER TABLE users ADD COLUMN department_id TEXT");
+  const importJobColumns = database.prepare("PRAGMA table_info(import_jobs)").all() as Array<{ name: string }>;
+  if (!importJobColumns.some((column) => column.name === "evaluation_json")) {
+    database.exec("ALTER TABLE import_jobs ADD COLUMN evaluation_json TEXT");
+  }
 }
 
 export function getDatabase(): Database.Database {
