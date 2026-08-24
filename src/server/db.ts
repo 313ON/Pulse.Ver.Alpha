@@ -104,6 +104,12 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
   if (!importJobColumns.some((column) => column.name === "evaluation_json")) {
     database.exec("ALTER TABLE import_jobs ADD COLUMN evaluation_json TEXT");
   }
+  if (!importJobColumns.some((column) => column.name === "analysis_revision")) {
+    database.exec("ALTER TABLE import_jobs ADD COLUMN analysis_revision INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!importJobColumns.some((column) => column.name === "baseline_program_json")) {
+    database.exec("ALTER TABLE import_jobs ADD COLUMN baseline_program_json TEXT");
+  }
 }
 
 export function getDatabase(): Database.Database {

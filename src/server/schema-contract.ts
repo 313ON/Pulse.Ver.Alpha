@@ -36,6 +36,8 @@ export const requiredTables = [
   "audit_log",
   "import_jobs",
   "import_records",
+  "import_analysis_revisions",
+  "import_remediations",
   "pulse_release_metadata"
 ] as const;
 
@@ -45,6 +47,8 @@ export const requiredIndexes = [
   "work_items_due_idx",
   "risks_severity_idx",
   "audit_log_entity_idx",
+  "import_analysis_revisions_job_idx",
+  "import_remediations_job_idx",
   "sessions_expiry_idx"
 ] as const;
 
@@ -223,12 +227,45 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     quality_score_json: column("TEXT"),
     created_at: column("TEXT", { notNull: true }),
     approved_at: column("TEXT"),
-    failure_reason: column("TEXT")
+    failure_reason: column("TEXT"),
+    analysis_revision: column("INTEGER", { notNull: true, defaultValue: "0" }),
+    baseline_program_json: column("TEXT")
   },
   import_records: {
     id: column("TEXT", { notNull: true }),
     job_id: column("TEXT", { notNull: true }),
     record_json: column("TEXT", { notNull: true })
+  },
+  import_analysis_revisions: {
+    id: column("TEXT"),
+    import_job_id: column("TEXT", { notNull: true }),
+    revision: column("INTEGER", { notNull: true }),
+    validation_json: column("TEXT", { notNull: true }),
+    evaluation_json: column("TEXT"),
+    assessment_json: column("TEXT", { notNull: true }),
+    quality_score_json: column("TEXT", { notNull: true }),
+    triggering_remediation_id: column("TEXT"),
+    status: column("TEXT", { notNull: true }),
+    created_at: column("TEXT", { notNull: true })
+  },
+  import_remediations: {
+    id: column("TEXT"),
+    import_job_id: column("TEXT", { notNull: true }),
+    rule: column("TEXT", { notNull: true }),
+    target_entity_type: column("TEXT", { notNull: true }),
+    target_entity_id: column("TEXT", { notNull: true }),
+    old_effective_owner: column("TEXT"),
+    proposed_owner_id: column("TEXT", { notNull: true }),
+    owner_display_name: column("TEXT", { notNull: true }),
+    reason: column("TEXT", { notNull: true }),
+    source_finding_json: column("TEXT", { notNull: true }),
+    source_provenance_json: column("TEXT"),
+    actor_user_id: column("TEXT", { notNull: true }),
+    expected_analysis_revision: column("INTEGER", { notNull: true }),
+    status: column("TEXT", { notNull: true }),
+    resulting_analysis_revision: column("INTEGER"),
+    supersedes_remediation_id: column("TEXT"),
+    created_at: column("TEXT", { notNull: true })
   },
   pulse_release_metadata: {
     id: column("INTEGER", { notNull: true }),
@@ -269,7 +306,11 @@ const requiredForeignKeys: ForeignKeyContract[] = [
   ["users", "department_id", "departments", "id", "RESTRICT"],
   ["sessions", "user_id", "users", "id", "CASCADE"],
   ["audit_log", "actor_user_id", "users", "id", "SET NULL"],
-  ["import_records", "job_id", "import_jobs", "id", "CASCADE"]
+  ["import_records", "job_id", "import_jobs", "id", "CASCADE"],
+  ["import_analysis_revisions", "import_job_id", "import_jobs", "id", "CASCADE"],
+  ["import_remediations", "import_job_id", "import_jobs", "id", "CASCADE"],
+  ["import_remediations", "actor_user_id", "users", "id", "RESTRICT"],
+  ["import_remediations", "supersedes_remediation_id", "import_remediations", "id", "RESTRICT"]
 ].map(([table, from, toTable, to, onDelete]) => ({ table, from, to: `${toTable}.${to}`, onDelete }));
 
 const requiredConstraintFragments: Record<string, string[]> = {
@@ -287,6 +328,7 @@ const requiredConstraintFragments: Record<string, string[]> = {
   users: ["unique"],
   role_permissions: ["primary key(role_id,permission_id)"],
   import_records: ["primary key(job_id,id)"],
+  import_analysis_revisions: ["unique(import_job_id,revision)"],
   pulse_release_metadata: ["primary key", "check(id=1)"]
 };
 

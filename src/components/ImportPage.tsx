@@ -46,6 +46,9 @@ type ImportJob = {
   };
   evaluationResult?: SpreadsheetEvaluationReport;
   assessmentResult?: {
+    governance?: {
+      errors?: Array<{ rule: string; entityId: string; message: string; severity?: string }>;
+    };
     findings?: Array<{ code?: string; severity?: string; message?: string }>;
   };
   qualityScore?: {
@@ -53,6 +56,15 @@ type ImportJob = {
     dimensions?: Record<string, number>;
     findings?: Array<{ dimension?: string; code?: string; severity?: string; message?: string; entityId?: string }>;
   };
+  analysisRevision?: number;
+  remediations?: Array<{
+    id: string;
+    targetEntityId: string;
+    proposedOwnerId: string;
+    ownerDisplayName: string;
+    reason: string;
+    resultingAnalysisRevision?: number;
+  }>;
   createdAt: string;
   failureReason?: string;
 };
@@ -69,6 +81,8 @@ type ImportResponse = {
   };
   error?: string;
 };
+
+type PersonOption = { id: string; full_name: string };
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -283,6 +297,8 @@ export function ImportPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [decisionBusy, setDecisionBusy] = useState(false);
+  const [remediationBusy, setRemediationBusy] = useState(false);
+  const [people, setPeople] = useState<PersonOption[]>([]);
 
   async function loadJobs() {
     const response = await fetch("/api/imports");
@@ -301,6 +317,11 @@ export function ImportPage() {
     const job = body as ImportJob;
     setSelectedJob(job);
     setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
+    const remediationResponse = await fetch(`/api/imports/${encodeURIComponent(id)}/remediations`);
+    if (remediationResponse.ok) {
+      const remediationBody = await remediationResponse.json() as { people?: PersonOption[] };
+      setPeople(remediationBody.people ?? []);
+    }
   }
 
   useEffect(() => {
@@ -343,6 +364,11 @@ export function ImportPage() {
       if (inputRef.current) inputRef.current.value = "";
       setSelectedJob(body.job);
       setJobs((current) => [body.job!, ...current.filter((item) => item.id !== body.job!.id)]);
+      const remediationResponse = await fetch(`/api/imports/${encodeURIComponent(body.job.id)}/remediations`);
+      if (remediationResponse.ok) {
+        const remediationBody = await remediationResponse.json() as { people?: PersonOption[] };
+        setPeople(remediationBody.people ?? []);
+      }
       setMessage(body.job.status === "REVIEW_REQUIRED"
         ? "فایل با موفقیت تحلیل شد و برای بازبینی آماده است."
         : "فایل دریافت شد.");
@@ -359,7 +385,40 @@ export function ImportPage() {
     setSelectedFile(null);
     setMessage("");
     setError("");
+    setPeople([]);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function remediateGoalOwner(input: {
+    targetGoalId: string;
+    expectedOldOwner?: string;
+    expectedAnalysisRevision: number;
+    proposedOwnerPersonId: string;
+    reason: string;
+  }) {
+    if (!selectedJob || remediationBusy) return;
+    setRemediationBusy(true);
+    setError("");
+    try {
+      const csrfResponse = await fetch("/api/auth/csrf");
+      const csrf = await csrfResponse.json() as { token?: string };
+      if (!csrfResponse.ok || !csrf.token) throw new Error("توکن امنیتی دریافت نشد.");
+      const response = await fetch(`/api/imports/${encodeURIComponent(selectedJob.id)}/remediations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ rule: "goal.owner.required", ...input })
+      });
+      const body = await response.json() as ImportJob | ImportResponse;
+      if (!response.ok || !("status" in body)) throw new Error("error" in body ? body.error : "رفع یافته حاکمیتی ناموفق بود.");
+      const job = body as ImportJob;
+      setSelectedJob(job);
+      setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
+      setMessage("مالک هدف برای همین ورود اطلاعات ثبت و تحلیل مجدد شد.");
+    } catch (remediationError) {
+      setError(remediationError instanceof Error ? remediationError.message : "رفع یافته حاکمیتی ناموفق بود.");
+    } finally {
+      setRemediationBusy(false);
+    }
   }
 
   async function decide(action: "approve" | "reject") {
@@ -373,7 +432,7 @@ export function ImportPage() {
       const response = await fetch("/api/imports", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-        body: JSON.stringify({ id: selectedJob.id, action })
+        body: JSON.stringify({ id: selectedJob.id, action, expectedAnalysisRevision: selectedJob.analysisRevision })
       });
       const body = await response.json() as ImportJob | ImportResponse;
       if (!response.ok || !("status" in body)) throw new Error("error" in body ? body.error : "تغییر وضعیت بازبینی ناموفق بود.");
@@ -448,7 +507,14 @@ export function ImportPage() {
 
         {selectedJob ? (
           <>
-            <ImportReview job={selectedJob} onDecision={(action) => void decide(action)} decisionBusy={decisionBusy} />
+            <ImportReview
+              job={selectedJob}
+              people={people}
+              onDecision={(action) => void decide(action)}
+              onRemediateGoalOwner={(input) => void remediateGoalOwner(input)}
+              decisionBusy={decisionBusy}
+              remediationBusy={remediationBusy}
+            />
             {message && <div className="import-message success" role="status" aria-live="polite">{message}</div>}
             {error && <div className="import-message error" role="alert">{error}</div>}
           </>
@@ -481,12 +547,24 @@ function RecentImports({ jobs, onOpen }: { jobs: ImportJob[]; onOpen: (id: strin
 
 export function ImportReview({
   job,
+  people = [],
   onDecision,
-  decisionBusy = false
+  onRemediateGoalOwner,
+  decisionBusy = false,
+  remediationBusy = false
 }: {
   job: ImportJob;
+  people?: PersonOption[];
   onDecision?: (action: "approve" | "reject") => void;
+  onRemediateGoalOwner?: (input: {
+    targetGoalId: string;
+    expectedOldOwner?: string;
+    expectedAnalysisRevision: number;
+    proposedOwnerPersonId: string;
+    reason: string;
+  }) => void;
   decisionBusy?: boolean;
+  remediationBusy?: boolean;
 }) {
   const metadata = sourceMetadata(job);
   const warnings = errorMessages(job);
@@ -533,6 +611,13 @@ export function ImportReview({
 
       <EvaluationFindings findings={evaluationFindings(job)} />
 
+      <GovernanceFindings
+        job={job}
+        people={people}
+        onRemediateGoalOwner={onRemediateGoalOwner}
+        remediationBusy={remediationBusy}
+      />
+
       <section className="panel import-records-panel" aria-labelledby="import-records-title">
         <div className="panel-head"><h2 id="import-records-title">داده‌های استخراج‌شده</h2><span>نمایش فقط برای بازبینی انسانی</span></div>
         {job.records.length === 0 ? <div className="empty">رکورد قابل نمایش وجود ندارد.</div> : (
@@ -552,6 +637,113 @@ export function ImportReview({
         )}
       </div>
     </div>
+  );
+}
+
+function GovernanceFindings({
+  job,
+  people,
+  onRemediateGoalOwner,
+  remediationBusy
+}: {
+  job: ImportJob;
+  people: PersonOption[];
+  onRemediateGoalOwner?: (input: {
+    targetGoalId: string;
+    expectedOldOwner?: string;
+    expectedAnalysisRevision: number;
+    proposedOwnerPersonId: string;
+    reason: string;
+  }) => void;
+  remediationBusy: boolean;
+}) {
+  const findings = job.assessmentResult?.governance?.errors ?? [];
+  if (findings.length === 0) return null;
+  return (
+    <section className="panel import-governance-findings-panel" aria-labelledby="import-governance-findings-title">
+      <div className="panel-head">
+        <div><h2 id="import-governance-findings-title">یافته‌های حاکمیتی</h2><small>رفع هر یافته فقط با تحلیل مجدد ممکن است.</small></div>
+        <span>{findings.length} مورد</span>
+      </div>
+      <div className="import-evaluation-findings-list">
+        {findings.map((finding, index) => (
+          <GoalOwnerRemediation
+            key={`${finding.rule}-${finding.entityId}-${index}`}
+            finding={finding}
+            job={job}
+            people={people}
+            onRemediate={onRemediateGoalOwner}
+            busy={remediationBusy}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GoalOwnerRemediation({
+  finding,
+  job,
+  people,
+  onRemediate,
+  busy
+}: {
+  finding: { rule: string; entityId: string; message: string };
+  job: ImportJob;
+  people: PersonOption[];
+  onRemediate?: (input: {
+    targetGoalId: string;
+    expectedOldOwner?: string;
+    expectedAnalysisRevision: number;
+    proposedOwnerPersonId: string;
+    reason: string;
+  }) => void;
+  busy: boolean;
+}) {
+  const [personId, setPersonId] = useState("");
+  const [reason, setReason] = useState("");
+  const record = job.records.find((candidate) => candidate.data.goal === finding.entityId);
+  if (finding.rule !== "goal.owner.required" || !onRemediate) {
+    return <article className="import-evaluation-finding"><strong>{finding.rule}</strong><p>{finding.message}</p></article>;
+  }
+  return (
+    <article className="import-evaluation-finding">
+      <div className="import-evaluation-finding-head">
+        <strong>{finding.entityId}: مالک هدف الزامی است</strong>
+        <span>{job.source.name} · {String(record?.source.metadata?.sheetName ?? "—")} · ردیف {record?.rowNumber ?? "—"}</span>
+      </div>
+      <div className="import-evaluation-finding-body">
+        <div><span>یافته</span><strong>{finding.rule}</strong></div>
+        <div><span>وضعیت فعلی</span><strong>مالک مؤثر ثبت نشده است.</strong></div>
+        <div><span>پیام</span><strong>{finding.message}</strong></div>
+        <div><span>منبع</span><strong>{record?.provenance?.map((cell) => `${cell.address}: ${displayValue(cell.rawValue)}`).join(" · ") ?? "—"}</strong></div>
+        <label>
+          <span>مالک جدید</span>
+          <select value={personId} onChange={(event) => setPersonId(event.target.value)} disabled={busy} required>
+            <option value="">انتخاب شخص فعال</option>
+            {people.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>دلیل اصلاح</span>
+          <textarea value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy} required />
+        </label>
+        <button
+          className="primary-button"
+          type="button"
+          disabled={busy || !personId || !reason.trim()}
+          onClick={() => onRemediate({
+            targetGoalId: finding.entityId,
+            expectedOldOwner: "",
+            expectedAnalysisRevision: job.analysisRevision ?? 0,
+            proposedOwnerPersonId: personId,
+            reason
+          })}
+        >
+          {busy ? "در حال تحلیل مجدد..." : "ثبت مالک و تحلیل مجدد"}
+        </button>
+      </div>
+    </article>
   );
 }
 

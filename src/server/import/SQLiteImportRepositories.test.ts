@@ -10,6 +10,8 @@ import type { ProgramQualityScore } from "../../domain/program";
 import type { SpreadsheetEvaluationReport } from "../../application/import/spreadsheet/evaluation/contracts";
 import { RepositoryError } from "../repositories";
 import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "./SQLiteImportRepositories";
+import { audit } from "../auth";
+import { programFixture } from "../../domain/program/program.fixture";
 
 const source = { type: "MANUAL" as const, name: "transaction-test", metadata: {} };
 const record = (id: string): ImportRecord => ({
@@ -58,6 +60,132 @@ afterEach(() => {
 });
 
 describe("SQLite import persistence", () => {
+  it("persists an immutable analysis baseline and rejects stale CAS writes", () => {
+    const jobs = new SQLiteImportJobRepository();
+    const job: ImportJob = {
+      id: "job-baseline",
+      source,
+      status: "DRAFT",
+      records: [],
+      createdAt: new Date().toISOString()
+    };
+    jobs.create(job);
+    jobs.saveAnalysisResult(
+      job.id,
+      {} as ImportValidationResult,
+      {} as ImportAssessmentResult,
+      {} as ProgramQualityScore,
+      undefined,
+      undefined,
+      undefined,
+      programFixture
+    );
+
+    const loaded = jobs.get(job.id)!;
+    expect(loaded.analysisBaseline).toEqual(programFixture);
+    expect(jobs.getAnalysisRevisions(job.id)).toHaveLength(1);
+    expect(() => jobs.saveAnalysisResult(
+      job.id,
+      {} as ImportValidationResult,
+      {} as ImportAssessmentResult,
+      {} as ProgramQualityScore,
+      undefined,
+      undefined,
+      0,
+      programFixture
+    )).toThrow("review has changed");
+    expect(jobs.getAnalysisRevisions(job.id)).toHaveLength(1);
+  });
+
+  it("rolls back remediation, analysis, and audit together when audit insertion fails", () => {
+    const jobs = new SQLiteImportJobRepository();
+    const job: ImportJob = {
+      id: "job-remediation-atomic",
+      source,
+      status: "DRAFT",
+      records: [],
+      createdAt: new Date().toISOString()
+    };
+    jobs.create(job);
+    getDatabase().prepare("INSERT INTO app_roles (id, code, title, scope) VALUES (?, ?, ?, ?)").run(
+      "role-test", "TEST", "Test", "COMPANY"
+    );
+    getDatabase().prepare("INSERT INTO users (id, username, password_hash, role_id) VALUES (?, ?, ?, ?)").run(
+      "user-test", "test", "hash", "role-test"
+    );
+    jobs.saveAnalysisResult(
+      job.id,
+      {} as ImportValidationResult,
+      {} as ImportAssessmentResult,
+      {} as ProgramQualityScore,
+      undefined,
+      undefined,
+      undefined,
+      programFixture
+    );
+    const remediation = {
+      id: "remediation-atomic",
+      importJobId: job.id,
+      rule: "goal.owner.required" as const,
+      targetEntityType: "goal" as const,
+      targetEntityId: "goal-it-infrastructure",
+      oldEffectiveOwner: undefined,
+      proposedOwnerId: "person-1",
+      ownerDisplayName: "Person One",
+      reason: "atomicity test",
+      sourceFinding: { rule: "goal.owner.required", entityId: "goal-it-infrastructure" },
+      actorUserId: "user-test",
+      expectedAnalysisRevision: 1,
+      status: "APPLIED" as const,
+      resultingAnalysisRevision: 2,
+      createdAt: new Date().toISOString()
+    };
+    getDatabase().exec(`
+      CREATE TRIGGER fail_audit_insert BEFORE INSERT ON audit_log
+      BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END;
+    `);
+
+    expect(() => getDatabase().transaction(() => {
+      jobs.saveAnalysisResult(
+        job.id,
+        {} as ImportValidationResult,
+        {} as ImportAssessmentResult,
+        {} as ProgramQualityScore,
+        undefined,
+        remediation.id,
+        1,
+        programFixture
+      );
+      jobs.createRemediation(remediation);
+      audit("user-test", "import-remediation", job.id, "goal_owner_assigned", null, remediation);
+    })()).toThrow("forced audit failure");
+
+    expect(jobs.get(job.id)?.analysisRevision).toBe(1);
+    expect(jobs.getAnalysisRevisions(job.id)).toHaveLength(1);
+    expect(jobs.listRemediations(job.id)).toEqual([]);
+    expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM audit_log WHERE entity_id = ?").get(job.id)).toEqual({ count: 0 });
+
+    getDatabase().exec("DROP TRIGGER fail_audit_insert");
+    getDatabase().transaction(() => {
+      jobs.saveAnalysisResult(
+        job.id,
+        {} as ImportValidationResult,
+        {} as ImportAssessmentResult,
+        {} as ProgramQualityScore,
+        undefined,
+        remediation.id,
+        1,
+        programFixture
+      );
+      jobs.createRemediation(remediation);
+      audit("user-test", "import-remediation", job.id, "goal_owner_assigned", null, remediation);
+    })();
+    expect(jobs.get(job.id)?.analysisRevision).toBe(2);
+    expect(jobs.getAnalysisRevisions(job.id)).toHaveLength(2);
+    expect(jobs.listRemediations(job.id)).toHaveLength(1);
+    expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM audit_log WHERE entity_id = ?").get(job.id)).toEqual({ count: 1 });
+  });
+
   it("persists evaluation findings and provenance across job reload", () => {
     const jobs = new SQLiteImportJobRepository();
     const evaluation: SpreadsheetEvaluationReport = {

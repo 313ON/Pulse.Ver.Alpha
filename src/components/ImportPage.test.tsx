@@ -235,4 +235,52 @@ describe("Import command center", () => {
     expect(markup).toContain("Unknown header");
     expect(markup).toContain("Untrusted &lt;header&gt;");
   });
+
+  it("renders goal owner remediation with provenance and active-person controls", () => {
+    const markup = renderToStaticMarkup(<ImportReview
+      job={{
+        id: "import-remediation",
+        source: { type: "EXCEL", name: "source.xlsx", metadata: { planYear: 1405 } },
+        status: "REVIEW_REQUIRED",
+        analysisRevision: 1,
+        createdAt: "2026-08-21T10:00:00.000Z",
+        records: [{
+          id: "goal-row",
+          entityType: "goal",
+          source: { type: "EXCEL", name: "source.xlsx", metadata: { sheetName: "Plan", sheetIndex: 0 } },
+          rowNumber: 12,
+          data: { goal: "G01", title: "هدف اول" },
+          provenance: [{
+            workbookName: "source.xlsx",
+            sheetName: "Plan",
+            sheetIndex: 0,
+            rowIndex: 11,
+            sourceRowNumber: 12,
+            column: "A",
+            address: "A12",
+            rawValue: "G01",
+            semanticType: "GOAL"
+          }]
+        }],
+        assessmentResult: {
+          governance: {
+            errors: [{
+              rule: "goal.owner.required",
+              entityId: "G01",
+              message: "Goal owner is required."
+            }]
+          }
+        }
+      }}
+      people={[{ id: "person-1", full_name: "Person One" }]}
+      onRemediateGoalOwner={() => undefined}
+    />);
+
+    expect(markup).toContain("یافته‌های حاکمیتی");
+    expect(markup).toContain("G01: مالک هدف الزامی است");
+    expect(markup).toContain("source.xlsx · Plan · ردیف 12");
+    expect(markup).toContain("A12: G01");
+    expect(markup).toContain("Person One");
+    expect(markup).toContain("دلیل اصلاح");
+  });
 });

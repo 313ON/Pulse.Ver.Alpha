@@ -225,7 +225,9 @@ CREATE TABLE IF NOT EXISTS import_jobs (
   quality_score_json TEXT,
   created_at TEXT NOT NULL,
   approved_at TEXT,
-  failure_reason TEXT
+  failure_reason TEXT,
+  analysis_revision INTEGER NOT NULL DEFAULT 0,
+  baseline_program_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS import_records (
@@ -234,6 +236,44 @@ CREATE TABLE IF NOT EXISTS import_records (
   record_json TEXT NOT NULL,
   PRIMARY KEY (job_id, id),
   FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS import_analysis_revisions (
+  id TEXT PRIMARY KEY,
+  import_job_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  validation_json TEXT NOT NULL,
+  evaluation_json TEXT,
+  assessment_json TEXT NOT NULL,
+  quality_score_json TEXT NOT NULL,
+  triggering_remediation_id TEXT,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(import_job_id, revision),
+  FOREIGN KEY (import_job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS import_remediations (
+  id TEXT PRIMARY KEY,
+  import_job_id TEXT NOT NULL,
+  rule TEXT NOT NULL,
+  target_entity_type TEXT NOT NULL,
+  target_entity_id TEXT NOT NULL,
+  old_effective_owner TEXT,
+  proposed_owner_id TEXT NOT NULL,
+  owner_display_name TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  source_finding_json TEXT NOT NULL,
+  source_provenance_json TEXT,
+  actor_user_id TEXT NOT NULL,
+  expected_analysis_revision INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  resulting_analysis_revision INTEGER,
+  supersedes_remediation_id TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (import_job_id) REFERENCES import_jobs(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (supersedes_remediation_id) REFERENCES import_remediations(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS pulse_release_metadata (
@@ -250,6 +290,8 @@ CREATE INDEX IF NOT EXISTS work_items_owner_idx ON work_items(owner_person_id);
 CREATE INDEX IF NOT EXISTS work_items_due_idx ON work_items(planned_end);
 CREATE INDEX IF NOT EXISTS risks_severity_idx ON risks(probability, impact);
 CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS import_analysis_revisions_job_idx ON import_analysis_revisions(import_job_id, revision);
+CREATE INDEX IF NOT EXISTS import_remediations_job_idx ON import_remediations(import_job_id, created_at);
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
 
 CREATE TRIGGER IF NOT EXISTS audit_log_immutable_update

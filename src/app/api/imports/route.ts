@@ -94,6 +94,9 @@ export async function PATCH(request: Request) {
       throw new RepositoryError("VALIDATION", "عملیات بازبینی نامعتبر است.");
     }
     const action = body.action;
+    const expectedAnalysisRevision = body.expectedAnalysisRevision === undefined
+      ? undefined
+      : Number(body.expectedAnalysisRevision);
     const jobs = new SQLiteImportJobRepository();
     const job = new ImportReviewService(undefined, jobs, new SQLiteImportRecordRepository());
     try {
@@ -101,7 +104,7 @@ export async function PATCH(request: Request) {
       const transition = database.transaction(() => {
         const before = jobs.get(id);
         if (!before) throw new RepositoryError("NOT_FOUND", "کار ورود اطلاعات پیدا نشد.");
-        const result = action === "approve" ? job.approve(id) : job.reject(id);
+        const result = action === "approve" ? job.approve(id, expectedAnalysisRevision) : job.reject(id);
         auditMutation(
           user,
           "import-review",
@@ -115,9 +118,15 @@ export async function PATCH(request: Request) {
       return json(transition());
     } catch (error) {
       if (error instanceof RepositoryError) throw error;
+      if (error instanceof Error && error.message === "The import review has changed. Reload the latest findings.") {
+        throw error;
+      }
       throw new RepositoryError("VALIDATION", error instanceof Error ? error.message : "گذار وضعیت بازبینی نامعتبر است.");
     }
   } catch (error) {
+    if (error instanceof Error && error.message === "The import review has changed. Reload the latest findings.") {
+      return json({ error: error.message, code: "CONFLICT" }, { status: 409 });
+    }
     return handleApiError(error);
   }
 }
