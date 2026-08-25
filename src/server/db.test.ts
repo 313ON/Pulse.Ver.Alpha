@@ -148,7 +148,7 @@ describe("production database configuration", () => {
     const databasePath = path.join(os.tmpdir(), `pulse-column-drift-${Date.now()}-${Math.random()}.sqlite`);
     const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
     const column = "  username TEXT NOT NULL UNIQUE,\n";
-    const withoutColumn = schema.replace(column, "");
+    const withoutColumn = schema.replace(/\r\n/g, "\n").replace(column, "");
     const raw = new Database(databasePath);
     raw.exec(withoutColumn);
     raw.close();
