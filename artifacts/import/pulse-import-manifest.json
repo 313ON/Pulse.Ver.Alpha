@@ -55,8 +55,7 @@
         "canonicalPlanningContribution": "NO",
         "duplicateOf": null
       }
-    ]
-    },
+    ],
     "departmentalMaterialization": {
       "storage": "departmental_planning_records",
       "canonicalPlanningContribution": "NO",
