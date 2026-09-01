@@ -238,6 +238,48 @@ CREATE TABLE IF NOT EXISTS import_records (
   FOREIGN KEY (job_id) REFERENCES import_jobs(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS departmental_materialization_operations (
+  operation_id TEXT PRIMARY KEY,
+  import_job_id TEXT NOT NULL,
+  approved_analysis_revision INTEGER NOT NULL,
+  source_snapshot_hash TEXT NOT NULL,
+  source_fingerprint TEXT NOT NULL,
+  actor_user_id TEXT NOT NULL,
+  target_plan_year INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('COMPLETED','FAILED')),
+  record_count INTEGER NOT NULL DEFAULT 0,
+  provenance_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  UNIQUE (import_job_id, approved_analysis_revision, source_snapshot_hash),
+  UNIQUE (source_fingerprint),
+  FOREIGN KEY (import_job_id) REFERENCES import_jobs(id) ON DELETE RESTRICT,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS departmental_materialization_source_fingerprint_idx
+  ON departmental_materialization_operations(source_fingerprint);
+
+CREATE TABLE IF NOT EXISTS departmental_planning_records (
+  id TEXT PRIMARY KEY,
+  operation_id TEXT NOT NULL,
+  import_job_id TEXT NOT NULL,
+  source_record_id TEXT NOT NULL,
+  classification TEXT NOT NULL CHECK (classification IN ('DERIVED','SUPPORTING','REFERENCE','AMBIGUOUS','UNRESOLVED')),
+  domain TEXT,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('goal','objective','activity','action')),
+  normalized_data_json TEXT NOT NULL,
+  raw_record_json TEXT NOT NULL,
+  source_workbook TEXT NOT NULL,
+  source_sheet TEXT,
+  source_row INTEGER,
+  source_cell TEXT,
+  provenance_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE (import_job_id, source_record_id),
+  FOREIGN KEY (operation_id) REFERENCES departmental_materialization_operations(operation_id) ON DELETE CASCADE,
+  FOREIGN KEY (import_job_id) REFERENCES import_jobs(id) ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS import_analysis_revisions (
   id TEXT PRIMARY KEY,
   import_job_id TEXT NOT NULL,

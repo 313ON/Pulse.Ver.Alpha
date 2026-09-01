@@ -1,0 +1,791 @@
+{
+  "manifestVersion": "1.0",
+  "generatedAt": "2026-08-31",
+  "status": "PARTIAL",
+  "sourceAuthorities": {
+    "organizationalIdentity": {
+      "path": "Samples/- 1404ورژن 7 خرداد.xlsx",
+      "requestedPath": "Samples/1404ورژن 7 خرداد.xlsx",
+      "authority": [
+        "Unit",
+        "Role",
+        "Alias",
+        "Organizational Identity"
+      ]
+    },
+    "planning": {
+      "path": "برنامه_سالانه_شرکت_1405_IT_Professional_V1_FIXED.xlsx",
+      "authority": [
+        "Goal",
+        "Objective",
+        "Activity",
+        "Action"
+      ],
+      "available": false
+    },
+    "departmental": [
+      {
+        "path": "Samples/Annual program supplies - برنامه سال 1405 - تدارکات -اصلاحی (1).xlsx",
+        "domain": "procurement",
+        "classification": "SUPPORTING",
+        "canonicalPlanningContribution": "NO",
+        "duplicateOf": null
+      },
+      {
+        "path": "Samples/برنامه سال 1405 واحد نت با تفکیک اقدامات.xlsx",
+        "domain": "maintenance",
+        "classification": "DERIVED",
+        "canonicalPlanningContribution": "NO",
+        "duplicateOf": [
+          ".runtime-validation/r10-f-20260826/workbook-copy.xlsx",
+          ".runtime-validation/r10-f-acceptance-20260826/workbook-copy.xlsx"
+        ]
+      },
+      {
+        "path": "Samples/برنامه سال 1405 آقای عبودی.xlsx",
+        "domain": "production",
+        "classification": "DERIVED",
+        "canonicalPlanningContribution": "NO",
+        "duplicateOf": null
+      },
+      {
+        "path": "Samples/پیش نویس برنامه سالیانه 1405 واحد اداری (1).xlsx",
+        "domain": "administration",
+        "classification": "DERIVED",
+        "canonicalPlanningContribution": "NO",
+        "duplicateOf": null
+      }
+    ]
+    },
+    "departmentalMaterialization": {
+      "storage": "departmental_planning_records",
+      "canonicalPlanningContribution": "NO",
+      "provenanceRequired": true,
+      "idempotency": "import_job_id+approved_analysis_revision+source_snapshot_hash"
+    }
+  },
+  "organizational_identity": {
+    "units": [
+      {
+        "id": "unit-admin-central",
+        "canonical_name": "اداری دفتر مرکزی",
+        "source_names": [
+          "اداری دفتر مرکزی",
+          "اداری",
+          "امور اداری دفتر مرکزی",
+          "اموراداری دفتر مرکزی"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!D7",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!D10",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!D74"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "unit-admin-factory",
+        "canonical_name": "اداری کارخانه",
+        "source_names": [
+          "اداری کارخانه",
+          "امور اداری کارخانه",
+          "اموراداری کارخانه"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری کارخانه!E3",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E29",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E55"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-procurement",
+        "canonical_name": "تدارکات",
+        "source_names": [
+          "تدارکات"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::تدارکات!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E4"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "unit-commercial",
+        "canonical_name": "بازرگانی",
+        "source_names": [
+          "بازرگانی"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::بازرگانی!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!E17"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "unit-production",
+        "canonical_name": "تولید",
+        "source_names": [
+          "تولید",
+          "سرپرست تولید"
+        ],
+        "classification": "AMBIGUOUS",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::سرپرست تولید!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::برق!E27"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-technology",
+        "canonical_name": "فناوری",
+        "source_names": [
+          "فناوری",
+          "کارشناس فناوری"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E7"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-laboratory",
+        "canonical_name": "آزمایشگاه",
+        "source_names": [
+          "آزمایشگاه",
+          "واحد آزمایشگاه"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx:: آزمایشگاه!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مسئول دفتر مدیرعامل!D5"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-maintenance",
+        "canonical_name": "نت",
+        "source_names": [
+          "واحد نت",
+          "نت",
+          "تعمیر و نگهداری",
+          "نت ( نگهداری و تعمیرات )"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::برق!D27",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E19",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس مکانیک!E34"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-engineering",
+        "canonical_name": "فنی مهندسی",
+        "source_names": [
+          "واحد فنی مهندسی",
+          "فنی مهندسی",
+          "واحد مهندسی"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کمیته فنی!E2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E40",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مسئول دفتر مدیرعامل!D5"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "unit-utilities",
+        "canonical_name": "تاسیسات",
+        "source_names": [
+          "واحد تاسیسات",
+          "تاسیسات"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx:: آزمایشگاه!E11",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E92"
+        ],
+        "confidence": "HIGH"
+      }
+    ],
+    "roles": [
+      {
+        "id": "role-it-specialist",
+        "canonical_name": "کارشناس فناوری",
+        "unit_id": "unit-technology",
+        "source_names": [
+          "کارشناس فناوری"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!D2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-product-engineer",
+        "canonical_name": "مهندس محصول",
+        "unit_id": null,
+        "source_names": [
+          "مهندس محصول",
+          "مهندسی محصول"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!D15",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-product-specialist",
+        "canonical_name": "کارشناس محصول",
+        "unit_id": null,
+        "source_names": [
+          "کارشناس محصول"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!D12"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-commercial-specialist",
+        "canonical_name": "کارشناس بازرگانی",
+        "unit_id": "unit-commercial",
+        "source_names": [
+          "کارشناس بازرگانی"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::بازرگانی!D2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-production-supervisor",
+        "canonical_name": "سرپرست تولید",
+        "unit_id": "unit-production",
+        "source_names": [
+          "سرپرست تولید"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::سرپرست تولید!D2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-factory-lab-specialist",
+        "canonical_name": "کارشناس آزمایشگاه کارخانه",
+        "unit_id": "unit-laboratory",
+        "source_names": [
+          "کارشناس آزمایشگاه کارخانه"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-central-lab-specialist",
+        "canonical_name": "کارشناس آزمایشگاه دفتر مرکزی",
+        "unit_id": "unit-laboratory",
+        "source_names": [
+          "کارشناس آزمایشگاه دفتر مرکزی"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E40"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-rnd-central-lab-specialist",
+        "canonical_name": "کارشناس واحد تحقیق و توسعه و آزمایشگاه دفتر مرکزی",
+        "unit_id": "unit-laboratory",
+        "source_names": [
+          "کارشناس واحد تحقیق و توسعه و آزمایشگاه دفتر مرکزی"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx:: آزمایشگاه!D2"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-rnd-specialist",
+        "canonical_name": "کارشناس تحقیق و توسعه",
+        "unit_id": null,
+        "source_names": [
+          "کارشناس تحقیق و توسعه"
+        ],
+        "classification": "DERIVED",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E6"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-safety-specialist",
+        "canonical_name": "کارشناس ایمنی",
+        "unit_id": null,
+        "source_names": [
+          "کارشناس ایمنی"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس ایمنی!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری کارخانه!E5"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-health-specialist",
+        "canonical_name": "کارشناس بهداشت",
+        "unit_id": null,
+        "source_names": [
+          "کارشناس بهداشت",
+          "کارشناس بهداشت حرفه ای"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس بهداشت!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E64"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-ceo-office-manager",
+        "canonical_name": "مسئول دفتر مدیرعامل",
+        "unit_id": null,
+        "source_names": [
+          "مسئول دفتر مدیرعامل",
+          "مسئول دفتر مدیر عامل"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مسئول دفتر مدیرعامل!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E70"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-admin-manager",
+        "canonical_name": "مسئول اداری",
+        "unit_id": "unit-admin-central",
+        "source_names": [
+          "مسئول اداری"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::تدارکات!E28"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-hr-advisor",
+        "canonical_name": "مشاور منابع انسانی",
+        "unit_id": null,
+        "source_names": [
+          "مشاور منابع انسانی",
+          "مشاوران"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مشاور منابع انسانی!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E5"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-mechanical-engineer",
+        "canonical_name": "مهندس مکانیک",
+        "unit_id": "unit-engineering",
+        "source_names": [
+          "مهندس مکانیک"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس مکانیک!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E19"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-civil-engineer",
+        "canonical_name": "مهندس عمران",
+        "unit_id": "unit-engineering",
+        "source_names": [
+          "مهندس عمران"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::عمران!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::تدارکات!E66"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-chemical-engineer",
+        "canonical_name": "مهندس شیمی",
+        "unit_id": null,
+        "source_names": [
+          "مهندس شیمی"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::سرپرست تولید!D6"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-civil-specialist",
+        "canonical_name": "کارشناس عمران",
+        "unit_id": "unit-engineering",
+        "source_names": [
+          "کارشناس عمران"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::تدارکات!E42"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-electrical-specialist",
+        "canonical_name": "کارشناس برق",
+        "unit_id": "unit-engineering",
+        "source_names": [
+          "کارشناس برق"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::برق!D28"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-repair-technician",
+        "canonical_name": "تعمیرکار",
+        "unit_id": "unit-maintenance",
+        "source_names": [
+          "تعمیرکار",
+          "تعمیر کار"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!D86",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::جوشکار!E6"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-welder",
+        "canonical_name": "جوشکار",
+        "unit_id": "unit-maintenance",
+        "source_names": [
+          "جوشکار"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::جوشکار!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::پایپینگ!E13"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-utilities-operator",
+        "canonical_name": "اپراتور تاسیسات",
+        "unit_id": "unit-utilities",
+        "source_names": [
+          "اپراتور تاسیسات"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مهندس محصول!E32"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-maintenance-supervisor",
+        "canonical_name": "سرپرست نت",
+        "unit_id": "unit-maintenance",
+        "source_names": [
+          "سرپرست نت",
+          "سرپرست نت( تعمیر ونگهداری )"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E26",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E5"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-maintenance-staff",
+        "canonical_name": "پرسنل نت",
+        "unit_id": "unit-maintenance",
+        "source_names": [
+          "پرسنل نت",
+          "پرسنل واحد نت"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E12"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-storekeeper",
+        "canonical_name": "انباردار",
+        "unit_id": null,
+        "source_names": [
+          "انباردار",
+          "انبار دار"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::انباردار!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E36"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-accounting",
+        "canonical_name": "حسابداری",
+        "unit_id": null,
+        "source_names": [
+          "حسابداری"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::حسابداری!D2",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E13"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-courier",
+        "canonical_name": "تحصیلدار",
+        "unit_id": "unit-admin-central",
+        "source_names": [
+          "تحصیلدار"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::اداری دفتر مرکزی!E74"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-production-shift-lead",
+        "canonical_name": "سرشیفت تولید",
+        "unit_id": "unit-production",
+        "source_names": [
+          "سرشیفت تولید",
+          "سرشفت تولید"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::سرپرست تولید!E10",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E98"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-steering-chair",
+        "canonical_name": "رئیس کمیته راهبری",
+        "unit_id": null,
+        "source_names": [
+          "رئیس کمیته راهبری",
+          "رئیس کمیته راهبری وبسایت"
+        ],
+        "classification": "AMBIGUOUS",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!E8",
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!E12"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "role-steering-members",
+        "canonical_name": "اعضای کمیته راهبری",
+        "unit_id": null,
+        "source_names": [
+          "اعضا کمیته راهبری",
+          "اعضای کمیته راهبری"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::کارشناس فناوری!E7"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-lab-manager",
+        "canonical_name": "مسئول آزمایشگاه",
+        "unit_id": "unit-laboratory",
+        "source_names": [
+          "مسئول آزمایشگاه",
+          "مسئول آزمایشکاه"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E90"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "role-central-lab-manager",
+        "canonical_name": "مسئول آزمایشگاه دفتر مرکزی",
+        "unit_id": "unit-laboratory",
+        "source_names": [
+          "مسئول آزمایشگاه دفتر مرکزی"
+        ],
+        "classification": "EXPLICIT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::مسئول دفتر مدیرعامل!D3"
+        ],
+        "confidence": "HIGH"
+      }
+    ],
+    "aliases": [
+      {
+        "id": "alias-repair-space",
+        "alias": "تعمیر کار",
+        "canonical_entity_type": "ROLE",
+        "canonical_entity_id": "role-repair-technician",
+        "classification": "TYPOGRAPHIC_VARIANT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::جوشکار!E6"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "alias-storekeeper-space",
+        "alias": "انبار دار",
+        "canonical_entity_type": "ROLE",
+        "canonical_entity_id": "role-storekeeper",
+        "classification": "TYPOGRAPHIC_VARIANT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E158"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "alias-lab-manager-typo",
+        "alias": "مسئول آزمایشکاه",
+        "canonical_entity_type": "ROLE",
+        "canonical_entity_id": "role-lab-manager",
+        "classification": "TYPOGRAPHIC_VARIANT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E90"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "id": "alias-piping-typo",
+        "alias": "پایپینک",
+        "canonical_entity_type": "WORKSTREAM",
+        "canonical_entity_id": "unit-engineering",
+        "classification": "TYPOGRAPHIC_VARIANT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::پمپ!E16"
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "id": "alias-shift-lead-typo",
+        "alias": "سرشفت تولید",
+        "canonical_entity_type": "ROLE",
+        "canonical_entity_id": "role-production-shift-lead",
+        "classification": "TYPOGRAPHIC_VARIANT",
+        "provenance": [
+          "Samples/- 1404ورژن 7 خرداد.xlsx::امور داخلی کارخانه!E98"
+        ],
+        "confidence": "HIGH"
+      }
+    ]
+  },
+  "planning": {
+    "sourceAvailable": false,
+    "goals": [],
+    "objectives": [],
+    "activities": [],
+    "actions": [],
+    "g08": {
+      "id": "G08",
+      "status": "UNMAPPED_AT_IT_ACTION_LEVEL",
+      "goalRecordCreated": false,
+      "reason": "Accepted FIXED planning workbook is absent; no source row was available."
+    }
+  },
+  "responsibilityResolution": {
+    "sourceAvailable": false,
+    "classificationCounts": {
+      "EXACT": 0,
+      "ALIAS": 0,
+      "DERIVED": 0,
+      "AMBIGUOUS": 0,
+      "UNRESOLVED": 0
+    },
+    "note": "No responsibility fields were resolved because the accepted FIXED planning source is unavailable."
+  },
+  "validation": {
+    "identity": {
+      "requiredRolesPresent": true,
+      "unitReferencesValid": true,
+      "aliasTargetsValid": true,
+      "duplicateCanonicalIds": false,
+      "roleUnitCollisions": "REVIEW_REQUIRED"
+    },
+    "planning": {
+      "goals": {
+        "expected": 10,
+        "actual": 0,
+        "passed": false
+      },
+      "objectives": {
+        "expected": 21,
+        "actual": 0,
+        "passed": false
+      },
+      "activities": {
+        "expected": 76,
+        "actual": 0,
+        "passed": false
+      },
+      "actions": {
+        "expected": 252,
+        "actual": 0,
+        "passed": false
+      },
+      "hierarchyIntegrity": false,
+      "actionIdUniqueness": "NOT_RUN",
+      "idParentAgreement": "NOT_RUN"
+    },
+    "passed": false
+  },
+  "readiness": "BLOCKED",
+  "blockers": [
+    {
+      "code": "PLANNING_SOURCE_MISSING",
+      "message": "برنامه_سالانه_شرکت_1405_IT_Professional_V1_FIXED.xlsx is not present in the workspace or searched project source locations."
+    },
+    {
+      "code": "PLANNING_MANIFEST_NOT_EXTRACTABLE",
+      "message": "The accepted 10/21/76/252 planning hierarchy cannot be populated without the FIXED workbook."
+    }
+  ]
+}

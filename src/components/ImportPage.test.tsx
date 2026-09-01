@@ -2,6 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ImportPage, ImportReview, importStatusLabel, isValidXlsxFile } from "./ImportPage";
+import { canRetryMaterialization, materializationStatusLabel } from "./MaterializationControl";
 
 Object.assign(globalThis, { React });
 vi.mock("next/navigation", () => ({
@@ -14,6 +15,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Import command center", () => {
+  it("uses explicit materialization state and retry rules", () => {
+    expect(materializationStatusLabel("COMPLETED")).toBe("تکمیل شده");
+    expect(canRetryMaterialization({ status: "FAILED" })).toBe(true);
+    expect(canRetryMaterialization({ status: "COMPLETED" })).toBe(false);
+    expect(canRetryMaterialization(undefined)).toBe(false);
+  });
   it("renders the RTL upload entry point and review language", () => {
     const markup = renderToStaticMarkup(<ImportPage />);
 

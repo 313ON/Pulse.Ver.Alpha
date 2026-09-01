@@ -39,6 +39,20 @@ The overlay changes only the effective `Program` used for that import's
 re-analysis. `ImportRecord` values, workbook files, cell provenance, and
 canonical SQLite program tables are not mutated.
 
+The committed import review architecture is:
+
+```text
+XLSX evidence
+→ persisted import records and provenance
+→ immutable baseline_program_json
+→ import-scoped remediation overlay
+→ deterministic analysis revision
+→ governance evaluation
+→ approvalReadiness
+→ review decision
+→ append-only audit
+```
+
 ## Persistence and History
 
 `import_remediations` stores the actor, import scope, target goal, rule,
@@ -52,6 +66,18 @@ the exact analyzed program projection in `import_jobs.baseline_program_json`;
 this field is write-once and is the authoritative baseline for all later
 import-scoped re-analysis.
 
+`baseline_program_json` is write-once. It captures the exact program
+projection used by the first completed analysis and is never rebuilt from
+live canonical goals on re-analysis. Each later analysis starts from this
+persisted baseline and applies the active import-scoped overlays in a
+deterministic order. This prevents later canonical changes from silently
+changing the meaning of an existing import review.
+
+Each completed analysis increments `analysis_revision` and appends one
+immutable row to `import_analysis_revisions`. The latest revision is also
+materialized on `import_jobs` for the current review snapshot; the revision
+history remains the authoritative record of prior review states.
+
 ## Authorization
 
 The remediation API requires the existing `imports.manage` permission and
@@ -60,8 +86,9 @@ CSRF protection. The selected owner must be an existing active person.
 ## Concurrency
 
 Remediation and approval accept the expected current analysis revision.
-The application rejects stale revisions with a controlled conflict response
-instead of overwriting newer review state.
+The application and SQLite repositories enforce this with compare-and-swap
+(CAS) predicates. A stale remediation or approval is rejected with a
+controlled conflict response instead of overwriting newer review state.
 
 ## Audit
 
@@ -69,6 +96,50 @@ The structured remediation and analysis tables preserve detailed history.
 The existing append-only `audit_log` records the actor, import, finding,
 old/new owner, reason, expected revision, resulting revision, and resulting
 governance state.
+
+Remediation creation, analysis revision persistence, current snapshot
+materialization, and audit insertion execute in one SQLite transaction. If
+any part fails, SQLite rolls back the complete unit, so no partial
+remediation, revision, snapshot, or audit event remains. A retry can then
+complete cleanly.
+
+## Evidence and Approval Boundary
+
+The source workbook, staged `ImportRecord` values, cell-level provenance,
+and original finding snapshots remain unchanged throughout remediation.
+Only the effective import-scoped analysis projection changes.
+
+Remediation does not grant approval and does not bypass existing governance.
+`approvalReadiness` is recomputed from the newest persisted analysis; all
+remaining critical governance, hierarchy, validation, and responsibility
+findings continue to block approval.
+
+## Validation Checkpoint
+
+This decision was implemented and committed in:
+
+```text
+9c83efe feat(import): add scoped governance remediation
+```
+
+The checkpoint was verified with:
+
+- Full suite: 236/236 PASS
+- Focused remediation/SQLite coverage: 16/16 PASS
+- Typecheck: PASS
+- Lint: PASS
+- Build: PASS
+- `git diff --check`: PASS
+
+## Separate Investigation Boundary
+
+The committed remediation phase does not resolve the historical hierarchy
+findings discrepancy. Historical runtime evidence reports `118` hierarchy
+findings, while a fresh current runtime reports `248`. Causality is
+unresolved. This is a separate, evidence-driven hierarchy discrepancy
+investigation boundary; parser, mapping, evaluator, scoring, thresholds,
+governance rules, approval semantics, and workbook semantics must not be
+changed as part of this remediation decision before causality is established.
 
 ## Rollback
 

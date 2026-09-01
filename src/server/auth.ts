@@ -7,7 +7,9 @@ export const permissionCodes = [
   "actions.edit-department", "actions.progress", "kpis.manage", "risks.manage",
   "dependencies.manage", "organization.manage", "reports.view", "reports.export",
   "users.manage", "permissions.manage", "imports.manage", "activities.view", "activities.create",
-  "activities.edit-own", "activities.edit-department"
+  "activities.edit-own", "activities.edit-department",
+  "imports.materialize.request", "imports.materialize.execute",
+  "imports.materialize.retry", "imports.materialize.view"
 ] as const;
 
 export type PermissionCode = (typeof permissionCodes)[number];
@@ -166,7 +168,6 @@ export async function login(username: string, password: string) {
 }
 
 export function can(permission: PermissionCode, role?: string | null) {
-  if (role === "SUPER_ADMIN" || role === "ADMIN") return true;
   return Boolean(getDatabase().prepare(`
     SELECT 1 FROM role_permissions rp
     JOIN app_roles r ON r.id = rp.role_id

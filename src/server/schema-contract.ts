@@ -36,6 +36,8 @@ export const requiredTables = [
   "audit_log",
   "import_jobs",
   "import_records",
+  "departmental_materialization_operations",
+  "departmental_planning_records",
   "import_analysis_revisions",
   "import_remediations",
   "pulse_release_metadata"
@@ -49,7 +51,8 @@ export const requiredIndexes = [
   "audit_log_entity_idx",
   "import_analysis_revisions_job_idx",
   "import_remediations_job_idx",
-  "sessions_expiry_idx"
+  "sessions_expiry_idx",
+  "departmental_materialization_source_fingerprint_idx"
 ] as const;
 
 export const requiredTriggers = [
@@ -231,6 +234,36 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     analysis_revision: column("INTEGER", { notNull: true, defaultValue: "0" }),
     baseline_program_json: column("TEXT")
   },
+  departmental_materialization_operations: {
+    operation_id: column("TEXT"),
+    import_job_id: column("TEXT", { notNull: true }),
+    approved_analysis_revision: column("INTEGER", { notNull: true }),
+    source_snapshot_hash: column("TEXT", { notNull: true }),
+    source_fingerprint: column("TEXT", { notNull: true }),
+    actor_user_id: column("TEXT", { notNull: true }),
+    target_plan_year: column("INTEGER", { notNull: true }),
+    status: column("TEXT", { notNull: true }),
+    record_count: column("INTEGER", { notNull: true }),
+    provenance_count: column("INTEGER", { notNull: true }),
+    created_at: column("TEXT", { notNull: true })
+  },
+  departmental_planning_records: {
+    id: column("TEXT"),
+    operation_id: column("TEXT", { notNull: true }),
+    import_job_id: column("TEXT", { notNull: true }),
+    source_record_id: column("TEXT", { notNull: true }),
+    classification: column("TEXT", { notNull: true }),
+    domain: column("TEXT"),
+    entity_type: column("TEXT", { notNull: true }),
+    normalized_data_json: column("TEXT", { notNull: true }),
+    raw_record_json: column("TEXT", { notNull: true }),
+    source_workbook: column("TEXT", { notNull: true }),
+    source_sheet: column("TEXT"),
+    source_row: column("INTEGER"),
+    source_cell: column("TEXT"),
+    provenance_json: column("TEXT", { notNull: true }),
+    created_at: column("TEXT", { notNull: true })
+  },
   import_records: {
     id: column("TEXT", { notNull: true }),
     job_id: column("TEXT", { notNull: true }),
@@ -310,7 +343,11 @@ const requiredForeignKeys: ForeignKeyContract[] = [
   ["import_analysis_revisions", "import_job_id", "import_jobs", "id", "CASCADE"],
   ["import_remediations", "import_job_id", "import_jobs", "id", "CASCADE"],
   ["import_remediations", "actor_user_id", "users", "id", "RESTRICT"],
-  ["import_remediations", "supersedes_remediation_id", "import_remediations", "id", "RESTRICT"]
+  ["import_remediations", "supersedes_remediation_id", "import_remediations", "id", "RESTRICT"],
+  ["departmental_materialization_operations", "import_job_id", "import_jobs", "id", "RESTRICT"],
+  ["departmental_materialization_operations", "actor_user_id", "users", "id", "RESTRICT"],
+  ["departmental_planning_records", "operation_id", "departmental_materialization_operations", "operation_id", "CASCADE"],
+  ["departmental_planning_records", "import_job_id", "import_jobs", "id", "RESTRICT"]
 ].map(([table, from, toTable, to, onDelete]) => ({ table, from, to: `${toTable}.${to}`, onDelete }));
 
 const requiredConstraintFragments: Record<string, string[]> = {

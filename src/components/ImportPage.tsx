@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PulseShell } from "./PulseShell";
+import { MaterializationControl } from "./MaterializationControl";
 import type { EvaluationIssue, SpreadsheetEvaluationReport } from "../application/import/spreadsheet/evaluation/contracts";
 
 type ImportStatus = "DRAFT" | "ANALYZING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "FAILED";
@@ -617,6 +618,8 @@ export function ImportReview({
         onRemediateGoalOwner={onRemediateGoalOwner}
         remediationBusy={remediationBusy}
       />
+
+      <MaterializationControl importJobId={job.id} status={job.status} />
 
       <section className="panel import-records-panel" aria-labelledby="import-records-title">
         <div className="panel-head"><h2 id="import-records-title">داده‌های استخراج‌شده</h2><span>نمایش فقط برای بازبینی انسانی</span></div>

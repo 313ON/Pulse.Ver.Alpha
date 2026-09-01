@@ -173,6 +173,10 @@ export class ImportReviewService {
     if (job.validationResult.errors.some((error) => error.code === "INVALID_DATE")) {
       blockers.push("Invalid dates must be corrected before approval.");
     }
+    const classification = job.source.metadata.classification;
+    if (typeof classification === "string" && classification !== "CANONICAL") {
+      return { ready: blockers.length === 0, blockers };
+    }
     if (job.assessmentResult.governance.errors.some((violation) => this.isCriticalGovernanceViolation(violation.rule))) {
       blockers.push("Critical governance violations must be resolved before approval.");
     }

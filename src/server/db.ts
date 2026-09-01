@@ -110,6 +110,14 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
   if (!importJobColumns.some((column) => column.name === "baseline_program_json")) {
     database.exec("ALTER TABLE import_jobs ADD COLUMN baseline_program_json TEXT");
   }
+  const departmentalColumns = database.prepare("PRAGMA table_info(departmental_materialization_operations)").all() as Array<{ name: string }>;
+  if (departmentalColumns.length && !departmentalColumns.some((column) => column.name === "source_fingerprint")) {
+    database.transaction(() => {
+      database.exec("ALTER TABLE departmental_materialization_operations ADD COLUMN source_fingerprint TEXT NOT NULL DEFAULT ''");
+      database.exec("UPDATE departmental_materialization_operations SET source_fingerprint = source_snapshot_hash WHERE source_fingerprint = ''");
+      database.exec("CREATE UNIQUE INDEX IF NOT EXISTS departmental_materialization_source_fingerprint_idx ON departmental_materialization_operations(source_fingerprint)");
+    })();
+  }
 }
 
 export function getDatabase(): Database.Database {
@@ -121,7 +129,13 @@ export function getDatabase(): Database.Database {
       candidate = new Database(filePath);
       configureWritableConnection(candidate, filePath);
       const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
-      candidate.exec(schema);
+      const departmentalColumns = candidate.prepare("PRAGMA table_info(departmental_materialization_operations)").all() as Array<{ name: string }>;
+      const hasLegacyFingerprintColumn = departmentalColumns.length > 0
+        && !departmentalColumns.some((column) => column.name === "source_fingerprint");
+      const schemaToApply = hasLegacyFingerprintColumn
+        ? schema.replace(/CREATE INDEX IF NOT EXISTS departmental_materialization_source_fingerprint_idx\s+ON departmental_materialization_operations\(source_fingerprint\);\s*/i, "")
+        : schema;
+      candidate.exec(schemaToApply);
       ensurePhaseFiveSchema(candidate);
       ensureReleaseMetadata(candidate);
       database = candidate;

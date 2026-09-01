@@ -6,6 +6,7 @@ import { seedBaseline } from "../../server/seed";
 import { RepositoryError } from "../../server/repositories";
 import { isDatabaseUnavailableError } from "../../server/db";
 import { assertAuthConfiguration, audit, can, canScope, getSessionUser, seedAuthFoundation, secureCookiesEnabled, type PermissionCode, type SessionUser } from "../../server/auth";
+import { MaterializationApplicationError } from "../../application/materialization";
 
 export class AuthorizationError extends Error {
   constructor(public code: "UNAUTHORIZED" | "FORBIDDEN", message: string) {
@@ -36,6 +37,13 @@ export function handleApiError(error: unknown) {
   }
   if (error instanceof RepositoryError) {
     const status = error.code === "NOT_FOUND" ? 404 : error.code === "DUPLICATE" || error.code === "VALIDATION" ? 400 : 503;
+    return json({ error: error.message, code: error.code }, { status });
+  }
+  if (error instanceof MaterializationApplicationError) {
+    const status =
+      error.code === "IMPORT_NOT_APPROVED" || error.code === "REVISION_MISMATCH" || error.code === "SNAPSHOT_MISMATCH" ? 409 :
+      error.code === "INVALID_OPERATION_STATE" ? 409 :
+      error.code === "MATERIALIZATION_CONFLICT" ? 409 : 400;
     return json({ error: error.message, code: error.code }, { status });
   }
   if (isDatabaseUnavailableError(error)) {

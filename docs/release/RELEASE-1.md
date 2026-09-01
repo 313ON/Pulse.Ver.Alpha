@@ -54,7 +54,7 @@ secure password-rotation procedure for later changes.
 | Risks | Risk register and status | `risks` | `/risks` | Authenticated CRUD route | Reporting/application coverage | Ready | Complete |
 | Dependencies | Work-item dependency register | `dependencies` | `/dependencies` | Authenticated CRUD route | Repository/application coverage | Ready | Complete |
 | Monthly reviews | Department/month review records | `monthly_reviews` | `/monthly-reviews` list/create/detail/edit | Authenticated CRUD route | API/persistence coverage | Ready | Complete |
-| Spreadsheet import | XLSX upload, analysis, review, approval/rejection | `import_jobs`, `import_records`, transactional replacement | `/imports` | CSRF-protected durable import routes | Import persistence, mapping, evaluation, UI tests | Ready for controlled reviewed import | Complete |
+| Spreadsheet import | XLSX upload, immutable baseline analysis, scoped governance remediation, review, approval/rejection | `import_jobs`, `import_records`, `import_analysis_revisions`, `import_remediations`, transactional replacement and audit | `/imports` | CSRF-protected durable import and remediation routes with `imports.manage` authorization | Import persistence, mapping, evaluation, remediation, SQLite atomicity, and UI tests | Ready for controlled reviewed import | Complete |
 | Reporting/export | Governed report, PDF and XLSX export | Read-only report composition | `/reports` | Governed report/export routes | Reporting and export tests | Ready | Complete |
 | Backup/restore | SQLite online backup and verification | External DB and approved backup path | Operator procedure | `backup.ts` verification boundary | Backup/restore test | Ready with operator execution | Operator-complete |
 | Restart persistence | WAL/full-sync runtime baseline | External SQLite | Operator smoke test | Health/readiness boundary | DB concurrency/restart-related tests | Ready | Operator-complete |
@@ -131,14 +131,62 @@ For database corruption or an incorrect data import:
 
 ## Release quality evidence
 
-- Test: PASS — 200 tests in 40 files
+- Test: PASS — 236/236 tests
+- Focused remediation/SQLite coverage: PASS — 16/16
 - Typecheck: PASS
 - Lint: PASS
 - Build: PASS
+- `git diff --check`: PASS
 - Schema contract: covered by readiness and database tests
 - Backup/restore: PASS — independent verified backup and restore test
 - Windows SQLite baseline: PASS in repository tests; Windows Server service
   execution remains an operator responsibility
+
+## Import governance remediation checkpoint
+
+The import-scoped governance remediation phase is complete and committed as:
+
+```text
+9c83efe feat(import): add scoped governance remediation
+```
+
+The governed review path is:
+
+```text
+XLSX evidence
+→ immutable persisted import baseline
+→ import-scoped remediation overlay
+→ immutable analysis revision
+→ governance evaluation
+→ approvalReadiness
+→ decision
+→ audit
+```
+
+The remediation slice is intentionally limited to `goal.owner.required`.
+It does not mutate canonical `strategic_goals`, source workbook evidence,
+staged records, or provenance. `baseline_program_json` is write-once and
+re-analysis uses that persisted baseline plus active overlays, never live
+canonical goals. Analysis revisions are append-only; remediation, analysis,
+current snapshot, and audit insertion are atomic. Expected analysis revisions
+provide optimistic-concurrency/CAS protection, and stale remediation or
+approval attempts are rejected rather than overwriting newer review state.
+Approval remains governed by the existing `approvalReadiness` calculation.
+
+## Open issue and next architectural boundary
+
+The historical hierarchy findings discrepancy remains unresolved:
+
+| Evidence source | Hierarchy findings |
+|---|---:|
+| Historical runtime evidence | 118 |
+| Fresh current runtime | 248 |
+
+Causality has not been established. This discrepancy is explicitly outside
+the remediation phase and is the next separate engineering investigation.
+The investigation must first compare evidence and execution paths; no parser,
+mapping, evaluator, scoring, threshold, governance-rule, approval, or
+workbook-semantic behavior should be changed until causality is proven.
 
 ## Go criteria
 
