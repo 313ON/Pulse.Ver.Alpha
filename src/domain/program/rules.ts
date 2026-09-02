@@ -3,17 +3,36 @@ import { createProgramDate, createProgress, normalizeProgramDigits } from "./pri
 
 export function compareProgramDates(left?: string, right?: string): number | null {
   if (!left || !right) return null;
-  const parse = (value: string) => {
-    const normalized = normalizeProgramDigits(value).trim().match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-    return normalized ? normalized.slice(1).map(Number) : null;
-  };
-  const leftParts = parse(left);
-  const rightParts = parse(right);
+  const leftParts = parseProgramDate(left);
+  const rightParts = parseProgramDate(right);
   if (!leftParts || !rightParts) return null;
   for (let index = 0; index < leftParts.length; index += 1) {
     if (leftParts[index] !== rightParts[index]) return leftParts[index] > rightParts[index] ? 1 : -1;
   }
   return 0;
+}
+
+export function programDateDistance(later?: string, earlier?: string): number | null {
+  const laterParts = later ? parseProgramDate(later) : null;
+  const earlierParts = earlier ? parseProgramDate(earlier) : null;
+  if (!laterParts || !earlierParts) return null;
+  return jalaliToJulianDay(laterParts) - jalaliToJulianDay(earlierParts);
+}
+
+function parseProgramDate(value: string): [number, number, number] | null {
+  const normalized = normalizeProgramDigits(value).trim().match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  return normalized ? normalized.slice(1).map(Number) as [number, number, number] : null;
+}
+
+function jalaliToJulianDay([year, month, day]: [number, number, number]): number {
+  const epBase = year - (year >= 0 ? 474 : 473);
+  const epYear = 474 + ((epBase % 2820) + 2820) % 2820;
+  return day
+    + (month <= 7 ? (month - 1) * 31 : (month - 1) * 30 + 6)
+    + Math.floor((epYear * 682 - 110) / 2816)
+    + (epYear - 1) * 365
+    + Math.floor(epBase / 2820) * 1029983
+    + 1948319;
 }
 
 export function isActionOverdue(action: Pick<Action, "plannedEnd" | "status">, today: string): boolean {

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase } from "../../server/db";
 import { seedBaseline } from "../../server/seed";
 import { createProgramServices } from "../../server/program";
+import { programDateDistance } from "../../domain/program/rules";
 import { attentionWeight, managementState, StrategicCommandCenter } from "./StrategicCommandCenter";
 
 Object.assign(globalThis, { React });
@@ -41,6 +42,30 @@ describe("live strategic command center", () => {
     expect(managementState(item("تکمیل شده", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBe("completed");
     expect(managementState(item("لغو شده", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBe("on-track");
     expect(managementState(item("در حال اجرا", 20, ""), "۱۴۰۵/۰۶/۱۵")).toBe("risk");
+  });
+
+  it("calculates due-soon distance across Jalali month and year boundaries", () => {
+    expect(programDateDistance("۱۴۰۵/۰۶/۲۵", "۱۴۰۵/۰۶/۲۰")).toBe(5);
+    expect(programDateDistance("۱۴۰۵/۰۷/۰۵", "۱۴۰۵/۰۶/۲۵")).toBe(11);
+    expect(programDateDistance("۱۴۰۵/۰۷/۰۹", "۱۴۰۵/۰۶/۲۶")).toBe(14);
+    expect(programDateDistance("۱۴۰۵/۰۷/۱۰", "۱۴۰۵/۰۶/۲۶")).toBe(15);
+    expect(programDateDistance("۱۴۰۶/۰۱/۰۵", "۱۴۰۵/۱۲/۲۵")).toBe(9);
+  });
+
+  it("applies due-soon boundaries and exclusions using actual day distance", () => {
+    const item = (status: string, progress: number, end: string) => ({
+      status,
+      progress,
+      timeline: { end }
+    });
+
+    expect(managementState(item("در حال اجرا", 80, "۱۴۰۵/۰۷/۰۵"), "۱۴۰۵/۰۶/۲۵")).toBe("due-soon");
+    expect(managementState(item("در حال اجرا", 80, "۱۴۰۵/۰۷/۰۹"), "۱۴۰۵/۰۶/۲۶")).toBe("due-soon");
+    expect(managementState(item("در حال اجرا", 80, "۱۴۰۵/۰۷/۱۰"), "۱۴۰۵/۰۶/۲۶")).toBe("on-track");
+    expect(managementState(item("در حال اجرا", 80, "۱۴۰۵/۰۶/۲۴"), "۱۴۰۵/۰۶/۲۵")).toBe("overdue");
+    expect(managementState(item("تکمیل شده", 100, "۱۴۰۵/۰۷/۰۵"), "۱۴۰۵/۰۶/۲۵")).toBe("completed");
+    expect(managementState(item("مسدود", 80, "۱۴۰۵/۰۷/۰۵"), "۱۴۰۵/۰۶/۲۵")).toBe("blocked");
+    expect(managementState(item("لغو شده", 80, "۱۴۰۵/۰۷/۰۵"), "۱۴۰۵/۰۶/۲۵")).toBe("on-track");
   });
 
   it("orders attention states deterministically by the established priority", () => {

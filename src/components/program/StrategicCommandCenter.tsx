@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Action, Program } from "../../domain/program";
-import { isActionOverdue } from "../../domain/program/rules";
+import { isActionOverdue, programDateDistance } from "../../domain/program/rules";
 import { CognitionPanel } from "../cognition/CognitionPanel";
 import { HierarchyBreadcrumb } from "./HierarchyBreadcrumb";
 import { ProgramTree } from "./ProgramTree";
@@ -58,10 +58,13 @@ function ExecutivePulse({ score, progress, atRisk, overdue, blocked, dueSoon, co
   }).sort((a, b) => b.progress - a.progress);
   const attention = actions.filter((action) => ["blocked", "overdue", "risk"].includes(managementState(action, today))).sort((a, b) =>
     attentionWeight(b, today) - attentionWeight(a, today)
-    || dateKey(a.timeline.end) - dateKey(b.timeline.end)
+    || (programDateDistance(a.timeline.end, b.timeline.end) ?? 0)
     || a.id.localeCompare(b.id, "fa")
   );
-  const upcoming = actions.filter((action) => managementState(action, today) === "due-soon").sort((a, b) => dateKey(a.timeline.end) - dateKey(b.timeline.end));
+  const upcoming = actions.filter((action) => managementState(action, today) === "due-soon").sort((a, b) =>
+    (programDateDistance(a.timeline.end, today) ?? Number.POSITIVE_INFINITY)
+    - (programDateDistance(b.timeline.end, today) ?? Number.POSITIVE_INFINITY)
+  );
   const healthy = goals.filter((goal) => goal.progress >= 70);
   const chartValues = goals.length > 0 ? goals.slice(0, 6).map((goal) => goal.progress) : [0];
   const chartPath = chartValues.map((value, index) => `${index === 0 ? "M" : "L"}${(index / Math.max(1, chartValues.length - 1)) * 640},${168 - value * 1.35}`).join(" ");
@@ -101,12 +104,6 @@ function AttentionGroup({ title, tone, items, today }: { title: string; tone: st
 type ManagementState = "completed" | "blocked" | "overdue" | "due-soon" | "risk" | "on-track";
 type ManagementItem = { status: string; progress: number; timeline: { end: string } };
 
-function dateKey(value: string): number {
-  const normalized = value.replace(/[۰-۹]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹".indexOf(digit).toString());
-  const [year, month, day] = normalized.split("/").map(Number);
-  return year * 10000 + month * 100 + day;
-}
-
 export function managementState(item: ManagementItem, today: string): ManagementState {
   if (item.status === "مسدود") return "blocked";
   if (item.status === "تکمیل شده") return "completed";
@@ -115,8 +112,8 @@ export function managementState(item: ManagementItem, today: string): Management
     plannedEnd: item.timeline.end,
     status: item.status as Parameters<typeof isActionOverdue>[0]["status"]
   }, today)) return "overdue";
-  const remaining = dateKey(item.timeline.end) - dateKey(today);
-  if (remaining <= 14) return "due-soon";
+  const remaining = programDateDistance(item.timeline.end, today);
+  if (remaining !== null && remaining <= 14) return "due-soon";
   if (item.status === "متوقف شده" || item.progress < 50) return "risk";
   return "on-track";
 }
