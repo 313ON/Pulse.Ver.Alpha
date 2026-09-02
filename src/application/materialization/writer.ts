@@ -44,7 +44,7 @@ export type MaterializationWriteCounts = MaterializationCounts & {
 };
 
 type Row = Record<string, unknown>;
-const typeOrder = ["goal", "objective", "activity", "action"] as const;
+const typeOrder = ["goal", "departmental_goal", "objective", "activity", "action"] as const;
 
 function stable(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
@@ -121,6 +121,8 @@ function canonicalId(item: MaterializationPlanItem, ids: Map<string, string>): s
   if (item.conflictState === "REUSE" && existing) return existing;
   const id = item.entityType === "goal"
     ? `G${String(item.canonicalAllocation.ordinal).padStart(2, "0")}`
+    : item.entityType === "departmental_goal"
+      ? `DG-${item.logicalIdentity.planYear}-${item.canonicalAllocation.ordinal}`
     : idFor(item, item.entityType === "objective" ? "objective" : item.entityType === "activity" ? "activity" : "work-item");
   ids.set(item.logicalIdentity.logicalKey, id);
   return id;
@@ -206,15 +208,34 @@ export class SQLiteCanonicalMaterializationWriter {
             const conflict = this.database.prepare("SELECT id FROM strategic_goals WHERE plan_year=? AND title=? AND id<>?")
               .get(command.targetPlanYear, item.logicalIdentity.title, id);
             if (conflict && !reused) throw new Error(`Canonical goal conflict for "${identityKey}".`);
-            if (!reused) this.database.prepare("INSERT INTO strategic_goals (id,title,plan_year) VALUES (?,?,?)").run(id, item.logicalIdentity.title, command.targetPlanYear);
+            const ownerId = item.responsibility.find((value) =>
+              value.field === "owner" && value.targetType === "PERSON" && value.resolved
+            )?.targetId ?? null;
+            if (!reused) this.database.prepare("INSERT INTO strategic_goals (id,title,owner_person_id,plan_year) VALUES (?,?,?,?)")
+              .run(id, item.logicalIdentity.title, ownerId, command.targetPlanYear);
+          } else if (item.entityType === "departmental_goal") {
+            failIf(this.options.failurePoint, "goal");
+            const strategicGoalId = resolveParent(item, ids);
+            const departmentId = item.responsibility.find((value) => value.field === "department" && value.targetType === "UNIT" && value.resolved)?.targetId ?? null;
+            const conflict = this.database.prepare("SELECT id FROM departmental_goals WHERE strategic_goal_id=? AND IFNULL(department_id,'')=IFNULL(?, '') AND title=? AND plan_year=? AND id<>?")
+              .get(strategicGoalId, departmentId, item.logicalIdentity.title, command.targetPlanYear, id);
+            if (conflict && !reused) throw new Error(`Canonical departmental goal conflict for "${identityKey}".`);
+            if (!reused) this.database.prepare("INSERT INTO departmental_goals (id,strategic_goal_id,department_id,title,owner_person_id,plan_year) VALUES (?,?,?,?,?,?)")
+              .run(id, strategicGoalId, departmentId, item.logicalIdentity.title,
+                item.responsibility.find((value) => value.field === "owner" && value.targetType === "PERSON" && value.resolved)?.targetId ?? null,
+                command.targetPlanYear);
           } else if (item.entityType === "objective") {
             failIf(this.options.failurePoint, "objective");
-            const goalId = resolveParent(item, ids);
+            const parentId = resolveParent(item, ids);
+            const departmentalGoalId = item.parent?.entityType === "departmental_goal" ? parentId : null;
+            const goalId = departmentalGoalId
+              ? String((this.database.prepare("SELECT strategic_goal_id FROM departmental_goals WHERE id=?").get(departmentalGoalId) as Row | undefined)?.strategic_goal_id ?? "")
+              : parentId;
             const conflict = this.database.prepare("SELECT id FROM sub_goals WHERE goal_id=? AND title=? AND id<>?")
               .get(goalId, item.logicalIdentity.title, id);
             if (conflict && !reused) throw new Error(`Canonical objective conflict for "${identityKey}".`);
-            if (!reused) this.database.prepare("INSERT INTO sub_goals (id,goal_id,title,owner_person_id) VALUES (?,?,?,?)")
-              .run(id, goalId, item.logicalIdentity.title, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null);
+            if (!reused) this.database.prepare("INSERT INTO sub_goals (id,goal_id,title,owner_person_id,departmental_goal_id) VALUES (?,?,?,?,?)")
+              .run(id, goalId, item.logicalIdentity.title, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null, departmentalGoalId);
           } else if (item.entityType === "activity") {
             failIf(this.options.failurePoint, "activity");
             const objectiveId = resolveParent(item, ids);

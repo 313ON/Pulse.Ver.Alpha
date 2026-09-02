@@ -1,6 +1,6 @@
 import type { ImportEntityType, ImportRecord } from "../import/contracts";
 
-export type MaterializableEntityType = Extract<ImportEntityType, "goal" | "objective" | "activity" | "action">;
+export type MaterializableEntityType = Extract<ImportEntityType, "goal" | "departmental_goal" | "objective" | "activity" | "action">;
 
 export type MaterializationIdentity = {
   importJobId: string;

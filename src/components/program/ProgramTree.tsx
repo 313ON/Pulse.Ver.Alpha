@@ -8,12 +8,13 @@ import { GoalCard, EntityCard } from "./GoalCard";
 import { ObjectiveCard } from "./ObjectiveCard";
 
 const childTypes: Record<Exclude<ProgramNodeType, "kpi">, ProgramNodeType> = {
-  program: "goal", goal: "objective", objective: "activity", activity: "action", action: "kpi"
+  program: "goal", goal: "objective", "departmental-goal": "objective", objective: "activity", activity: "action", action: "kpi"
 };
 
 function childrenOf(node: ProgramNode): ProgramNode[] {
   if (node.type === "program") return node.goals;
-  if (node.type === "goal") return node.objectives;
+  if (node.type === "goal") return node.departmentalGoals?.length ? node.departmentalGoals : node.objectives;
+  if (node.type === "departmental-goal") return node.objectives;
   if (node.type === "objective") return node.activities;
   if (node.type === "activity") return node.actions;
   if (node.type === "action") return node.kpis;

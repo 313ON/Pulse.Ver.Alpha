@@ -9,7 +9,7 @@ export type ImportSource = {
   metadata: Record<string, unknown>;
 };
 
-export type ImportEntityType = ProgramNodeType | "assignment";
+export type ImportEntityType = ProgramNodeType | "departmental_goal" | "assignment";
 
 export type ImportRecord = {
   id: string;

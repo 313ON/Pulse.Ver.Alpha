@@ -8,6 +8,19 @@ CREATE TABLE IF NOT EXISTS strategic_goals (
   FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS departmental_goals (
+  id TEXT PRIMARY KEY,
+  strategic_goal_id TEXT NOT NULL,
+  department_id TEXT,
+  title TEXT NOT NULL,
+  owner_person_id TEXT,
+  plan_year INTEGER NOT NULL,
+  UNIQUE (strategic_goal_id, department_id, title, plan_year),
+  FOREIGN KEY (strategic_goal_id) REFERENCES strategic_goals(id) ON DELETE RESTRICT,
+  FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS departments (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -34,8 +47,10 @@ CREATE TABLE IF NOT EXISTS sub_goals (
   goal_id TEXT NOT NULL,
   title TEXT NOT NULL,
   owner_person_id TEXT,
+  departmental_goal_id TEXT,
   UNIQUE (goal_id, title),
   FOREIGN KEY (goal_id) REFERENCES strategic_goals(id) ON DELETE RESTRICT,
+  FOREIGN KEY (departmental_goal_id) REFERENCES departmental_goals(id) ON DELETE RESTRICT,
   FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT
 );
 

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS materialization_entity_map (
   operation_id TEXT NOT NULL,
   import_job_id TEXT NOT NULL,
   source_record_id TEXT NOT NULL,
-  canonical_entity_type TEXT NOT NULL CHECK (canonical_entity_type IN ('goal', 'objective', 'activity', 'action')),
+  canonical_entity_type TEXT NOT NULL CHECK (canonical_entity_type IN ('goal', 'departmental_goal', 'objective', 'activity', 'action')),
   canonical_entity_id TEXT NOT NULL,
   logical_identity_key TEXT NOT NULL,
   mapping_status TEXT NOT NULL CHECK (mapping_status IN ('CREATED', 'REUSED')),
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS materialization_entity_map (
 
 CREATE TABLE IF NOT EXISTS canonical_provenance (
   provenance_id TEXT PRIMARY KEY,
-  canonical_entity_type TEXT NOT NULL CHECK (canonical_entity_type IN ('goal', 'objective', 'activity', 'action')),
+  canonical_entity_type TEXT NOT NULL CHECK (canonical_entity_type IN ('goal', 'departmental_goal', 'objective', 'activity', 'action')),
   canonical_entity_id TEXT NOT NULL,
   import_job_id TEXT NOT NULL,
   source_record_id TEXT NOT NULL,

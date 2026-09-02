@@ -4,6 +4,7 @@ import { groupByLogicalIdentity, logicalEntityIdentity, normalizeLogicalText } f
 
 const comparableFields: Record<MaterializableEntityType, string[]> = {
   goal: ["goal"],
+  departmental_goal: ["strategicGoal", "departmentalGoal", "department"],
   objective: ["goal", "objective"],
   activity: ["goal", "objective", "activity", "description"],
   action: ["goal", "objective", "activity", "action", "executor", "collaborator", "startDate", "endDate", "deliverable"]

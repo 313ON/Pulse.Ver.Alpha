@@ -23,12 +23,14 @@ export class ProgramQueryService {
 
   getProgram(descriptor: ProgramDescriptor): ProgramReadModel {
     const goalRows = this.ports.goals.list().map((row) => row as UnknownRow);
+    const departmentalGoalRows = this.ports.departmentalGoals?.list().map((row) => row as UnknownRow) ?? [];
     const objectiveRows = this.ports.objectives.list().map((row) => row as UnknownRow);
     const activityRows = this.ports.activities.list().map((row) => row as UnknownRow);
     const actionRows = this.ports.actions.list().map((row) => row as UnknownRow);
     const kpiRows = this.ports.kpis.list().map((row) => row as UnknownRow);
 
     const goals = goalRows.map((row) => this.mapper.goal(row, descriptor.id));
+    const departmentalGoals = departmentalGoalRows.map((row) => this.mapper.departmentalGoal(row));
     const objectives = objectiveRows.map((row) => this.mapper.objective(row));
     const activities = activityRows.map((row) => this.mapper.activity(row));
     const actions = actionRows.map((row) => this.mapper.action(row));
@@ -46,6 +48,10 @@ export class ProgramQueryService {
 
     for (const goal of goals) {
       goal.objectives = objectives.filter((objective) => objective.goalId === goal.id);
+      goal.departmentalGoals = departmentalGoals.filter((departmentalGoal) => departmentalGoal.strategicGoalId === goal.id);
+      for (const departmentalGoal of goal.departmentalGoals ?? []) {
+        departmentalGoal.objectives = objectives.filter((objective) => objective.departmentalGoalId === departmentalGoal.id);
+      }
       for (const objective of goal.objectives) {
         objective.activities = activities.filter((activity) => activity.objectiveId === objective.id);
         for (const activity of objective.activities) {

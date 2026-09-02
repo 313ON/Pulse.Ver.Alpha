@@ -2,6 +2,7 @@ import type { SessionUser } from "../auth";
 import {
   ActionRepository,
   ActivityRepository,
+  DepartmentalGoalRepository,
   GoalRepository,
   KPIRepository,
   SubGoalRepository
@@ -30,6 +31,12 @@ export class GoalRepositoryAdapter implements GoalRepositoryPort {
   create(input: { id: string; title: string }) {
     return this.mapper.goal(this.repository.create(input) as Record<string, unknown>, "");
   }
+}
+
+export class DepartmentalGoalRepositoryAdapter {
+  constructor(private readonly repository = new DepartmentalGoalRepository(), private readonly mapper = new ProgramMapper()) {}
+  list() { return this.repository.list().map((row) => this.mapper.departmentalGoal(row as Record<string, unknown>)); }
+  get(id: string) { const row = this.repository.get(id); return row ? this.mapper.departmentalGoal(row as Record<string, unknown>) : undefined; }
 }
 
 export class ObjectiveRepositoryAdapter implements ObjectiveRepositoryPort {
@@ -159,6 +166,7 @@ export class KPIRepositoryAdapter implements KpiRepositoryPort {
 
 export class ProgramRepositoryAdapter implements ProgramRepositoryPorts {
   readonly goals: GoalRepositoryPort;
+  readonly departmentalGoals: DepartmentalGoalRepositoryAdapter;
   readonly objectives: ObjectiveRepositoryPort;
   readonly activities: ActivityRepositoryPort;
   readonly actions: ActionRepositoryPort;
@@ -172,6 +180,7 @@ export class ProgramRepositoryAdapter implements ProgramRepositoryPorts {
     kpis = new KPIRepositoryAdapter()
   ) {
     this.goals = goals;
+    this.departmentalGoals = new DepartmentalGoalRepositoryAdapter();
     this.objectives = objectives;
     this.activities = activities;
     this.actions = actions;

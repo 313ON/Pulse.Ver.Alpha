@@ -31,6 +31,27 @@ export class GoalRepository {
   }
 }
 
+export class DepartmentalGoalRepository {
+  list() {
+    return getDatabase().prepare(`
+      SELECT dg.*, d.name AS department, sg.title AS strategic_goal
+      FROM departmental_goals dg
+      JOIN strategic_goals sg ON sg.id = dg.strategic_goal_id
+      LEFT JOIN departments d ON d.id = dg.department_id
+      WHERE dg.plan_year = @planYear ORDER BY dg.strategic_goal_id, dg.title
+    `).all({ planYear: getPlanningContext().planYear });
+  }
+  get(id: string) { return getDatabase().prepare("SELECT * FROM departmental_goals WHERE id = ?").get(id); }
+  create(input: { id: string; strategicGoalId: string; departmentId?: string; title: string; ownerPersonId?: string }) {
+    if (!input.id.trim() || !input.strategicGoalId.trim() || !input.title.trim()) throw new RepositoryError("VALIDATION", "Departmental goal ID, strategic goal, and title are required.");
+    try {
+      getDatabase().prepare("INSERT INTO departmental_goals (id, strategic_goal_id, department_id, title, owner_person_id, plan_year) VALUES (@id,@strategicGoalId,@departmentId,@title,@ownerPersonId,@planYear)")
+        .run({ ...input, departmentId: input.departmentId ?? null, ownerPersonId: input.ownerPersonId ?? null, planYear: getPlanningContext().planYear });
+      return this.get(input.id);
+    } catch (error) { return mapDatabaseError(error); }
+  }
+}
+
 export class DepartmentRepository {
   list() { return getDatabase().prepare("SELECT * FROM departments WHERE active = 1 ORDER BY name").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM departments WHERE id = ?").get(id); }

@@ -1,4 +1,4 @@
-import type { Action, Goal, KPI, Objective, Program, Activity, ProgramStatus, Progress } from "../../domain/program";
+import type { Action, Goal, DepartmentalGoal, KPI, Objective, Program, Activity, ProgramStatus, Progress } from "../../domain/program";
 
 export type ProgramKpiSummary = {
   total: number;
@@ -33,6 +33,7 @@ export type ProgramNodeSnapshot = {
 
 export type ProgramCollections = {
   goals: Goal[];
+  departmentalGoals?: DepartmentalGoal[];
   objectives: Objective[];
   activities: Activity[];
   actions: Action[];

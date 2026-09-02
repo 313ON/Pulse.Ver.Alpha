@@ -9,6 +9,11 @@ export type GoalRepositoryPort = {
   create(input: { id: string; title: string }): unknown;
 };
 
+export type DepartmentalGoalRepositoryPort = {
+  list(): unknown[];
+  get(id: string): unknown;
+};
+
 export type ObjectiveRepositoryPort = {
   list(): unknown[];
   get(id: string): unknown;
@@ -36,6 +41,7 @@ export type KpiRepositoryPort = {
 
 export type ProgramRepositoryPorts = {
   goals: GoalRepositoryPort;
+  departmentalGoals?: DepartmentalGoalRepositoryPort;
   objectives: ObjectiveRepositoryPort;
   activities: ActivityRepositoryPort;
   actions: ActionRepositoryPort;

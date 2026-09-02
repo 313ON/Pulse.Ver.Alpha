@@ -118,20 +118,31 @@ export type MaterializationPlanInput = {
   allowReuseFromSameImport?: boolean;
 };
 
-const entityOrder: MaterializableEntityType[] = ["goal", "objective", "activity", "action"];
+const entityOrder: MaterializableEntityType[] = ["goal", "departmental_goal", "objective", "activity", "action"];
 const workTypes = new Set(["پروژه", "اقدام", "فعالیت تکرارشونده", "پایش KPI", "Milestone"]);
 const parentType: Record<MaterializableEntityType, MaterializableEntityType | undefined> = {
-  goal: undefined, objective: "goal", activity: "objective", action: "activity"
+  goal: undefined, departmental_goal: "goal", objective: "departmental_goal", activity: "objective", action: "activity"
 };
 
 function resolvedParentKey(record: ImportRecord, entityType: MaterializableEntityType, planYear: number): string | undefined {
   if (entityType === "goal") return undefined;
-  const parent = parentType[entityType]!;
+  if (entityType === "departmental_goal") {
+    if (!normalizeLogicalText(record.data.strategicGoal)) return undefined;
+    return logicalEntityIdentity({ ...record, entityType: "goal", data: { goal: record.data.strategicGoal ?? record.data.goal } }, planYear).key;
+  }
+  const parent = entityType === "objective" && !normalizeLogicalText(record.data.departmentalGoal)
+    ? "goal"
+    : parentType[entityType]!;
+  if (entityType === "objective" && normalizeLogicalText(record.data.departmentalGoal)) {
+    return logicalEntityIdentity({ ...record, entityType: "departmental_goal", data: { ...record.data, departmentalGoal: record.data.departmentalGoal } }, planYear).key;
+  }
   return logicalEntityIdentity({
     ...record,
     entityType: parent,
     data: {
       goal: record.data.goal,
+      strategicGoal: record.data.strategicGoal,
+      departmentalGoal: record.data.departmentalGoal,
       objective: record.data.objective,
       activity: record.data.activity
     }
@@ -177,7 +188,9 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
   if (snapshot.sourceRecordCount !== job.records.length) errors.push(error("SNAPSHOT_MISMATCH", "Snapshot record count does not match the pinned import."));
   if (snapshot.targetPlanYear !== input.planYear || request.targetPlanYear !== input.planYear) errors.push(error("INVALID_SOURCE", "Plan year is not consistently pinned."));
   if (job.validationResult && !job.validationResult.valid) errors.push(error("INVALID_SOURCE", "The import validation state is not valid."));
-  if (job.assessmentResult?.governance.errors.length) errors.push(error("INVALID_SOURCE", "Import governance contains blocking errors."));
+  const governanceErrors = job.assessmentResult?.governance.errors
+    .filter((violation) => violation.rule !== "goal.owner.required") ?? [];
+  if (governanceErrors.length) errors.push(error("INVALID_SOURCE", "Import governance contains blocking errors."));
   if (job.assessmentResult?.findings.some((finding) => finding.severity === "error")) errors.push(error("INVALID_SOURCE", "Import responsibility assessment contains blocking errors."));
   try {
     const expected = createImportSnapshotReference(job, input.planYear);
@@ -189,7 +202,7 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
 
   const records = job.records.filter((record): record is ImportRecord & { entityType: MaterializableEntityType } => entityOrder.includes(record.entityType as MaterializableEntityType));
   const groups = groupByLogicalIdentity(records, input.planYear);
-  const parentKeys = new Set([...groups.keys()].filter((key) => key.startsWith("goal|")));
+  const parentKeys = new Set([...groups.keys()].filter((key) => key.startsWith("goal|") || key.startsWith("departmental_goal|")));
   const items: MaterializationPlanItem[] = [];
   const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   for (const [, sourceRecords] of sortedGroups) {
@@ -216,6 +229,10 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
       if (values.length) item.normalizedValues[field] = sourceRecords.map((record) => record.data[field]).find((value) => normalizeLogicalText(value) === values[0]);
     }
     const parentKey = resolvedParentKey(first, identity.entityType, input.planYear);
+    if (identity.entityType === "departmental_goal" && !normalizeLogicalText(first.data.strategicGoal)) {
+      errors.push(error("INVALID_SOURCE", "A departmental goal must reference an authoritative strategic goal; unresolved source values remain ambiguous.", item, { field: "strategicGoal", sourceValue: first.data.strategicGoal ?? first.data.goal }));
+      item.conflictState = "BLOCKED";
+    }
     if (parentKey) {
       const parentExists = groups.has(parentKey) || parentKeys.has(parentKey);
       if (!parentExists) {

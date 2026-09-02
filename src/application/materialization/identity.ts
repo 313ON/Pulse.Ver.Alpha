@@ -19,6 +19,7 @@ function value(record: ImportRecord, key: string): string {
 export function logicalEntityIdentity(record: ImportRecord, planYear: number): LogicalEntityIdentity {
   const entityType = record.entityType as MaterializableEntityType;
   const titleKey = entityType === "goal" ? "goal"
+    : entityType === "departmental_goal" ? "departmentalGoal"
     : entityType === "objective" ? "objective"
       : entityType === "activity" ? "activity"
         : "action";
@@ -26,12 +27,17 @@ export function logicalEntityIdentity(record: ImportRecord, planYear: number): L
   if (!title) throw new Error(`Import record "${record.id}" has no ${entityType} title.`);
 
   const goal = value(record, "goal");
+  const departmentalGoal = value(record, "departmentalGoal");
   const objective = value(record, "objective");
   const activity = value(record, "activity");
+  const strategicKey = `goal|${planYear}|${goal}`;
+  const departmentalKey = `departmental_goal|${planYear}|${strategicKey}|${departmentalGoal}`;
+  const objectiveKey = `objective|${planYear}|${departmentalGoal ? `${goal}|${departmentalGoal}|` : `${goal}|`}${objective}`;
   const parentKey = entityType === "goal" ? undefined
-    : entityType === "objective" ? `goal|${planYear}|${goal}`
-      : entityType === "activity" ? `objective|${planYear}|${goal}|${objective}`
-        : `activity|${planYear}|${goal}|${objective}|${activity}`;
+    : entityType === "departmental_goal" ? `goal|${planYear}|${value(record, "strategicGoal") || goal}`
+    : entityType === "objective" ? (departmentalGoal ? departmentalKey : strategicKey)
+      : entityType === "activity" ? objectiveKey
+        : `activity|${planYear}|${goal}|${departmentalGoal ? `${departmentalGoal}|` : ""}${objective}|${activity}`;
   const key = `${entityType}|${planYear}|${parentKey ? `${parentKey}|` : ""}${title}`;
   return { entityType, planYear, title, key, parentKey };
 }
@@ -39,7 +45,7 @@ export function logicalEntityIdentity(record: ImportRecord, planYear: number): L
 export function groupByLogicalIdentity(records: ImportRecord[], planYear: number): Map<string, ImportRecord[]> {
   const groups = new Map<string, ImportRecord[]>();
   for (const record of records) {
-    if (!["goal", "objective", "activity", "action"].includes(record.entityType)) continue;
+    if (!["goal", "departmental_goal", "objective", "activity", "action"].includes(record.entityType)) continue;
     const identity = logicalEntityIdentity(record, planYear);
     const current = groups.get(identity.key) ?? [];
     current.push(record);

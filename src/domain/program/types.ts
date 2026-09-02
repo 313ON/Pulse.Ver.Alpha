@@ -45,11 +45,20 @@ export type Goal = ProgramEntity & {
   type: "goal";
   programId: string;
   objectives: Objective[];
+  departmentalGoals?: DepartmentalGoal[];
+};
+
+export type DepartmentalGoal = ProgramEntity & {
+  type: "departmental-goal";
+  strategicGoalId: string;
+  department?: EntityReference;
+  objectives: Objective[];
 };
 
 export type Objective = ProgramEntity & {
   type: "objective";
   goalId: string;
+  departmentalGoalId?: string;
   activities: Activity[];
 };
 
@@ -93,7 +102,7 @@ export type KPI = ProgramEntity & {
   measurement?: KpiMeasurement;
 };
 
-export type ProgramNode = Program | Goal | Objective | Activity | Action | KPI;
+export type ProgramNode = Program | Goal | DepartmentalGoal | Objective | Activity | Action | KPI;
 
 export type ProgramNodeType = ProgramNode["type"];
 
@@ -102,6 +111,7 @@ export type ParentNodeType = Exclude<ProgramNodeType, "kpi">;
 export const PROGRAM_TYPE_LABELS: Record<ProgramNodeType, string> = {
   program: "برنامه",
   goal: "هدف راهبردی",
+  "departmental-goal": "هدف واحدی",
   objective: "هدف جزئی",
   activity: "فعالیت",
   action: "اقدام",

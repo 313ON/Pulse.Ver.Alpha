@@ -1,6 +1,6 @@
 import { assignmentsFromUnknown, kpiRecordToKPI, workItemToAction } from "../../domain/program/mappings";
 import { createProgress } from "../../domain/program/primitives";
-import type { Action, Activity, EntityReference, Goal, KPI, Objective, Program, ProgramDate, ProgramStatus } from "../../domain/program";
+import type { Action, Activity, DepartmentalGoal, EntityReference, Goal, KPI, Objective, Program, ProgramDate, ProgramStatus } from "../../domain/program";
 import type { KpiRecord, WorkItem } from "../../lib/domain";
 import type { UnknownRow } from "./ports";
 
@@ -73,7 +73,18 @@ export class ProgramMapper {
       ...baseEntity(row, "objective"),
       type: "objective",
       goalId,
+      departmentalGoalId: text(row, "departmental_goal_id", "departmentalGoalId"),
       activities: []
+    };
+  }
+
+  departmentalGoal(row: UnknownRow, strategicGoalId = ""): DepartmentalGoal {
+    return {
+      ...baseEntity(row, "departmental-goal"),
+      type: "departmental-goal",
+      strategicGoalId: text(row, "strategic_goal_id", "strategicGoalId") ?? strategicGoalId,
+      department: reference(row, "department_id", "department"),
+      objectives: []
     };
   }
 
