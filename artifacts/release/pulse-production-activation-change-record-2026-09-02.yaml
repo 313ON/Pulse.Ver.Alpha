@@ -1,0 +1,77 @@
+release:
+  certified_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
+  branch: release/pulse-departmental-materialization
+  application_version: "1.0.0"
+
+runtime:
+  node: "v22.23.2"
+  npm: "10.9.8"
+  next: "15.5.23"
+
+operations:
+  server: null
+  release_directory: null
+  application_directory: null
+  database_path: null
+  backup_directory: null
+  log_directory: null
+  service_name: null
+  service_manager: null
+  service_account: null
+  service_port: null
+  node_path: "C:\\Program Files\\nodejs\\node.exe"
+
+configuration:
+  node_env: production
+  pulse_release_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
+  pulse_seed_mode: reference
+  pulse_plan_year: "1405"
+  pulse_plan_start_date: "1405/01/01"
+  pulse_plan_end_date: "1405/12/29"
+  pulse_plan_today: null
+  pulse_https: null
+  tls_termination: null
+
+backup:
+  source_path: null
+  source_size: null
+  source_last_write_time_utc: null
+  backup_path: null
+  backup_timestamp_utc: null
+  backup_size: null
+  integrity_check: null
+  foreign_keys: null
+  foreign_key_check: null
+  sha256: null
+
+acceptance:
+  service: null
+  port: null
+  health: null
+  authentication: null
+  dashboard: null
+  program: null
+  critical_reads: null
+  reports: null
+  pdf: null
+  xlsx: null
+  controlled_write: null
+  import: null
+  restart: null
+  persistence: null
+
+rollback:
+  previous_artifact: null
+  recovery_operator: null
+  disposable_restore_location: null
+
+assessment:
+  host_observed: IT-Station
+  host_os: "Windows 10 Enterprise client"
+  current_worktree: dirty
+  staged_release_directory: "C:\\ProgramData\\Pulse-Staging\\releases\\e810e41c1133a84eb07ff4f5c119cd93a9b32d92"
+  staged_release_contents: empty
+  developer_process_observed: "Next.js dev process on port 3045"
+  production_activation_started: false
+
+final_status: READY_FOR_OPERATIONS_INPUT
