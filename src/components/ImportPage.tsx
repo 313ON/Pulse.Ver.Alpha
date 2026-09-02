@@ -619,7 +619,7 @@ export function ImportReview({
         remediationBusy={remediationBusy}
       />
 
-      <MaterializationControl importJobId={job.id} status={job.status} />
+      <MaterializationControl importJobId={job.id} sourceName={job.source.name} status={job.status} />
 
       <section className="panel import-records-panel" aria-labelledby="import-records-title">
         <div className="panel-head"><h2 id="import-records-title">داده‌های استخراج‌شده</h2><span>نمایش فقط برای بازبینی انسانی</span></div>

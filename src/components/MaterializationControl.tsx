@@ -17,7 +17,7 @@ export function canRetryMaterialization(operation: Pick<MaterializationOperation
   return operation?.status === "FAILED";
 }
 
-export function MaterializationControl({ importJobId, status }: { importJobId: string; status: string }) {
+export function MaterializationControl({ importJobId, sourceName, status }: { importJobId: string; sourceName: string; status: string }) {
   const [readiness, setReadiness] = useState<MaterializationReadiness | null>(null);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [busy, setBusy] = useState(false);
@@ -76,12 +76,13 @@ export function MaterializationControl({ importJobId, status }: { importJobId: s
   return (
     <section className="panel materialization-control" aria-labelledby="materialization-control-title">
       <div className="panel-head">
-        <div><span className="program-panel-kicker">R10 / CANONICAL</span><h2 id="materialization-control-title">کنترل materialization</h2></div>
+        <div><span className="program-panel-kicker">DEPARTMENTAL / SUPPORTING</span><h2 id="materialization-control-title">نتیجه materialization واحدی</h2><small>این داده‌ها مشتق‌شده‌اند و بخشی از سلسله‌مراتب راهبردی canonical نیستند.</small></div>
         <span className={`status-pill ${readiness?.status === "READY" ? "green" : "yellow"}`}>
           {readiness ? (readiness.status === "READY" ? "آماده بررسی" : "مسدود") : "در حال بررسی"}
         </span>
       </div>
       <div className="materialization-identity-grid">
+        <div><span>دفترکار منبع</span><strong>{sourceName}</strong></div>
         <div><span>شناسه ورود صریح</span><strong>{importJobId}</strong></div>
         <div><span>revision تأییدشده</span><strong>{readiness?.snapshot?.approvedAnalysisRevision ?? "—"}</strong></div>
         <div><span>snapshot منبع</span><strong className="technical-value">{readiness?.snapshot?.sourceSnapshotHash ?? "—"}</strong></div>
@@ -95,6 +96,7 @@ export function MaterializationControl({ importJobId, status }: { importJobId: s
           <div><span>آخرین عملیات</span><strong>{operation.operationId}</strong></div>
           <div><span>وضعیت</span><strong>{materializationStatusLabel(operation.status)}</strong></div>
           <div><span>نتیجه</span><strong>{operation.counts.goals} هدف · {operation.counts.objectives} هدف جزئی · {operation.counts.activities} فعالیت · {operation.counts.workItems} اقدام</strong></div>
+          <div><span>وضعیت تکرار</span><strong>{readiness?.operations.length && readiness.operations.length > 1 ? `${readiness.operations.length} عملیات برای همین ورود` : "اولین عملیات ثبت‌شده برای این ورود"}</strong></div>
           {operation.failureReason && <div className="materialization-error"><span>خطا</span><strong>{operation.failureReason}</strong></div>}
         </div>
       )}
