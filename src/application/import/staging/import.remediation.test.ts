@@ -228,7 +228,7 @@ describe("import-scoped goal owner remediation", () => {
     }, { rule: "goal.owner.required", entityId: "other-goal" })).toThrow("does not belong");
   });
 
-  it("keeps approval blocked while unrelated critical findings remain", () => {
+  it("does not make approval depend on unrelated goal owner findings", () => {
     const { service, program } = setup();
     const job = service.getJob("remediation-job");
     const finding = job.assessmentResult!.governance.errors.find((item) => item.rule === "goal.owner.required" && item.entityId === targetGoalId)!;
@@ -243,10 +243,7 @@ describe("import-scoped goal owner remediation", () => {
       actor,
       ownerDisplayName: "Person One"
     }, finding);
-    expect(service.approvalReadiness("remediation-job")).toMatchObject({
-      ready: false,
-      blockers: expect.arrayContaining(["Critical governance violations must be resolved before approval."])
-    });
+    expect(service.approvalReadiness("remediation-job")).toEqual({ ready: true, blockers: [] });
   });
 
   it("allows approval only after every critical goal owner finding is remediated", () => {

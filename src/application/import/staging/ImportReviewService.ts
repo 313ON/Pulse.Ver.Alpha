@@ -219,6 +219,10 @@ export class ImportReviewService {
   }
 
   private isCriticalGovernanceViolation(rule: string): boolean {
+    // Goal ownership is execution accountability, not approval authority.
+    // Keep the finding visible for data-quality review, but never make it an
+    // approval prerequisite by itself.
+    if (rule === GOAL_OWNER_REQUIRED_RULE) return false;
     return rule.startsWith("program.")
       || rule.startsWith("goal.")
       || rule.startsWith("objective.")

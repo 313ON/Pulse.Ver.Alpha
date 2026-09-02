@@ -86,6 +86,22 @@ describe("ImportReviewService", () => {
     expect(service.getJob("job-valid").approvedAt).toBeTruthy();
   });
 
+  it("treats a missing goal owner as data quality, not an approval gate", () => {
+    const program = reviewProgram();
+    program.goals[0].owner = "";
+    const service = new ImportReviewService();
+    service.createJob(source, "job-goal-owner-quality");
+    service.attachRecords("job-goal-owner-quality", [importRecord("record-1", "۱۴۰۵/۱۲/۲۹")]);
+
+    const analyzed = service.analyze("job-goal-owner-quality", program);
+
+    expect(analyzed.assessmentResult?.governance.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ rule: "goal.owner.required", entityId: program.goals[0].id })
+    ]));
+    expect(service.approvalReadiness("job-goal-owner-quality")).toEqual({ ready: true, blockers: [] });
+    expect(service.approve("job-goal-owner-quality").status).toBe("APPROVED");
+  });
+
   it("rejects approval when validation errors contain invalid dates", () => {
     const service = new ImportReviewService();
     service.createJob(source, "job-invalid");
