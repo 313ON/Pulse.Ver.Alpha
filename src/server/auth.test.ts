@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { closeDatabase, getDatabase } from "./db";
 import { canScope, clearLoginFailures, hashPasswordForStorage, isLoginRateLimited, loginRateLimitKey, recordLoginFailure, resetLoginRateLimitForTests, rotateAdminPassword, secureCookiesEnabled, seedAuthFoundation, verifyPassword, type SessionUser } from "./auth";
 import { authorizationStatus, csrfTokensMatch, ensureRuntimeData } from "../app/api/_lib";
 import { seedBaseline } from "./seed";
+
+const developerCredential = process.env.PULSE_TEST_ADMIN_PASSWORD ?? "Nimanima1";
 
 beforeEach(() => {
   closeDatabase();
@@ -66,6 +71,48 @@ describe("authentication and scopes", () => {
     expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM app_roles").get()).toEqual({ count: 0 });
     expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM permissions").get()).toEqual({ count: 0 });
     process.env.PULSE_ADMIN_PASSWORD = "test-admin-password-123";
+  });
+  it("preserves an existing developer administrator across bootstrap and restart", () => {
+    const databasePath = path.join(os.tmpdir(), `pulse-admin-immutability-${Date.now()}-${Math.random()}.sqlite`);
+    closeDatabase();
+    process.env.PULSE_DB_PATH = databasePath;
+    process.env.PULSE_ADMIN_PASSWORD = developerCredential;
+
+    seedBaseline();
+    seedAuthFoundation();
+    const before = getDatabase().prepare(`
+      SELECT u.id, u.password_hash, u.role_id, r.code AS role
+      FROM users u JOIN app_roles r ON r.id = u.role_id
+      WHERE u.username = 'admin'
+    `).get() as { id: string; password_hash: string; role_id: string; role: string };
+
+    process.env.PULSE_ADMIN_PASSWORD = "bootstrap-alternate-password-123";
+    seedAuthFoundation();
+    seedAuthFoundation();
+    closeDatabase();
+    seedAuthFoundation();
+
+    const after = getDatabase().prepare(`
+      SELECT u.id, u.password_hash, u.role_id, r.code AS role
+      FROM users u JOIN app_roles r ON r.id = u.role_id
+      WHERE u.username = 'admin'
+    `).get() as { id: string; password_hash: string; role_id: string; role: string };
+
+    expect(after.id).toBe(before.id);
+    expect(after.password_hash).toBe(before.password_hash);
+    expect(after.role_id).toBe(before.role_id);
+    expect(after.role).toBe("SUPER_ADMIN");
+    expect(verifyPassword(developerCredential, after.password_hash)).toBe(true);
+    expect(verifyPassword("bootstrap-alternate-password-123", after.password_hash)).toBe(false);
+
+    closeDatabase();
+    for (const suffix of ["", "-wal", "-shm"]) {
+      try {
+        fs.unlinkSync(`${databasePath}${suffix}`);
+      } catch {
+        // The SQLite sidecar may not exist after a clean close.
+      }
+    }
   });
   it("rotates an existing administrator password through the hashing boundary", () => {
     const before = getDatabase().prepare("SELECT password_hash FROM users WHERE username = 'admin'").get() as { password_hash: string };

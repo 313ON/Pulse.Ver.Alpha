@@ -67,3 +67,29 @@ BACKUP → integrity_check → foreign_key_check → schema readiness → checks
 - حساب سرویس administrator نباشد.
 - فقط یک writer برای هر database فعال باشد.
 - در HTTPS مقدار `PULSE_HTTPS=true` فقط با TLS termination تأییدشده تنظیم شود.
+
+## بازیابی مدیر پایگاه‌داده توسعه
+
+برای پایگاه‌داده‌ی توسعه‌ی محلی که حساب `admin` موجود است اما گذرواژه‌ی آن
+در دسترس نیست، از مسیر یک‌بارمصرف زیر استفاده کنید. این مسیر بخشی از
+production نیست، endpoint وب ندارد و فقط فایل پیش‌فرض `db/pulse.sqlite` را
+هدف می‌گیرد:
+
+```powershell
+$env:NODE_ENV = "development"
+$env:PULSE_ALLOW_DEVELOPER_ADMIN_RESET = "1"
+npm run admin:reset:developer
+Remove-Item Env:PULSE_ALLOW_DEVELOPER_ADMIN_RESET
+Remove-Item Env:NODE_ENV
+```
+
+فرمان قبل از باز کردن پایگاه‌داده، production، نبودن opt-in، و هر
+`PULSE_DB_PATH` سفارشی را رد می‌کند. گذرواژه در prompt مخفی دریافت می‌شود و
+هرگز در command line، فایل، log یا audit ذخیره نمی‌شود. فقط حساب فعال
+`admin` با نقش `SUPER_ADMIN` قابل تغییر است. تغییر گذرواژه و رویداد
+`admin-password-reset` در یک تراکنش اتمیک ثبت می‌شوند؛ خطای audit باید کل
+تغییر را rollback کند.
+
+پس از موفقیت، `/login` و دسترسی `imports.manage` را بررسی کنید. پس از پایان
+آزمون پذیرش، گذرواژه‌ی موقت توسعه را با مسیر امن مدیریت کاربران یا فرآیند
+تأییدشده‌ی rotation تغییر دهید.

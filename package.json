@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "admin:reset:developer": "node --experimental-strip-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/developer-admin-reset.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

@@ -52,6 +52,28 @@ npm run build
 
 پس از اجرای production server با `npm start`، endpoint بررسی سلامت `GET /api/health` در دسترس است. پاسخ `200` با وضعیت `ok` نشان می‌دهد فرآیند، integrity پایگاه‌داده و schema موردنیاز آماده هستند؛ پاسخ `503` به معنی آماده نبودن پایگاه‌داده یا عدم دسترسی runtime به آن است.
 
+### بازیابی مدیر توسعه‌دهنده
+
+اگر گذرواژه‌ی مدیر موجود در پایگاه‌داده‌ی توسعه ناشناخته باشد، مسیر امن
+بازیابی فقط یک فرمان یک‌بارمصرف توسعه‌دهنده است و از طریق HTTP در دسترس نیست.
+این فرمان فقط روی `db/pulse.sqlite` داخل مخزن اجرا می‌شود، به
+`PULSE_ALLOW_DEVELOPER_ADMIN_RESET=1` و `NODE_ENV=development` نیاز دارد و در
+محیط production همیشه رد می‌شود:
+
+```powershell
+$env:NODE_ENV = "development"
+$env:PULSE_ALLOW_DEVELOPER_ADMIN_RESET = "1"
+npm run admin:reset:developer
+Remove-Item Env:PULSE_ALLOW_DEVELOPER_ADMIN_RESET
+Remove-Item Env:NODE_ENV
+```
+
+فرمان گذرواژه را فقط به‌صورت تعاملی و مخفی دریافت می‌کند؛ آن را در argument،
+source، log یا history قرار ندهید. پس از موفقیت، با همان گذرواژه در `/login`
+وارد شوید و پس از پایان آزمون پذیرش، آن را از مسیر امن مدیریت گذرواژه تغییر
+دهید. این فرمان هیچ کاربر دیگری ایجاد نمی‌کند و گذرواژه یا hash را در audit
+ثبت نمی‌کند.
+
 رابط فعلی شامل داشبورد مدیریتی، پیشرفت G01 تا G10، وضعیت واحدها، اقدامات نیازمند توجه، سلامت KPI، drill-down هدف، ورود و بازبینی XLSX، گزارش‌های governed و جستجوی سراسری است. سال برنامه و تاریخ‌های آن از `PlanningContext` خوانده می‌شوند و با متغیرهای `PULSE_PLAN_YEAR`، `PULSE_PLAN_START_DATE`، `PULSE_PLAN_END_DATE` و `PULSE_PLAN_TODAY` قابل تنظیم هستند.
 
 SQLite تنها موتور persistence فعلی است و `db/schema.sqlite.sql` قرارداد canonical schema است. `src/server/db.ts` فقط برای databaseهای قدیمی، ستون‌های پشتیبانی‌شده‌ی غایب را به‌صورت idempotent repair می‌کند. readiness علاوه بر integrity، کامل بودن tables، columns، indexes، triggers، foreign keys، defaults و constraints مهم را بررسی می‌کند. database توسعه در `db/pulse.sqlite` قرار دارد؛ database production باید خارج از مسیر application و با `PULSE_DB_PATH` مطلق تنظیم شود. وضعیت admin موجود با تغییر `PULSE_ADMIN_PASSWORD` عوض نمی‌شود و باید از مسیر secure password rotation استفاده شود.
