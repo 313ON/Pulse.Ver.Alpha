@@ -800,8 +800,7 @@ textarea {
 /* Command center visual system: the final, intentionally small layer that
    normalizes the historical UI rules above into one Charb Chimie language. */
 :root,
-html[data-theme="light"],
-html:not([data-theme="dark"]) {
+html[data-theme="light"] {
   color-scheme: light;
   --surface-canvas: #f3f6f4;
   --surface-base: #ffffff;
@@ -1202,4 +1201,19 @@ button:disabled { cursor: not-allowed; opacity: .55; }
     height: 100%;
     background: color-mix(in srgb, #07110d 55%, transparent);
   }
+}
+
+/* Keep the unauthenticated entry point readable after all theme layers. */
+.login-page .login-card {
+  background: #101923 !important;
+  color: #edf5f0 !important;
+}
+.login-page .login-card h1 { color: #edf5f0 !important; }
+.login-page .login-card p,
+.login-page .login-card small { color: #9bb0b5 !important; }
+.login-page .login-card label { color: #dcebe7 !important; }
+.login-page .login-card input {
+  background: #0c171f !important;
+  color: #edf5f0 !important;
+  border-color: #29434f !important;
 }

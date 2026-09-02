@@ -2,11 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PulseShell } from "./PulseShell";
+import { isActionOverdue } from "../domain/program/rules";
 
 type Row = Record<string, unknown>;
 type SelectKey = "goals" | "subGoals" | "departments" | "roles" | "persons" | "activities";
 type Field = { key: string; label: string; select?: SelectKey; required?: boolean; readOnly?: boolean };
+
+export function detailIdForRow(section: string, row: Row): string {
+  return String(section === "actions" ? (row.public_id ?? row.id) : (row.id ?? row.public_id ?? ""));
+}
 
 const config: Record<string, { title: string; endpoint: string; columns: Array<[string, string]> }> = {
   goals: { title: "اهداف کلی", endpoint: "/api/goals", columns: [["id", "شناسه"], ["title", "عنوان"]] },
@@ -48,9 +54,10 @@ const fieldsBySection: Record<string, Field[]> = {
 export function ManagementPage({ section }: { section: string }) {
   const entry = config[section] ?? config.actions;
   const fields = fieldsBySection[section] ?? [];
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [catalogs, setCatalogs] = useState<Record<SelectKey, Row[]>>({ goals: [], subGoals: [], departments: [], roles: [], persons: [], activities: [] });
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -97,7 +104,20 @@ export function ManagementPage({ section }: { section: string }) {
     return row;
   }), [catalogs, rows, section]);
 
-  const filtered = useMemo(() => displayRows.filter((row) => JSON.stringify(row).toLocaleLowerCase("fa").includes(query.toLocaleLowerCase("fa"))), [displayRows, query]);
+  const statusFilter = searchParams.get("status") ?? "";
+  const today = typeof document === "undefined" ? "1405/06/15" : document.documentElement.dataset.planToday ?? "1405/06/15";
+  const filtered = useMemo(() => displayRows.filter((row) => {
+    const searchable = JSON.stringify(row).toLocaleLowerCase("fa");
+    const matchesQuery = searchable.includes(query.toLocaleLowerCase("fa"));
+    const deadline = String(row.planned_end ?? row.deadline ?? "");
+    const matchesStatus = !statusFilter
+      || String(row.status ?? "").toLocaleLowerCase("fa") === statusFilter.toLocaleLowerCase("fa")
+      || (section === "actions" && statusFilter === "overdue" && isActionOverdue({
+        plannedEnd: deadline,
+        status: String(row.status ?? "") as Parameters<typeof isActionOverdue>[0]["status"]
+      }, today));
+    return matchesQuery && matchesStatus;
+  }), [displayRows, query, statusFilter, section, today]);
 
   async function createRecord(event: React.FormEvent) {
     event.preventDefault();
@@ -114,7 +134,7 @@ export function ManagementPage({ section }: { section: string }) {
     <div className="page-heading"><div><div className="eyebrow">مدیریت دانش سازمان و اجرای برنامه</div><h1>{entry.title}</h1><p>واژگان کنترل‌شده، ارتباطات سازمانی و داده‌های ثبت‌شده سامانه</p></div>{fields.length > 0 && <button className="primary-button" onClick={() => setShowCreate(true)}>＋ ثبت مورد جدید</button>}</div>
     {showCreate && <div className="panel create-panel"><form onSubmit={createRecord}><div className="form-grid">{fields.map((field) => <FieldInput key={field.key} field={field} value={form[field.key] ?? ""} options={field.select ? catalogs[field.select] : []} onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))} />)}</div><div className="form-actions"><button className="primary-button" type="submit">ذخیره</button><button className="secondary-button" type="button" onClick={() => setShowCreate(false)}>انصراف</button></div></form></div>}
     <div className="panel full-panel"><div className="panel-head"><h2>{entry.title}</h2><label className="inline-search">⌕<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجو در داده‌ها..." /></label></div>
-      {error ? <div className="empty">{error}</div> : <div className="table-wrap"><table><caption className="sr-only">جدول {entry.title}</caption><thead><tr>{entry.columns.map(([, label]) => <th scope="col" key={label}>{label}</th>)}<th scope="col">عملیات</th></tr></thead><tbody>{filtered.map((row, index) => { const id = String(row.id ?? row.public_id ?? index); return <tr key={id}>{entry.columns.map(([key]) => <td key={key}>{key === "active" ? (row[key] ? "فعال" : "غیرفعال") : String(row[key] ?? "—")}</td>)}<td><Link className="table-action" href={`/${section}/${encodeURIComponent(id)}`}>مشاهده جزئیات</Link></td></tr>; })}</tbody></table>{filtered.length === 0 && <div className="empty">موردی برای نمایش وجود ندارد.</div>}</div>}
+      {error ? <div className="empty" role="alert"><strong>بارگذاری {entry.title} انجام نشد.</strong><span>داده‌های سامانه تغییری نکرده‌اند؛ صفحه را دوباره بارگذاری کنید.</span><button className="secondary-button" type="button" onClick={() => window.location.reload()}>تلاش دوباره</button></div> : <div className="table-wrap"><table><caption className="sr-only">جدول {entry.title}</caption><thead><tr>{entry.columns.map(([, label]) => <th scope="col" key={label}>{label}</th>)}<th scope="col">عملیات</th></tr></thead><tbody>{filtered.map((row, index) => { const id = detailIdForRow(section, row) || String(index); return <tr key={id}>{entry.columns.map(([key]) => <td key={key}>{key === "active" ? (row[key] ? "فعال" : "غیرفعال") : String(row[key] ?? "—")}</td>)}<td><Link className="table-action" href={`/${section}/${encodeURIComponent(id)}`}>مشاهده جزئیات</Link></td></tr>; })}</tbody></table>{filtered.length === 0 && <div className="empty"><strong>{query || statusFilter ? "نتیجه‌ای با این فیلتر پیدا نشد." : `هنوز ${entry.title} ثبت نشده است.`}</strong><span>{query || statusFilter ? "عبارت جستجو یا وضعیت را تغییر دهید." : "با ثبت نخستین مورد، داده‌ها در این جدول نمایش داده می‌شوند."}</span></div>}</div>}
     </div>
   </div></PulseShell>;
 }

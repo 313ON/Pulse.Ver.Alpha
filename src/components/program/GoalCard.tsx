@@ -1,4 +1,5 @@
 import type { Goal } from "../../domain/program";
+import { PROGRAM_STATUS_LABELS } from "../../domain/program";
 import { ProgressIndicator } from "./ProgressIndicator";
 
 export function GoalCard({ node, expanded, onToggle, onSelect, onAddChild }: CardProps<Goal>) {
@@ -17,7 +18,7 @@ export function EntityCard<T extends { title: string; description: string; statu
       </button>
       <div className="program-node-icon">{icon}</div>
       <div className="program-node-main">
-        <div className="program-node-kicker">{node.status} <span>·</span> اولویت {node.priority}</div>
+        <div className="program-node-kicker">{PROGRAM_STATUS_LABELS[node.status as keyof typeof PROGRAM_STATUS_LABELS] ?? node.status} <span>·</span> اولویت {node.priority}</div>
         <h3>{node.title}</h3>
         <p>{node.description}</p>
         <div className="program-node-meta"><span>مسئول: {node.owner}</span><span>تا {node.timeline.end}</span></div>

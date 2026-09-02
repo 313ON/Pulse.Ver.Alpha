@@ -1,9 +1,10 @@
 export function SystemFooter() {
+  const environment = process.env.NODE_ENV === "production" ? "PRODUCTION" : "DEVELOPMENT";
   return (
     <footer className="app-footer system-footer" aria-label="PULSE system telemetry and identity">
       <div className="footer-runtime">
         <span>نسخه <b>2026.08</b></span>
-        <span>محیط <b>PRODUCTION</b></span>
+        <span>محیط <b>{environment}</b></span>
         <span><i className="telemetry-led" /> متصل</span>
       </div>
       <div className="footer-telemetry">

@@ -21,5 +21,5 @@ export default async function Home() {
     start: planning.startDate,
     end: planning.endDate
   }).hierarchy;
-  return <PulseShell><StrategicCommandCenter program={program} /></PulseShell>;
+  return <PulseShell><StrategicCommandCenter program={program} today={planning.today} /></PulseShell>;
 }

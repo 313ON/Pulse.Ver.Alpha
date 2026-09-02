@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PROGRAM_STATUS_LABELS, PROGRAM_TYPE_LABELS } from "../../domain/program";
 import type { KPI, Program, ProgramNode, ProgramNodeType } from "../../domain/program";
 import { ActionCard } from "./ActionCard";
 import { ActivityCard } from "./ActivityCard";
@@ -106,7 +107,7 @@ export function ProgramTree({ program }: { program: Program }) {
         <h2>{selected.title}</h2>
         <p>{selected.description}</p>
         <div className="inspector-progress"><ProgressValue value={selected.progress} /></div>
-        <dl className="inspector-meta"><div><dt>نوع</dt><dd>{selected.type === "program" ? "برنامه سالانه" : selected.type}</dd></div><div><dt>مسئول</dt><dd>{selected.owner}</dd></div><div><dt>بازه زمانی</dt><dd>{selected.timeline.start} تا {selected.timeline.end}</dd></div><div><dt>وضعیت</dt><dd>{selected.status}</dd></div></dl>
+        <dl className="inspector-meta"><div><dt>نوع</dt><dd>{selected.type === "program" ? "برنامه سالانه" : PROGRAM_TYPE_LABELS[selected.type]}</dd></div><div><dt>مسئول</dt><dd>{selected.owner || "تعیین نشده"}</dd></div><div><dt>بازه زمانی</dt><dd>{selected.timeline.start} تا {selected.timeline.end}</dd></div><div><dt>وضعیت</dt><dd>{PROGRAM_STATUS_LABELS[selected.status]}</dd></div></dl>
         <div className="alignment-card"><div><span>هسته شناختی</span><b>آماده اتصال</b></div><p>اعتبارسنجی هم‌راستایی و کامل‌بودن این گره در نسخه بعدی فعال می‌شود.</p></div>
         {error && <p role="alert" className="form-error">{error}</p>}
         {addingTo && <form className="program-add-form" onSubmit={saveChild}><label>عنوان {childTypes[(findNode(tree, addingTo) as Exclude<ProgramNode, KPI>).type]} جدید<input autoFocus value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="عنوان را وارد کنید" /></label><div className="form-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? "در حال ثبت…" : "افزودن به درخت"}</button><button className="secondary-button" type="button" onClick={() => setAddingTo(null)} disabled={saving}>انصراف</button></div></form>}

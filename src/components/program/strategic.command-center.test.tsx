@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase } from "../../server/db";
 import { seedBaseline } from "../../server/seed";
 import { createProgramServices } from "../../server/program";
-import { StrategicCommandCenter } from "./StrategicCommandCenter";
+import { attentionWeight, managementState, StrategicCommandCenter } from "./StrategicCommandCenter";
 
 Object.assign(globalThis, { React });
 
@@ -26,6 +26,39 @@ function liveProgram() {
 }
 
 describe("live strategic command center", () => {
+  it("uses canonical status/date semantics for management states", () => {
+    const item = (status: string, progress: number, end: string) => ({
+      status,
+      progress,
+      timeline: { end }
+    });
+
+    expect(managementState(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBe("overdue");
+    expect(managementState(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۱۵"), "۱۴۰۵/۰۶/۱۵")).toBe("due-soon");
+    expect(managementState(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۲۹"), "۱۴۰۵/۰۶/۱۵")).toBe("due-soon");
+    expect(managementState(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۳۰"), "۱۴۰۵/۰۶/۱۵")).toBe("risk");
+    expect(managementState(item("مسدود", 100, "۱۴۰۵/۰۶/۱۵"), "۱۴۰۵/۰۶/۱۵")).toBe("blocked");
+    expect(managementState(item("تکمیل شده", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBe("completed");
+    expect(managementState(item("لغو شده", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBe("on-track");
+    expect(managementState(item("در حال اجرا", 20, ""), "۱۴۰۵/۰۶/۱۵")).toBe("risk");
+  });
+
+  it("orders attention states deterministically by the established priority", () => {
+    const item = (status: string, progress: number, end: string) => ({
+      status,
+      progress,
+      timeline: { end }
+    });
+
+    expect(attentionWeight(item("مسدود", 0, "۱۴۰۵/۰۶/۳۰"), "۱۴۰۵/۰۶/۱۵")).toBeGreaterThan(
+      attentionWeight(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")
+    );
+    expect(attentionWeight(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۱۴"), "۱۴۰۵/۰۶/۱۵")).toBeGreaterThan(
+      attentionWeight(item("در حال اجرا", 20, "۱۴۰۵/۰۶/۳۰"), "۱۴۰۵/۰۶/۱۵")
+    );
+    expect(attentionWeight(item("در حال اجرا", 80, "۱۴۰۵/۰۷/۰۱"), "۱۴۰۵/۰۶/۱۵")).toBe(1);
+  });
+
   it("renders persisted program data instead of fixture labels", () => {
     const markup = renderToStaticMarkup(<StrategicCommandCenter program={liveProgram()} />);
 

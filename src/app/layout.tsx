@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const planning = getPlanningContext();
   return (
-    <html lang="fa" dir="rtl" className={vazirmatn.variable} data-plan-year={planning.planYear}>
+    <html lang="fa" dir="rtl" className={vazirmatn.variable} data-plan-year={planning.planYear} data-plan-today={planning.today}>
       <body>{children}</body>
     </html>
   );

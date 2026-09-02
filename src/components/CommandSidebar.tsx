@@ -20,6 +20,7 @@ const items = [
   ["بازبینی ماهانه", "/monthly-reviews", "◷"],
   ["ورودی داده‌ها", "/imports", "⇩"],
   ["گزارش‌ها", "/reports", "▤"],
+  ["کاربران سامانه", "/users", "♙"],
   ["تنظیمات", "/settings", "⚙"]
 ] as const;
 
@@ -83,7 +84,7 @@ export function CommandSidebar({
       <div className="nav-caption">ناوبری فرمان</div>
       <nav aria-label="ناوبری اصلی">
         {items.map(([label, href, icon]) => (
-          <Link key={href} href={href} className={`nav-item ${pathname === href ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>
+          <Link key={href} href={href} className={`nav-item ${pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)) ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>
             <span className="nav-icon">{icon}</span><span>{label}</span><span className="nav-chevron">‹</span>
           </Link>
         ))}
