@@ -1,4 +1,5 @@
 import { getPlanningContext } from "../../../domain/planning";
+import { calculateAggregateProgress } from "../../../domain/program/metrics";
 import { calculatePulseScore, getKpiHealth, inspectProgramQuality, riskSeverity, type KpiRecord, type RiskRecord, type WorkItem } from "../../../lib/domain";
 import { ensureRuntimeData, handleApiError, json, requirePermission } from "../_lib";
 import { ActionRepository, DependencyRepository, DepartmentRepository, GoalRepository, KPIRepository, RiskRepository } from "../../../server/repositories";
@@ -42,7 +43,7 @@ export async function GET() {
     }));
     const goals = goalRows.map((goal) => {
       const related = items.filter((item) => item.goalId === goal.id);
-      const progress = related.length ? Math.round(related.reduce((sum, item) => sum + item.progress, 0) / related.length) : 0;
+      const progress = calculateAggregateProgress(related);
       const health = progress >= 70 ? "سبز" : progress >= 45 ? "زرد" : related.length ? "قرمز" : "خاکستری";
       return { ...goal, progress, health, actionCount: related.length };
     });

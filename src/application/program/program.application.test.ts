@@ -92,6 +92,7 @@ describe("Program application services", () => {
       kpiCount: 1,
       averageProgress: 35
     });
+    expect(result.hierarchy.goals[0].progress).toBe(35);
   });
 
   it("maps database-shaped rows into canonical entities", () => {

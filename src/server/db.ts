@@ -10,6 +10,8 @@ let readOnlyDatabase: Database.Database | undefined;
 
 export const SQLITE_BUSY_TIMEOUT_MS = 5000;
 export const SQLITE_WAL_AUTOCHECKPOINT_PAGES = 1000;
+const SQLITE_INITIALIZATION_RETRIES = 20;
+const SQLITE_INITIALIZATION_RETRY_DELAY_MS = 100;
 
 export class DatabaseUnavailableError extends Error {
   constructor(message = "The database is unavailable.") {
@@ -77,6 +79,17 @@ function configureReadOnlyConnection(database: Database.Database): void {
   database.pragma("temp_store = DEFAULT");
 }
 
+function isSqliteBusy(error: unknown): boolean {
+  const code = error && typeof error === "object" && "code" in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  return code === "SQLITE_BUSY" || code === "SQLITE_LOCKED";
+}
+
+function waitForSqliteLock(delayMs: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+}
+
 function ensurePhaseFiveSchema(database: Database.Database): void {
   // Canonical schema ownership lives in db/schema.sqlite.sql. This function
   // only repairs columns that may be absent from legacy databases.
@@ -124,28 +137,35 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
 export function getDatabase(): Database.Database {
   if (!database) {
     const filePath = databasePath();
-    let candidate: Database.Database | undefined;
-    try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      candidate = new Database(filePath);
-      configureWritableConnection(candidate, filePath);
-      const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
-      const departmentalColumns = candidate.prepare("PRAGMA table_info(departmental_materialization_operations)").all() as Array<{ name: string }>;
-      const hasLegacyFingerprintColumn = departmentalColumns.length > 0
-        && !departmentalColumns.some((column) => column.name === "source_fingerprint");
-      const schemaToApply = hasLegacyFingerprintColumn
-        ? schema.replace(/CREATE INDEX IF NOT EXISTS departmental_materialization_source_fingerprint_idx\s+ON departmental_materialization_operations\(source_fingerprint\);\s*/i, "")
-        : schema;
-      candidate.exec(schemaToApply);
-      ensurePhaseFiveSchema(candidate);
-      applyDepartmentalGoalsMigration(candidate);
-      ensureReleaseMetadata(candidate);
-      database = candidate;
-    } catch (error) {
-      candidate?.close();
-      const detail = error instanceof Error ? ` ${error.message}` : "";
-      throw new DatabaseUnavailableError(`The database could not be initialized.${detail}`);
+    let lastError: unknown;
+    for (let attempt = 0; attempt < SQLITE_INITIALIZATION_RETRIES; attempt += 1) {
+      let candidate: Database.Database | undefined;
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        candidate = new Database(filePath);
+        configureWritableConnection(candidate, filePath);
+        const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sqlite.sql"), "utf8");
+        const departmentalColumns = candidate.prepare("PRAGMA table_info(departmental_materialization_operations)").all() as Array<{ name: string }>;
+        const hasLegacyFingerprintColumn = departmentalColumns.length > 0
+          && !departmentalColumns.some((column) => column.name === "source_fingerprint");
+        const schemaToApply = hasLegacyFingerprintColumn
+          ? schema.replace(/CREATE INDEX IF NOT EXISTS departmental_materialization_source_fingerprint_idx\s+ON departmental_materialization_operations\(source_fingerprint\);\s*/i, "")
+          : schema;
+        candidate.exec(schemaToApply);
+        ensurePhaseFiveSchema(candidate);
+        applyDepartmentalGoalsMigration(candidate);
+        ensureReleaseMetadata(candidate);
+        database = candidate;
+        return database;
+      } catch (error) {
+        lastError = error;
+        candidate?.close();
+        if (!isSqliteBusy(error) || attempt === SQLITE_INITIALIZATION_RETRIES - 1) break;
+        waitForSqliteLock(SQLITE_INITIALIZATION_RETRY_DELAY_MS * (attempt + 1));
+      }
     }
+    const detail = lastError instanceof Error ? ` ${lastError.message}` : "";
+    throw new DatabaseUnavailableError(`The database could not be initialized.${detail}`);
   }
   return database;
 }

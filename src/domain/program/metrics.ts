@@ -2,6 +2,7 @@ import type { Action, KPI } from "./types";
 import type { RiskRecord } from "../../lib/domain";
 import { getKpiHealth, isActionOverdue } from "./rules";
 import { DEFAULT_PLANNING_CONTEXT } from "../planning";
+import { createProgress } from "./primitives";
 
 export type PulseScoreBreakdown = {
   goalProgress: number;
@@ -15,6 +16,12 @@ export type PulseScoreBreakdown = {
 
 function riskSeverity(probability: number, impact: number): number {
   return Math.max(1, Math.min(5, probability)) * Math.max(1, Math.min(5, impact));
+}
+
+/** Derives an aggregate progress value from operational actions only. */
+export function calculateAggregateProgress(actions: Array<{ progress: number }>): ReturnType<typeof createProgress> {
+  if (actions.length === 0) return createProgress(0);
+  return createProgress(Math.round(actions.reduce((sum, action) => sum + action.progress, 0) / actions.length));
 }
 
 export function calculatePulseScore(

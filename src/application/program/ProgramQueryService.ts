@@ -3,6 +3,7 @@ import type { Goal, ProgramStatus } from "../../domain/program";
 import type { ProgramReadModel, ProgramSummary } from "./ProgramReadModel";
 import { ProgramMapper } from "./ProgramMapper";
 import type { ProgramRepositoryPorts, UnknownRow } from "./ports";
+import { calculateAggregateProgress } from "../../domain/program/metrics";
 
 export type ProgramDescriptor = {
   id: string;
@@ -61,6 +62,8 @@ export class ProgramQueryService {
           }
         }
       }
+      const goalActions = actions.filter((action) => action.goalId === goal.id);
+      if (goalActions.length > 0) goal.progress = calculateAggregateProgress(goalActions);
     }
 
     const hierarchy = this.mapper.program({ ...descriptor, goals });
