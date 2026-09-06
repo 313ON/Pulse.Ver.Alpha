@@ -110,10 +110,9 @@ function idFor(item: MaterializationPlanItem, prefix: string): string {
   return `${prefix}-${item.logicalIdentity.planYear}-${item.canonicalAllocation.ordinal}`;
 }
 
-function responsibility(item: MaterializationPlanItem, field: string, targetType: "PERSON" | "UNIT"): string {
-  const match = item.responsibility.find((value) => value.field === field && value.targetType === targetType);
-  if (!match?.resolved || !match.targetId) throw new Error(`Required ${field} resolution is missing for "${item.logicalIdentity.logicalKey}".`);
-  return match.targetId;
+function canonicalStatus(value: unknown): string {
+  const status = String(value ?? "شروع نشده").trim();
+  return status === "برنامه‌ریزی‌شده" || status === "برنامه ریزی شده" ? "شروع نشده" : status;
 }
 
 function canonicalId(item: MaterializationPlanItem, ids: Map<string, string>): string {
@@ -231,6 +230,7 @@ export class SQLiteCanonicalMaterializationWriter {
             const goalId = departmentalGoalId
               ? String((this.database.prepare("SELECT strategic_goal_id FROM departmental_goals WHERE id=?").get(departmentalGoalId) as Row | undefined)?.strategic_goal_id ?? "")
               : parentId;
+            if (!this.database.prepare("SELECT 1 FROM strategic_goals WHERE id=?").get(goalId)) throw new Error(`Objective parent goal is missing: ${goalId} for ${identityKey}`);
             const conflict = this.database.prepare("SELECT id FROM sub_goals WHERE goal_id=? AND title=? AND id<>?")
               .get(goalId, item.logicalIdentity.title, id);
             if (conflict && !reused) throw new Error(`Canonical objective conflict for "${identityKey}".`);
@@ -247,27 +247,40 @@ export class SQLiteCanonicalMaterializationWriter {
           } else {
             failIf(this.options.failurePoint, "work-item");
             const activityId = resolveParent(item, ids);
-            const goalId = ids.get(item.parent?.logicalKey.split("|").slice(0, 3).join("|") ?? "") ?? this.database.prepare("SELECT goal_id FROM sub_goals WHERE id=(SELECT sub_goal_id FROM activities WHERE id=?)").get(activityId) as Row | undefined;
-            const goal = typeof goalId === "string" ? goalId : String((goalId as Row | undefined)?.goal_id ?? "");
+            const goalRow = this.database.prepare(`SELECT sg.goal_id
+              FROM activities a JOIN sub_goals sg ON sg.id = a.sub_goal_id WHERE a.id=?`).get(activityId) as Row | undefined;
+            const goal = String(goalRow?.goal_id ?? "");
             const publicId = item.canonicalAllocation.publicIdInput!;
-            const departmentId = responsibility(item, "department", "UNIT");
-            const ownerId = responsibility(item, "owner", "PERSON");
+            const departmentId = item.responsibility.find((value) => ["department", "unit", "responsible"].includes(value.field) && value.targetType === "UNIT" && value.resolved)?.targetId ?? null;
+            const ownerId = item.responsibility.find((value) => value.field === "owner" && value.targetType === "PERSON" && value.resolved)?.targetId ?? null;
             if (!reused) {
                 const values = item.normalizedValues;
               const subGoal = this.database.prepare("SELECT sub_goal_id FROM activities WHERE id=?").get(activityId) as { sub_goal_id?: string } | undefined;
-              const conflict = this.database.prepare("SELECT id FROM work_items WHERE goal_id=? AND title=? AND id<>?")
-                .get(goal, item.logicalIdentity.title, id);
+              if (!this.database.prepare("SELECT 1 FROM strategic_goals WHERE id=?").get(goal)) throw new Error(`Action goal is missing: ${goal} for ${identityKey}`);
+              if (subGoal?.sub_goal_id && !this.database.prepare("SELECT 1 FROM sub_goals WHERE id=?").get(subGoal.sub_goal_id)) throw new Error(`Action objective is missing: ${subGoal.sub_goal_id} for ${identityKey}`);
+              const conflict = this.database.prepare("SELECT id FROM work_items WHERE public_id=? AND id<>?")
+                .get(publicId, id);
               if (conflict) throw new Error(`Canonical work-item conflict for "${identityKey}".`);
               this.database.prepare(`INSERT INTO work_items
                 (id,public_id,goal_id,sub_goal_id,activity_id,department_id,owner_person_id,title,work_type,deliverable,status,progress,planned_start,planned_end,description,plan_year)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
                 id, publicId, goal, subGoal?.sub_goal_id ?? null, activityId, departmentId, ownerId,
-                item.logicalIdentity.title, values.workType, values.deliverable, values.status, Number(values.progress ?? 0),
-                values.startDate, values.endDate, values.description ?? null, command.targetPlanYear);
+                item.logicalIdentity.title, values.workType ?? "اقدام", values.deliverable ?? null, canonicalStatus(values.status), Number(values.progress ?? 0),
+                values.startDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.startDate)) ? values.startDate : null,
+                values.endDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.endDate)) ? values.endDate : null, values.description ?? null, command.targetPlanYear);
               const assignments = Array.isArray(values.assignments) ? values.assignments : [];
               for (const assignment of assignments) {
                 const candidate = assignment as Row;
-                if (candidate.entityType === "PERSON" && candidate.entityId) this.database.prepare("INSERT INTO work_item_collaborators(work_item_id,person_id) VALUES (?,?)").run(id, candidate.entityId);
+                if (candidate.entityType === "PERSON" && candidate.entityId) {
+                  const exists = this.database.prepare("SELECT id FROM people WHERE id=?").get(candidate.entityId);
+                  if (exists) this.database.prepare("INSERT OR IGNORE INTO work_item_collaborators(work_item_id,person_id) VALUES (?,?)").run(id, candidate.entityId);
+                }
+                this.database.prepare(`INSERT INTO work_item_assignments
+                  (id, work_item_id, raci_type, target_type, target_id, display_name, normalized_name, resolved, source_json)
+                  VALUES (?,?,?,?,?,?,?,?,?)`).run(
+                  `${id}:raci:${(this.database.prepare("SELECT COUNT(*) AS count FROM work_item_assignments WHERE work_item_id=?").get(id) as { count: number }).count + 1}`,
+                  id, String(candidate.raciType ?? "I"), String(candidate.targetType ?? "UNRESOLVED"), candidate.entityId || null,
+                  String(candidate.displayName ?? ""), String(candidate.normalizedName ?? candidate.displayName ?? ""), candidate.resolved ? 1 : 0, JSON.stringify(candidate));
               }
             }
           }

@@ -108,6 +108,35 @@ export type ResponsibilityResolver = {
   resolveUnit(value: unknown, record: ImportRecord): RequiredValueResolution;
 };
 
+function materializationRecords(job: ImportJob, planYear: number): ImportRecord[] {
+  const records = job.records.filter((record) => ["goal", "objective", "activity", "action", "departmental_goal"].includes(record.entityType));
+  const actions = records.filter((record) => record.entityType === "action");
+  const existing = new Set(records.map((record) => logicalEntityIdentity(record, planYear).key));
+  const synthetic: ImportRecord[] = [];
+  for (const action of actions) {
+    const common = { source: action.source, provenance: action.provenance, rowNumber: action.rowNumber };
+    for (const [entityType, field] of [["goal", "goal"], ["objective", "objective"], ["activity", "activity"]] as const) {
+      const value = action.data[field];
+      if (!normalizeLogicalText(value)) continue;
+      const candidate = { ...common, id: `${action.id}:inferred-${entityType}`, externalId: `${action.externalId}:inferred-${entityType}`, entityType, data: { goal: action.data.goal, objective: action.data.objective, activity: action.data.activity, [field]: value } } as ImportRecord;
+      const key = logicalEntityIdentity(candidate, planYear).key;
+      if (existing.has(key)) continue;
+      existing.add(key);
+      synthetic.push(candidate);
+    }
+  }
+  const all = [...records, ...synthetic];
+  const departmentalContexts = new Set(all
+    .filter((record) => normalizeLogicalText(record.data.departmentalGoal))
+    .map((record) => `${normalizeLogicalText(record.data.goal)}|${normalizeLogicalText(record.data.objective)}|${normalizeLogicalText(record.data.activity)}`));
+  return all.filter((record) => {
+    if (!["objective", "activity"].includes(record.entityType)) return true;
+    if (normalizeLogicalText(record.data.departmentalGoal)) return true;
+    const context = `${normalizeLogicalText(record.data.goal)}|${normalizeLogicalText(record.data.objective)}|${normalizeLogicalText(record.data.activity)}`;
+    return !departmentalContexts.has(context);
+  });
+}
+
 export type MaterializationPlanInput = {
   importJob: ImportJob;
   snapshot: ImportSnapshotReference;
@@ -188,10 +217,11 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
   if (snapshot.sourceRecordCount !== job.records.length) errors.push(error("SNAPSHOT_MISMATCH", "Snapshot record count does not match the pinned import."));
   if (snapshot.targetPlanYear !== input.planYear || request.targetPlanYear !== input.planYear) errors.push(error("INVALID_SOURCE", "Plan year is not consistently pinned."));
   if (job.validationResult && !job.validationResult.valid) errors.push(error("INVALID_SOURCE", "The import validation state is not valid."));
+  const masterPlanSource = job.source.metadata.domain === "master-plan";
   const governanceErrors = job.assessmentResult?.governance.errors
     .filter((violation) => violation.rule !== "goal.owner.required") ?? [];
-  if (governanceErrors.length) errors.push(error("INVALID_SOURCE", "Import governance contains blocking errors."));
-  if (job.assessmentResult?.findings.some((finding) => finding.severity === "error")) errors.push(error("INVALID_SOURCE", "Import responsibility assessment contains blocking errors."));
+  if (governanceErrors.length && !masterPlanSource) errors.push(error("INVALID_SOURCE", "Import governance contains blocking errors."));
+  if (job.assessmentResult?.findings.some((finding) => finding.severity === "error") && !masterPlanSource) errors.push(error("INVALID_SOURCE", "Import responsibility assessment contains blocking errors."));
   try {
     const expected = createImportSnapshotReference(job, input.planYear);
     errors.push(...verifyMaterializationRequest(job, request, expected).map((item) => ({ ...item, severity: "BLOCKING" as const })));
@@ -200,7 +230,21 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
     errors.push(error("INVALID_SOURCE", cause instanceof Error ? cause.message : "Unable to verify import snapshot."));
   }
 
-  const records = job.records.filter((record): record is ImportRecord & { entityType: MaterializableEntityType } => entityOrder.includes(record.entityType as MaterializableEntityType));
+  const candidateRecords = materializationRecords(job, input.planYear).filter((record): record is ImportRecord & { entityType: MaterializableEntityType } => entityOrder.includes(record.entityType as MaterializableEntityType));
+  const records: Array<ImportRecord & { entityType: MaterializableEntityType }> = [];
+  for (const record of candidateRecords) {
+    const requiredHierarchy = record.entityType === "goal" ? ["goal"]
+      : record.entityType === "objective" ? ["goal", "objective"]
+        : record.entityType === "activity" ? ["goal", "objective", "activity"]
+          : record.entityType === "action" ? ["goal", "objective", "activity", "action"]
+            : ["strategicGoal", "departmentalGoal"];
+    const missing = requiredHierarchy.filter((field) => !normalizeLogicalText(record.data[field]));
+    if (missing.length) {
+      errors.push(error("INVALID_SOURCE", `Record "${record.id}" has unresolved hierarchy field(s): ${missing.join(", ")}.`, undefined, { field: missing[0], sourceValue: record.data[missing[0]] }));
+      continue;
+    }
+    records.push(record);
+  }
   const groups = groupByLogicalIdentity(records, input.planYear);
   const parentKeys = new Set([...groups.keys()].filter((key) => key.startsWith("goal|") || key.startsWith("departmental_goal|")));
   const items: MaterializationPlanItem[] = [];
@@ -240,26 +284,29 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
         item.conflictState = "BLOCKED";
       } else {
         const parentTitle = parentKey.split("|").at(-1) ?? "";
-        item.parent = { relation: "PARENT", entityType: parentType[identity.entityType]!, logicalKey: parentKey, title: parentTitle, planYear: input.planYear };
+        const actualParentType: MaterializableEntityType = identity.entityType === "objective" && !normalizeLogicalText(first.data.departmentalGoal)
+          ? "goal"
+          : parentType[identity.entityType]!;
+        item.parent = { relation: "PARENT", entityType: actualParentType, logicalKey: parentKey, title: parentTitle, planYear: input.planYear };
       }
     }
     const action = identity.entityType === "action";
     if (action) {
-      const required: Array<[string, unknown]> = [["action", item.normalizedValues.action], ["deliverable", item.normalizedValues.deliverable], ["startDate", item.normalizedValues.startDate], ["endDate", item.normalizedValues.endDate], ["workType", item.normalizedValues.workType], ["status", item.normalizedValues.status]];
+      const required: Array<[string, unknown]> = [["action", item.normalizedValues.action], ["status", item.normalizedValues.status]];
       for (const [field, value] of required) if (!normalizeLogicalText(value)) {
         errors.push(error("INVALID_SOURCE", `Required work-item field "${field}" is missing.`, item, { field }));
         item.conflictState = "BLOCKED";
       }
-      if (item.normalizedValues.startDate && !date(item.normalizedValues.startDate)) { errors.push(error("INVALID_SOURCE", "Invalid start date.", item, { field: "startDate" })); item.conflictState = "BLOCKED"; }
-      if (item.normalizedValues.endDate && !date(item.normalizedValues.endDate)) { errors.push(error("INVALID_SOURCE", "Invalid end date.", item, { field: "endDate" })); item.conflictState = "BLOCKED"; }
-      if (item.normalizedValues.workType && !workTypes.has(String(item.normalizedValues.workType))) { errors.push(error("INVALID_SOURCE", "Invalid work type.", item, { field: "workType" })); item.conflictState = "BLOCKED"; }
+      if (item.normalizedValues.startDate && !date(item.normalizedValues.startDate) && !masterPlanSource) { errors.push(error("INVALID_SOURCE", "Invalid start date.", item, { field: "startDate" })); item.conflictState = "BLOCKED"; }
+      if (item.normalizedValues.endDate && !date(item.normalizedValues.endDate) && !masterPlanSource) { errors.push(error("INVALID_SOURCE", "Invalid end date.", item, { field: "endDate" })); item.conflictState = "BLOCKED"; }
+      if (item.normalizedValues.workType && !workTypes.has(String(item.normalizedValues.workType)) && !masterPlanSource) { errors.push(error("INVALID_SOURCE", "Invalid work type.", item, { field: "workType" })); item.conflictState = "BLOCKED"; }
     }
     for (const record of sourceRecords) {
-      for (const [field, targetType, resolver] of [["owner", "PERSON", input.responsibility?.resolvePerson], ["executor", "PERSON", input.responsibility?.resolvePerson], ["department", "UNIT", input.responsibility?.resolveUnit], ["unit", "UNIT", input.responsibility?.resolveUnit]] as const) {
+      for (const [field, targetType, resolver] of [["owner", "PERSON", input.responsibility?.resolvePerson], ["executor", "PERSON", input.responsibility?.resolvePerson], ["department", "UNIT", input.responsibility?.resolveUnit], ["unit", "UNIT", input.responsibility?.resolveUnit], ["responsible", "UNIT", input.responsibility?.resolveUnit]] as const) {
         if (record.data[field] !== undefined && resolver) {
           const result = resolver(record.data[field], record);
           item.responsibility.push({ ...result, field, targetType });
-          if (!result.resolved) { errors.push(error("INVALID_SOURCE", result.reason ?? `Unable to resolve ${field}.`, item, { field, sourceValue: record.data[field], targetType })); item.conflictState = "BLOCKED"; }
+          if (!result.resolved && !masterPlanSource) { errors.push(error("INVALID_SOURCE", result.reason ?? `Unable to resolve ${field}.`, item, { field, sourceValue: record.data[field], targetType })); item.conflictState = "BLOCKED"; }
         }
       }
     }
@@ -280,6 +327,22 @@ export function buildMaterializationPlan(input: MaterializationPlanInput): Mater
     byType.set(item.entityType, ordinal);
     item.ordering.ordinal = ordinal;
     item.canonicalAllocation.ordinal = ordinal;
+  }
+  const goalItems = items.filter((item) => item.entityType === "goal").sort((a, b) => a.logicalIdentity.logicalKey.localeCompare(b.logicalIdentity.logicalKey));
+  const goalOrdinals = new Map(goalItems.map((item, index) => [item.logicalIdentity.logicalKey, index + 1]));
+  const ordinalAmongSiblings = (type: MaterializableEntityType, parentKey: string | undefined, key: string) =>
+    items.filter((item) => item.entityType === type && item.parent?.logicalKey === parentKey)
+      .sort((a, b) => a.logicalIdentity.logicalKey.localeCompare(b.logicalIdentity.logicalKey))
+      .findIndex((item) => item.logicalIdentity.logicalKey === key) + 1;
+  for (const item of items.filter((candidate) => candidate.entityType === "action")) {
+    const activity = items.find((candidate) => candidate.logicalIdentity.logicalKey === item.parent?.logicalKey);
+    const objective = items.find((candidate) => candidate.logicalIdentity.logicalKey === activity?.parent?.logicalKey);
+    const goal = items.find((candidate) => candidate.logicalIdentity.logicalKey === objective?.parent?.logicalKey);
+    const goalOrdinal = goalOrdinals.get(goal?.logicalIdentity.logicalKey ?? "") ?? 1;
+    const objectiveOrdinal = ordinalAmongSiblings("objective", goal?.logicalIdentity.logicalKey, objective?.logicalIdentity.logicalKey ?? "");
+    const activityOrdinal = ordinalAmongSiblings("activity", objective?.logicalIdentity.logicalKey, activity?.logicalIdentity.logicalKey ?? "");
+    const actionOrdinal = ordinalAmongSiblings("action", activity?.logicalIdentity.logicalKey, item.logicalIdentity.logicalKey);
+    item.canonicalAllocation.publicIdInput = `G${String(goalOrdinal).padStart(2, "0")}-O${String(objectiveOrdinal).padStart(2, "0")}-A${String(activityOrdinal).padStart(2, "0")}-T${String(actionOrdinal).padStart(3, "0")}`;
   }
   const summary = {
     goals: items.filter((item) => item.entityType === "goal").length,

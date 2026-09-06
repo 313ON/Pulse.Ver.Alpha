@@ -7,6 +7,7 @@ import {
   type ColumnSemanticType
 } from "./ColumnSemanticType";
 import { HeaderSemanticResolver } from "./HeaderSemanticResolver";
+import { extractRaciAssignments } from "../semantic/Raci";
 
 const ENTITY_TYPE_BY_SEMANTIC_TYPE: Record<ColumnSemanticType, ImportRecord["entityType"] | undefined> = {
   GOAL: "goal",
@@ -27,7 +28,9 @@ const ENTITY_TYPE_BY_SEMANTIC_TYPE: Record<ColumnSemanticType, ImportRecord["ent
   DURATION: undefined,
   WORKING_DAYS: undefined,
   PERSON_HOURS: undefined,
-  PROGRESS: undefined
+  PROGRESS: undefined,
+  SOURCE_CODE: undefined, STATUS: undefined, SOURCE: undefined,
+  RESPONSIBLE: undefined, ACCOUNTABLE: undefined, CONSULTED: undefined, INFORMED: undefined
 };
 
 export type SpreadsheetMappingEngineOptions = {
@@ -98,6 +101,10 @@ export class SpreadsheetMappingEngine {
           provenance.set(value.semanticType, value.provenance);
         }
       }
+      const raciAssignments = extractRaciAssignments(data);
+      if (raciAssignments.length) data.assignments = raciAssignments;
+      const isMasterPlan = /master\s*plan|برنامه\s*عملیاتی/u.test(source.name);
+      if (isMasterPlan && entityType === "action" && data.sourceCode !== undefined && (!/^[A-Za-zآ-ی]+\s*[-–]\s*\d+$/u.test(String(data.sourceCode ?? "").trim()) || ["اقدامات", "اقدام", "—", "-"].includes(String(data.action ?? "").trim()))) continue;
 
       const id = `${sheet.name}:${row.index}:${entityType}`;
       records.push({

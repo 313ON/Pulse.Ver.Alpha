@@ -1,6 +1,6 @@
-export type AssignmentEntityType = "PERSON" | "UNIT";
+export type AssignmentEntityType = "PERSON" | "UNIT" | "POSITION";
 
-export type AssignmentRole = "OWNER" | "EXECUTOR" | "COLLABORATOR";
+export type AssignmentRole = "OWNER" | "EXECUTOR" | "COLLABORATOR" | "ACCOUNTABLE" | "CONSULTED" | "INFORMED";
 
 export type AssignmentResponsibilityType = "PRIMARY" | "SUPPORT";
 

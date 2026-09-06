@@ -134,15 +134,21 @@ export class ImportNormalizer {
   ): Assignment[] {
     return value.filter((item): item is Assignment => Boolean(item && typeof item === "object")).map((item) => {
       const assignment = item as Assignment;
-      const resolver = assignment.entityType === "PERSON" ? hooks.resolvePerson : hooks.resolveUnit;
+      const resolver = assignment.entityType === "PERSON" ? hooks.resolvePerson
+        : assignment.entityType === "UNIT" ? hooks.resolveUnit
+          : undefined;
       const resolution = resolver?.({ entityId: assignment.entityId, displayName: assignment.displayName });
       if (resolution && !resolution.resolved) {
         errors.push({ code: "REFERENCE_UNRESOLVED", message: resolution.message ?? `Unable to resolve ${assignment.entityType} reference.`, severity: "error", recordId: record.id, entityType: record.entityType, field: "assignments" });
       }
       return {
         ...assignment,
-        entityId: normalizeImportText(resolution?.entityId ?? assignment.entityId),
-        displayName: normalizeImportText(resolution?.displayName ?? assignment.displayName)
+        entityId: typeof (resolution?.entityId ?? assignment.entityId) === "string"
+          ? normalizeImportText(String(resolution?.entityId ?? assignment.entityId))
+          : String(resolution?.entityId ?? assignment.entityId ?? ""),
+        displayName: typeof (resolution?.displayName ?? assignment.displayName) === "string"
+          ? normalizeImportText(String(resolution?.displayName ?? assignment.displayName))
+          : String(resolution?.displayName ?? assignment.displayName ?? "")
       };
     });
   }

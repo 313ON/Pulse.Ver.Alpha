@@ -17,7 +17,14 @@ export type ColumnSemanticType =
   | "DURATION"
   | "WORKING_DAYS"
   | "PERSON_HOURS"
-  | "PROGRESS";
+  | "PROGRESS"
+  | "SOURCE_CODE"
+  | "STATUS"
+  | "SOURCE"
+  | "RESPONSIBLE"
+  | "ACCOUNTABLE"
+  | "CONSULTED"
+  | "INFORMED";
 
 export const HIERARCHY_SEMANTIC_TYPES: ColumnSemanticType[] = [
   "GOAL",
@@ -46,5 +53,12 @@ export const SEMANTIC_DATA_KEYS: Record<ColumnSemanticType, string> = {
   DURATION: "duration",
   WORKING_DAYS: "workingDays",
   PERSON_HOURS: "personHours",
-  PROGRESS: "progress"
+  PROGRESS: "progress",
+  SOURCE_CODE: "sourceCode",
+  STATUS: "status",
+  SOURCE: "source",
+  RESPONSIBLE: "responsible",
+  ACCOUNTABLE: "accountable",
+  CONSULTED: "consulted",
+  INFORMED: "informed"
 };

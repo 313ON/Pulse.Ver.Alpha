@@ -660,7 +660,7 @@ function GovernanceFindings({
   }) => void;
   remediationBusy: boolean;
 }) {
-  const findings = job.assessmentResult?.governance?.errors ?? [];
+  const findings = (job.assessmentResult?.governance?.errors ?? []).filter((finding) => finding.rule !== "goal.owner.required");
   if (findings.length === 0) return null;
   return (
     <section className="panel import-governance-findings-panel" aria-labelledby="import-governance-findings-title">

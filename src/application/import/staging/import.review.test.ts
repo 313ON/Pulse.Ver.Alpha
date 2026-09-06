@@ -86,7 +86,7 @@ describe("ImportReviewService", () => {
     expect(service.getJob("job-valid").approvedAt).toBeTruthy();
   });
 
-  it("treats a missing goal owner as data quality, not an approval gate", () => {
+  it("does not create a goal-owner finding or approval gate", () => {
     const program = reviewProgram();
     program.goals[0].owner = "";
     const service = new ImportReviewService();
@@ -95,7 +95,7 @@ describe("ImportReviewService", () => {
 
     const analyzed = service.analyze("job-goal-owner-quality", program);
 
-    expect(analyzed.assessmentResult?.governance.errors).toEqual(expect.arrayContaining([
+    expect(analyzed.assessmentResult?.governance.errors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ rule: "goal.owner.required", entityId: program.goals[0].id })
     ]));
     expect(service.approvalReadiness("job-goal-owner-quality")).toEqual({ ready: true, blockers: [] });

@@ -44,9 +44,6 @@ export class ProgramGovernanceRules {
   validateGoal(goal: RecordLike): GovernanceValidationReport {
     const violations: GovernanceViolation[] = [];
     this.validateIdentityAndLifecycle(goal, "goal", violations);
-    if (!firstText(goal, "owner", "ownerId", "ownerPersonId", "owner_person_id")) {
-      add(violations, goal, "goal", "goal.owner.required", "Goal owner is required.");
-    }
     return createGovernanceReport(violations);
   }
 
@@ -77,9 +74,6 @@ export class ProgramGovernanceRules {
     this.validateIdentityAndLifecycle(action, "action", violations);
     if (!firstText(action, "activityId", "activity_id", "parentActivityId")) {
       add(violations, action, "action", "action.parentActivity.required", "Action parent Activity is required.");
-    }
-    if (!firstText(action, "owner", "ownerId", "ownerPersonId", "owner_person_id")) {
-      add(violations, action, "action", "action.owner.required", "Action owner is required.");
     }
     const timeline = action.timeline && typeof action.timeline === "object" ? action.timeline as RecordLike : undefined;
     if (!firstText(action, "deadline", "plannedEnd", "planned_end", "end") && !firstText(timeline ?? {}, "end")) {

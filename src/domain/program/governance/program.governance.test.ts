@@ -21,7 +21,7 @@ describe("ProgramGovernanceRules", () => {
     ]));
   });
 
-  it("reports missing goal and action owners", () => {
+  it("does not require a goal owner, while execution responsibility remains explicit", () => {
     const goalReport = rules.validateGoal({
       id: "goal-1",
       type: "goal",
@@ -37,10 +37,10 @@ describe("ProgramGovernanceRules", () => {
       deadline: "۱۴۰۵/۰۳/۰۱"
     });
 
-    expect(goalReport.errors).toEqual(expect.arrayContaining([
+    expect(goalReport.errors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ rule: "goal.owner.required" })
     ]));
-    expect(actionReport.errors).toEqual(expect.arrayContaining([
+    expect(actionReport.errors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ rule: "action.owner.required" })
     ]));
   });

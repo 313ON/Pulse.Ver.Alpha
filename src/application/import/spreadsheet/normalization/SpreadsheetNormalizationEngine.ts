@@ -51,7 +51,7 @@ export class SpreadsheetNormalizationEngine {
     for (const row of sheet.rows) {
       if (row.index <= headerRow.index || row.rowType === "empty") continue;
       const cells = this.cellsForRow(row, columns);
-      this.updateHierarchy(cells, sources);
+      this.updateHierarchy(cells, sources, sheet, row.index);
       const record = records.find((candidate) => candidate.rowNumber === row.index);
       if (!record) continue;
 
@@ -93,8 +93,16 @@ export class SpreadsheetNormalizationEngine {
 
   private updateHierarchy(
     values: Array<ResolvedSemanticColumn & { cell: CellContract; row: RowContract }>,
-    sources: Map<ColumnSemanticType, { cell: CellContract; row: RowContract }>
+    sources: Map<ColumnSemanticType, { cell: CellContract; row: RowContract }>,
+    sheet: SheetContract,
+    rowIndex: number
   ) {
+    for (const [semanticType, source] of sources) {
+      const merge = (sheet.metadata.mergedCells ?? []).find((range) =>
+        range.startColumn === source.cell.column && range.startRow <= source.row.index && range.endRow >= source.row.index
+      );
+      if (merge && (rowIndex < merge.startRow || rowIndex > merge.endRow)) sources.delete(semanticType);
+    }
     for (const semanticType of HIERARCHY_SEMANTIC_TYPES) {
       const value = values.find((candidate) => candidate.semanticType === semanticType);
       if (!value) continue;

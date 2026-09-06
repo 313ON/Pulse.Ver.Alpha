@@ -243,7 +243,7 @@ describe("Import command center", () => {
     expect(markup).toContain("Untrusted &lt;header&gt;");
   });
 
-  it("renders goal owner remediation with provenance and active-person controls", () => {
+  it("does not expose goal owner remediation", () => {
     const markup = renderToStaticMarkup(<ImportReview
       job={{
         id: "import-remediation",
@@ -283,11 +283,7 @@ describe("Import command center", () => {
       onRemediateGoalOwner={() => undefined}
     />);
 
-    expect(markup).toContain("یافته‌های حاکمیتی");
-    expect(markup).toContain("G01: مالک هدف الزامی است");
-    expect(markup).toContain("source.xlsx · Plan · ردیف 12");
-    expect(markup).toContain("A12: G01");
-    expect(markup).toContain("Person One");
-    expect(markup).toContain("دلیل اصلاح");
+    expect(markup).not.toContain("یافته‌های حاکمیتی");
+    expect(markup).not.toContain("مالک هدف الزامی است");
   });
 });

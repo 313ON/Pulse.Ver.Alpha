@@ -41,7 +41,7 @@ export class ProgramCommandService {
       type: "goal",
       status: "پیش‌نویس"
     });
-    this.assertGovernance(report, ["goal.owner.required"]);
+    this.assertGovernance(report);
     const result = this.ports.goals.create(input);
     return this.mapper.goal(result as UnknownRow, input.programId ?? "");
   }

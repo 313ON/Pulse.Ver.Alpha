@@ -6,7 +6,7 @@ const HEADER_ALIASES: Record<ColumnSemanticType, string[]> = {
   GOAL: ["هدف", "هدف کل", "هدف اصلی", "goal", "main goal", "strategic goal"],
   OBJECTIVE: ["هدف جزئی", "هدف جزیی", "هدف عملیاتی", "objective", "sub goal", "sub-goal"],
   ACTIVITY: ["فعالیت", "activity"],
-  ACTION: ["اقدام", "اقدامات", "action", "actions"],
+  ACTION: ["اقدام", "اقدامات", "اقدامات اجرایی گام‌به‌گام", "اقدامات اجرایی گام به گام", "action", "actions"],
   KPI: ["شاخص", "شاخص کلیدی", "kpi", "key performance indicator"],
   KPI_TARGET: ["هدف شاخص", "مقدار هدف", "kpi target", "target"],
   KPI_VALUE: ["مقدار شاخص", "مقدار", "kpi value", "value", "actual"],
@@ -21,7 +21,14 @@ const HEADER_ALIASES: Record<ColumnSemanticType, string[]> = {
   DURATION: ["مدت", "duration"],
   WORKING_DAYS: ["روز کاری", "روزهای کاری", "working days", "work days"],
   PERSON_HOURS: ["نفر ساعت", "نفرساعت", "person hours", "person-hours"],
-  PROGRESS: ["پیشرفت", "درصد پیشرفت", "progress", "completion", "completion percent"]
+  PROGRESS: ["پیشرفت", "درصد پیشرفت", "progress", "completion", "completion percent"],
+  SOURCE_CODE: ["کد", "code", "source code", "شناسه"],
+  STATUS: ["وضعیت", "status"],
+  SOURCE: ["منبع داده", "منبع", "source", "data source"],
+  RESPONSIBLE: ["مجری (R)", "مسئول (R)", "responsible (r)"],
+  ACCOUNTABLE: ["ناظر / تصویب کننده (A)", "ناظر / تصویب‌کننده (A)", "accountable (a)"],
+  CONSULTED: ["همکاران (C)", "همکار (C)", "consulted (c)"],
+  INFORMED: ["مطلعین (I)", "مطلع (I)", "informed (i)"]
 };
 
 const NORMALIZED_ALIASES = new Map<string, ColumnSemanticType>(

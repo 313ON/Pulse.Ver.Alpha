@@ -59,15 +59,15 @@ CREATE TABLE IF NOT EXISTS work_items (
   public_id TEXT NOT NULL UNIQUE CHECK (public_id GLOB 'G[0-9][0-9]-O[0-9][0-9]-A[0-9][0-9]-T[0-9][0-9][0-9]'),
   goal_id TEXT NOT NULL,
   sub_goal_id TEXT,
-  department_id TEXT NOT NULL,
-  owner_person_id TEXT NOT NULL,
+  department_id TEXT,
+  owner_person_id TEXT,
   title TEXT NOT NULL,
-  work_type TEXT NOT NULL CHECK (work_type IN ('پروژه','اقدام','فعالیت تکرارشونده','پایش KPI','Milestone')),
-  deliverable TEXT NOT NULL CHECK (length(trim(deliverable)) > 0),
+  work_type TEXT DEFAULT 'اقدام' CHECK (work_type IS NULL OR work_type IN ('پروژه','اقدام','فعالیت تکرارشونده','پایش KPI','Milestone')),
+  deliverable TEXT,
   status TEXT NOT NULL DEFAULT 'پیش‌نویس' CHECK (status IN ('پیش‌نویس','نیازمند تکمیل','در انتظار تأیید','تأیید شده','شروع نشده','در حال اجرا','تکمیل شده','مسدود','لغو شده')),
   progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
-  planned_start TEXT NOT NULL,
-  planned_end TEXT NOT NULL,
+  planned_start TEXT,
+  planned_end TEXT,
   actual_completion TEXT,
   priority TEXT,
   blocker TEXT,
@@ -82,8 +82,7 @@ CREATE TABLE IF NOT EXISTS work_items (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   plan_year INTEGER NOT NULL,
-  UNIQUE (goal_id, title),
-  CHECK (planned_end >= planned_start),
+  UNIQUE (public_id),
   CHECK ((status = 'تکمیل شده' AND progress = 100) OR status <> 'تکمیل شده'),
   FOREIGN KEY (goal_id) REFERENCES strategic_goals(id) ON DELETE RESTRICT,
   FOREIGN KEY (sub_goal_id) REFERENCES sub_goals(id) ON DELETE RESTRICT,
@@ -159,6 +158,21 @@ CREATE TABLE IF NOT EXISTS monthly_reviews (
   UNIQUE (month_key, department_id),
   FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS work_item_assignments (
+  id TEXT PRIMARY KEY,
+  work_item_id TEXT NOT NULL,
+  raci_type TEXT NOT NULL CHECK (raci_type IN ('R','A','C','I')),
+  target_type TEXT NOT NULL CHECK (target_type IN ('DEPARTMENT','POSITION','PERSON','UNRESOLVED')),
+  target_id TEXT,
+  display_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  resolved INTEGER NOT NULL DEFAULT 0 CHECK (resolved IN (0,1)),
+  source_json TEXT,
+  FOREIGN KEY (work_item_id) REFERENCES work_items(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS work_item_assignments_work_item_idx ON work_item_assignments(work_item_id);
 
 CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
