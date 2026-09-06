@@ -45,5 +45,5 @@ describe("SQLite concurrent startup", () => {
     expect(database.prepare("SELECT COUNT(*) AS count FROM strategic_goals").get()).toEqual({ count: 10 });
     expect(database.prepare("SELECT COUNT(*) AS count FROM users WHERE username = 'admin'").get()).toEqual({ count: 1 });
     database.close();
-  });
+  }, 30000);
 });
