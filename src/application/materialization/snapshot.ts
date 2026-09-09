@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { ImportJob } from "../import/staging/ImportJob";
 import type { ImportRecord } from "../import/contracts";
 import type { ImportSnapshotReference, MaterializationConflict, MaterializationRequest } from "./contracts";
+import type { MaterializationPlan } from "./plan";
 
 function stable(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
@@ -71,4 +72,12 @@ export function verifyMaterializationRequest(
 
 export function stableSnapshotPayload(source: ImportJob["source"], records: ImportRecord[]): string {
   return stable({ source, records: [...records].sort((left, right) => left.id.localeCompare(right.id)) });
+}
+
+export function serializeApprovedMaterializationSnapshot(plan: MaterializationPlan): string {
+  return JSON.stringify(plan);
+}
+
+export function approvedMaterializationSnapshotHash(plan: MaterializationPlan): string {
+  return plan.planHash;
 }

@@ -38,6 +38,8 @@ export const requiredTables = [
   "import_jobs",
   "import_records",
   "departmental_materialization_operations",
+  "departmental_materialization_snapshots",
+  "approved_materialization_snapshots",
   "departmental_planning_records",
   "import_analysis_revisions",
   "import_remediations",
@@ -259,6 +261,24 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     provenance_count: column("INTEGER", { notNull: true }),
     created_at: column("TEXT", { notNull: true })
   },
+  departmental_materialization_snapshots: {
+    operation_id: column("TEXT"),
+    snapshot_version: column("INTEGER", { notNull: true }),
+    import_job_id: column("TEXT", { notNull: true }),
+    approved_analysis_revision: column("INTEGER", { notNull: true }),
+    source_snapshot_hash: column("TEXT", { notNull: true }),
+    payload_hash: column("TEXT", { notNull: true }),
+    payload_json: column("TEXT", { notNull: true }),
+    created_at: column("TEXT", { notNull: true })
+  },
+  approved_materialization_snapshots: {
+    import_job_id: column("TEXT", { notNull: true }),
+    approved_analysis_revision: column("INTEGER", { notNull: true }),
+    source_snapshot_hash: column("TEXT", { notNull: true }),
+    plan_hash: column("TEXT", { notNull: true }),
+    payload_json: column("TEXT", { notNull: true }),
+    created_at: column("TEXT", { notNull: true })
+  },
   departmental_planning_records: {
     id: column("TEXT"),
     operation_id: column("TEXT", { notNull: true }),
@@ -358,6 +378,9 @@ const requiredForeignKeys: ForeignKeyContract[] = [
   ["import_remediations", "supersedes_remediation_id", "import_remediations", "id", "RESTRICT"],
   ["departmental_materialization_operations", "import_job_id", "import_jobs", "id", "RESTRICT"],
   ["departmental_materialization_operations", "actor_user_id", "users", "id", "RESTRICT"],
+  ["departmental_materialization_snapshots", "operation_id", "departmental_materialization_operations", "operation_id", "RESTRICT"],
+  ["departmental_materialization_snapshots", "import_job_id", "import_jobs", "id", "RESTRICT"],
+  ["approved_materialization_snapshots", "import_job_id", "import_jobs", "id", "RESTRICT"],
   ["departmental_planning_records", "operation_id", "departmental_materialization_operations", "operation_id", "CASCADE"],
   ["departmental_planning_records", "import_job_id", "import_jobs", "id", "RESTRICT"]
 ].map(([table, from, toTable, to, onDelete]) => ({ table, from, to: `${toTable}.${to}`, onDelete }));

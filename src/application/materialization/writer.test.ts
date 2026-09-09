@@ -6,6 +6,7 @@ import { applyMaterializationFoundationMigration } from "../../server/materializ
 import { SQLiteMaterializationRepository } from "../../server/materialization/SQLiteMaterializationRepository";
 import { materializationPlanHash, type MaterializationPlan, type MaterializationPlanItem } from "./plan";
 import { SQLiteCanonicalMaterializationWriter, type MaterializeCanonicalPlanCommand, type MaterializationWriterFailurePoint } from "./writer";
+import { approvedMaterializationSnapshotHash } from "./snapshot";
 
 let databasePath = "";
 
@@ -134,6 +135,37 @@ describe("R10-D atomic canonical materialization writer", () => {
     const replay = writer.execute({ ...command(), operationId: "different-operation-id" });
     expect(replay.status).toBe("NO_OP");
     expect(canonicalCounts(db)).toEqual(before);
+  });
+
+  it("persists an immutable reconstructable snapshot independent of mutable state", () => {
+    const { db, repository } = fixture();
+    const approved = plan();
+    new SQLiteCanonicalMaterializationWriter(db).execute(command());
+    db.prepare("INSERT INTO import_records (id, job_id, record_json) VALUES (?, ?, ?)").run("source-1", "import-r10d", JSON.stringify({ changed: true }));
+    db.prepare("UPDATE strategic_goals SET title='mutated-current-canonical'").run();
+    db.prepare("DELETE FROM import_records WHERE job_id=?").run("import-r10d");
+    const historical = repository.getSnapshot("operation-r10d");
+    expect(historical?.status).toBe("RECONSTRUCTABLE");
+    expect(historical?.snapshotVersion).toBe(2);
+    expect(historical?.plan).toEqual(approved);
+    expect(historical?.planHash).toBe(approvedMaterializationSnapshotHash(approved));
+    expect(historical?.plan?.items[3].responsibility).toEqual(approved.items[3].responsibility);
+    expect(historical?.plan?.items[3].canonicalAllocation).toEqual(approved.items[3].canonicalAllocation);
+    expect(() => db.prepare("UPDATE materialization_snapshots SET payload_json=? WHERE operation_id=?").run("{}", "operation-r10d"))
+      .toThrow(/append-only/);
+    expect(() => db.prepare("DELETE FROM materialization_snapshots WHERE operation_id=?").run("operation-r10d"))
+      .toThrow(/append-only/);
+    db.exec("DROP TRIGGER materialization_snapshots_immutable_update");
+    db.prepare("UPDATE materialization_snapshots SET payload_json=? WHERE operation_id=?").run(JSON.stringify({ ...approved, planHash: "tampered" }), "operation-r10d");
+    expect(() => repository.getSnapshot("operation-r10d")).toThrow(/integrity check/);
+  });
+
+  it("marks pre-snapshot operations as legacy non-reconstructable", () => {
+    const { repository } = fixture();
+    expect(repository.getSnapshot("operation-r10d")).toMatchObject({
+      snapshotVersion: 1,
+      status: "LEGACY_NON_RECONSTRUCTABLE"
+    });
   });
 
   it.each<MaterializationWriterFailurePoint>(["goal", "objective", "activity", "work-item", "provenance", "mapping", "final-operation"])(

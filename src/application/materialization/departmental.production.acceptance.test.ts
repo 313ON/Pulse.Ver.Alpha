@@ -12,7 +12,9 @@ import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "../../s
 import { DepartmentalMaterializationService } from "./departmental";
 import { programFixture } from "../../domain/program";
 
-const inputs = [
+type ProductionInput = readonly [string, "SUPPORTING" | "DERIVED" | "UNRESOLVED", string];
+
+const inputs: ProductionInput[] = [
   ["Annual program supplies - برنامه سال 1405 - تدارکات -اصلاحی (1).xlsx", "SUPPORTING", "procurement"],
   ["برنامه سال 1405 واحد نت با تفکیک اقدامات.xlsx", "DERIVED", "maintenance"],
   ["برنامه سال 1405 آقای عبودی.xlsx", "DERIVED", "production"],
@@ -39,7 +41,7 @@ afterEach(async () => {
   }
 });
 
-async function approvedJob(review: ImportReviewService, index: number, input = inputs[index]) {
+async function approvedJob(review: ImportReviewService, index: number, input: ProductionInput = inputs[index]) {
   const [name, classification, domain] = input;
   const bytes = await fs.readFile(path.join(process.cwd(), "Samples", name));
   const workbook = await new XlsxWorkbookReader().read(bytes, { name });
@@ -66,6 +68,11 @@ describe("production-integrated departmental materialization", () => {
     const before = getDatabase().prepare("SELECT COUNT(*) AS count FROM departmental_planning_records").get() as { count: number };
     expect(before.count).toBe(3053);
     expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM departmental_materialization_operations").get()).toEqual({ count: 4 });
+    expect(getDatabase().prepare("SELECT COUNT(*) AS count FROM departmental_materialization_snapshots").get()).toEqual({ count: 4 });
+    const snapshot = getDatabase().prepare("SELECT payload_json, payload_hash FROM departmental_materialization_snapshots LIMIT 1").get() as { payload_json: string; payload_hash: string };
+    expect(JSON.parse(snapshot.payload_json)).toMatchObject({ source: expect.any(Object), records: expect.any(Array) });
+    expect(snapshot.payload_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(() => getDatabase().prepare("DELETE FROM departmental_materialization_snapshots").run()).toThrow(/append-only/i);
     closeDatabase();
     const reopened = getDatabase();
     expect(reopened.prepare("SELECT COUNT(*) AS count FROM departmental_planning_records").get()).toEqual({ count: total });
@@ -87,6 +94,8 @@ describe("production-integrated departmental materialization", () => {
     expect(() => materializer.materialize("production-actor", duplicate, 1405)).toThrow(/already been materialized/i);
     const unapproved = review.createJob({ type: "EXCEL", name: "unapproved.xlsx", metadata: { classification: "DERIVED" } }, "unapproved");
     expect(() => materializer.materialize("production-actor", unapproved.id, 1405)).toThrow(/APPROVED/i);
+    const unresolved = await approvedJob(review, 5, [inputs[2][0], "UNRESOLVED", "unknown"] as const);
+    expect(() => materializer.materialize("production-actor", unresolved, 1405)).toThrow(/governed classification/i);
     expect(() => materializer.materialize("missing-actor", first, 1405)).toThrow(/actor/i);
     const incomplete = await approvedJob(review, 5, inputs[1]);
     const records = new SQLiteImportRecordRepository().getByJobId(incomplete);

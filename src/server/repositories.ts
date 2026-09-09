@@ -12,6 +12,7 @@ export class RepositoryError extends Error {
 }
 
 function mapDatabaseError(error: unknown): never {
+  if (error instanceof RepositoryError) throw error;
   const message = error instanceof Error ? error.message : "Database operation failed";
   if (message.includes("UNIQUE")) throw new RepositoryError("DUPLICATE", "The record already exists.");
   if (message.includes("FOREIGN KEY")) throw new RepositoryError("VALIDATION", "The related record does not exist.");
@@ -27,7 +28,7 @@ export class GoalRepository {
   }
   update(id: string, input: { title?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The goal was not found.");
-    try { getDatabase().prepare("UPDATE strategic_goals SET title=COALESCE(@title,title) WHERE id=@id").run({ id, title: input.title }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    try { getDatabase().prepare("UPDATE strategic_goals SET title=COALESCE(@title,title) WHERE id=@id").run({ id, title: input.title ?? null }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
 }
 
@@ -61,7 +62,7 @@ export class DepartmentRepository {
   }
   update(id: string, input: { name?: string; active?: boolean }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The department was not found.");
-    try { getDatabase().prepare("UPDATE departments SET name=COALESCE(@name,name), active=COALESCE(@active,active) WHERE id=@id").run({ id, name: input.name, active: input.active === undefined ? undefined : input.active ? 1 : 0 }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    try { getDatabase().prepare("UPDATE departments SET name=COALESCE(@name,name), active=COALESCE(@active,active) WHERE id=@id").run({ id, name: input.name ?? null, active: input.active === undefined ? null : input.active ? 1 : 0 }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
 }
 
@@ -70,11 +71,19 @@ export class SubGoalRepository {
   get(id: string) { return getDatabase().prepare("SELECT * FROM sub_goals WHERE id = ?").get(id); }
   create(input: { id: string; goalId: string; title: string; ownerPersonId?: string }) {
     if (!input.id.trim() || !input.goalId.trim() || !input.title.trim()) throw new RepositoryError("VALIDATION", "Sub-goal ID, goal, and title are required.");
-    try { getDatabase().prepare("INSERT INTO sub_goals (id, goal_id, title, owner_person_id) VALUES (@id,@goalId,@title,@ownerPersonId)").run(input); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+    try {
+      getDatabase().prepare("INSERT INTO sub_goals (id, goal_id, title, owner_person_id) VALUES (@id,@goalId,@title,@ownerPersonId)")
+        .run({ ...input, ownerPersonId: input.ownerPersonId ?? null });
+      return this.get(input.id);
+    } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { title?: string; ownerPersonId?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The sub-goal was not found.");
-    try { getDatabase().prepare("UPDATE sub_goals SET title=COALESCE(@title,title), owner_person_id=COALESCE(@ownerPersonId,owner_person_id) WHERE id=@id").run({ id, ...input }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    try {
+      getDatabase().prepare("UPDATE sub_goals SET title=COALESCE(@title,title), owner_person_id=COALESCE(@ownerPersonId,owner_person_id) WHERE id=@id")
+        .run({ id, title: input.title ?? null, ownerPersonId: input.ownerPersonId ?? null });
+      return this.get(id);
+    } catch (error) { return mapDatabaseError(error); }
   }
 }
 
@@ -369,7 +378,8 @@ export class KPIRepository {
   update(id: string, input: Partial<KpiRecord>) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The KPI was not found.");
     try {
-      getDatabase().prepare("UPDATE kpis SET actual=COALESCE(@actual, actual), target=COALESCE(@target, target), name=COALESCE(@name, name) WHERE id=@id").run({ ...input, id });
+      getDatabase().prepare("UPDATE kpis SET actual=COALESCE(@actual, actual), target=COALESCE(@target, target), name=COALESCE(@name, name) WHERE id=@id")
+        .run({ id, actual: input.actual ?? null, target: input.target ?? null, name: input.name ?? null });
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -380,14 +390,15 @@ export class RiskRepository {
   get(id: string) { return getDatabase().prepare("SELECT *, probability * impact AS severity FROM risks WHERE id = ?").get(id); }
   create(input: RiskRecord & { goalId: string; ownerPersonId: string; workItemId?: string }) {
     try {
-      getDatabase().prepare("INSERT INTO risks (id, goal_id, work_item_id, title, probability, impact, owner_person_id, response_action, status) VALUES (@id,@goalId,@workItemId,@title,@probability,@impact,@ownerPersonId,@responseAction,@status)").run({ ...input, workItemId: resolveWorkItemId(input.workItemId) });
+      getDatabase().prepare("INSERT INTO risks (id, goal_id, work_item_id, title, probability, impact, owner_person_id, response_action, status) VALUES (@id,@goalId,@workItemId,@title,@probability,@impact,@ownerPersonId,@responseAction,@status)").run({ ...input, workItemId: resolveWorkItemId(input.workItemId), responseAction: input.responseAction ?? null });
       return this.get(input.id);
     } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: Partial<RiskRecord>) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The risk was not found.");
     try {
-      getDatabase().prepare("UPDATE risks SET title=COALESCE(@title,title), probability=COALESCE(@probability,probability), impact=COALESCE(@impact,impact), status=COALESCE(@status,status), response_action=COALESCE(@responseAction,response_action) WHERE id=@id").run({ ...input, id, responseAction: input.responseAction });
+      getDatabase().prepare("UPDATE risks SET title=COALESCE(@title,title), probability=COALESCE(@probability,probability), impact=COALESCE(@impact,impact), status=COALESCE(@status,status), response_action=COALESCE(@responseAction,response_action) WHERE id=@id")
+        .run({ id, title: input.title ?? null, probability: input.probability ?? null, impact: input.impact ?? null, status: input.status ?? null, responseAction: input.responseAction ?? null });
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -396,17 +407,17 @@ export class RiskRepository {
 export class DependencyRepository {
   list() { return getDatabase().prepare("SELECT * FROM dependencies ORDER BY delay_days DESC").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM dependencies WHERE id = ?").get(id); }
-  create(input: Dependency & { id?: string }) {
+  create(input: Dependency & { id?: string; notes?: string }) {
     try {
       const id = input.id ?? randomUUID();
-      getDatabase().prepare("INSERT INTO dependencies (id, source_work_item_id, target_work_item_id, status, delay_days, notes) VALUES (@id,@sourceWorkItemId,@targetWorkItemId,@status,@delayDays,@notes)").run({ ...input, id, sourceWorkItemId: resolveWorkItemId(input.sourceWorkItemId), targetWorkItemId: resolveWorkItemId(input.targetWorkItemId) });
+      getDatabase().prepare("INSERT INTO dependencies (id, source_work_item_id, target_work_item_id, status, delay_days, notes) VALUES (@id,@sourceWorkItemId,@targetWorkItemId,@status,@delayDays,@notes)").run({ id, sourceWorkItemId: resolveWorkItemId(input.sourceWorkItemId), targetWorkItemId: resolveWorkItemId(input.targetWorkItemId), status: input.status, delayDays: input.delayDays, notes: input.notes ?? null });
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
-  update(id: string, input: Partial<Dependency>) {
+  update(id: string, input: Partial<Dependency> & { notes?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The dependency was not found.");
     try {
-      getDatabase().prepare("UPDATE dependencies SET status=COALESCE(@status,status), delay_days=COALESCE(@delayDays,delay_days), notes=COALESCE(@notes,notes) WHERE id=@id").run({ ...input, id });
+      getDatabase().prepare("UPDATE dependencies SET status=COALESCE(@status,status), delay_days=COALESCE(@delayDays,delay_days), notes=COALESCE(@notes,notes) WHERE id=@id").run({ id, status: input.status ?? null, delayDays: input.delayDays ?? null, notes: input.notes ?? null });
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }

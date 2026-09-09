@@ -7,6 +7,9 @@ import { SQLiteMaterializationRepository } from "../../server/materialization/SQ
 import { createImportSnapshotReference } from "./snapshot";
 import { materializationPlanHash, type MaterializationPlan } from "./plan";
 import { MaterializationApplicationError, MaterializationApplicationService, parseMaterializationRequest } from "./service";
+import { ImportReviewService } from "../import/staging";
+import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "../../server/import/SQLiteImportRepositories";
+import { programFixture } from "../../domain/program";
 
 beforeEach(() => {
   closeDatabase();
@@ -29,20 +32,22 @@ function emptyPlan(snapshotHash: string, status: MaterializationPlan["status"] =
 
 function fixture(status: "APPROVED" | "REVIEW_REQUIRED" = "APPROVED") {
   const db = getDatabase();
-  const source = { type: "EXCEL" as const, name: "isolated.xlsx", metadata: { planYear: 1405 } };
+  const source = { type: "EXCEL" as const, name: "isolated.xlsx", metadata: { planYear: 1405, classification: "CANONICAL", domain: "master-plan" } };
   db.prepare(`INSERT INTO users (id,username,password_hash,role_id) VALUES ('actor-1','actor-1','hash','role-super-admin')`).run();
-  db.prepare(`INSERT INTO import_jobs (id,source_json,status,created_at,analysis_revision) VALUES ('import-e1',?,'APPROVED','2026-08-26T00:00:00.000Z',1)`).run(JSON.stringify(source));
-  const job = { id: "import-e1", source, records: [], status: "APPROVED" as const, analysisRevision: 1, createdAt: "2026-08-26T00:00:00.000Z" };
-  const snapshot = createImportSnapshotReference(job, 1405);
+  const review = new ImportReviewService(undefined, new SQLiteImportJobRepository(), new SQLiteImportRecordRepository());
+  review.createJob(source, "import-e1");
+  review.analyze("import-e1", programFixture);
+  const approved = review.approve("import-e1");
+  const snapshot = createImportSnapshotReference(approved, 1405);
   if (status !== "APPROVED") db.prepare("UPDATE import_jobs SET status=? WHERE id='import-e1'").run(status);
   applyMaterializationFoundationMigration(db);
   return { db, snapshot };
 }
 
-function body(snapshot: ReturnType<typeof createImportSnapshotReference>, planStatus: MaterializationPlan["status"] = "READY") {
+function body(snapshot: ReturnType<typeof createImportSnapshotReference>) {
   return {
     importJobId: "import-e1", approvedAnalysisRevision: 1, sourceSnapshotHash: snapshot.sourceSnapshotHash,
-    targetPlanYear: 1405, plan: emptyPlan(snapshot.sourceSnapshotHash, planStatus)
+    targetPlanYear: 1405
   };
 }
 
@@ -66,12 +71,13 @@ describe("R10-E.1 materialization application boundary", () => {
     seedBaseline(); seedAuthFoundation();
     const approved = fixture();
     expect(() => service.request("actor-1", { ...body(approved.snapshot), approvedAnalysisRevision: 2 }, "import-e1")).toThrow(/stale/i);
-    expect(() => service.request("actor-1", { ...body(approved.snapshot), sourceSnapshotHash: "changed", plan: emptyPlan("changed") }, "import-e1")).toThrow(/snapshot/i);
+    expect(() => service.request("actor-1", { ...body(approved.snapshot), sourceSnapshotHash: "changed" }, "import-e1")).toThrow(/snapshot/i);
   });
 
-  it("requires explicit pinned request fields and a plan", () => {
+  it("requires explicit pinned request fields and rejects caller-supplied plans", () => {
     expect(() => parseMaterializationRequest({}, "import-e1")).toThrow(/importJobId/);
     expect(() => parseMaterializationRequest({ importJobId: "other" }, "import-e1")).toThrow(/route import/i);
+    expect(() => parseMaterializationRequest({ importJobId: "import-e1", approvedAnalysisRevision: 1, sourceSnapshotHash: "hash", targetPlanYear: 1405, plan: {} }, "import-e1")).toThrow(/server-authoritative/i);
   });
 
   it("reaches the existing materialization command with the authenticated actor and deduplicates", () => {
@@ -84,12 +90,31 @@ describe("R10-E.1 materialization application boundary", () => {
     expect(second.duplicate).toBe(true);
     expect(second.operation.operationId).toBe(first.operation.operationId);
     expect(db.prepare("SELECT COUNT(*) AS count FROM materialization_operations").get()).toEqual({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM approved_materialization_snapshots").get()).toEqual({ count: 1 });
+    db.prepare("DELETE FROM import_records WHERE job_id=?").run("import-e1");
+    const replayAfterSourceMutation = service.request("actor-2", body(snapshot), "import-e1");
+    expect(replayAfterSourceMutation.duplicate).toBe(true);
   });
 
-  it("rejects a non-ready plan without executing", () => {
+  it("rejects caller-authored plan content before executing", () => {
     const { snapshot, db } = fixture();
-    expect(() => new MaterializationApplicationService().request("actor-1", body(snapshot, "BLOCKED"), "import-e1")).toThrow(/not READY/);
-    expect(db.prepare("SELECT status FROM materialization_operations").get()).toEqual({ status: "REJECTED" });
+    expect(() => new MaterializationApplicationService().request("actor-1", { ...body(snapshot), plan: emptyPlan(snapshot.sourceSnapshotHash, "BLOCKED") }, "import-e1")).toThrow(/server-authoritative/i);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM materialization_operations").get()).toEqual({ count: 0 });
+  });
+
+  it("blocks malicious plan, hash-matching metadata, and responsibility tampering", () => {
+    const { snapshot, db } = fixture();
+    const altered = emptyPlan(snapshot.sourceSnapshotHash);
+    altered.items = [{
+      entityType: "action",
+      logicalIdentity: { entityType: "action", logicalKey: "tampered", title: "tampered", planYear: 1405 },
+      sourceRecords: [], normalizedValues: { action: "tampered" }, responsibility: [{ field: "department", resolved: true, targetType: "UNIT", targetId: "role-as-unit" }],
+      ordering: { ordinal: 1, sourceSheetIndex: 0, sourceRow: 1, sourceRecordId: "tampered" }, canonicalAllocation: { ordinal: 1 }, conflictState: "NONE", provenanceReferences: []
+    }];
+    expect(() => new MaterializationApplicationService().request("actor-1", {
+      ...body(snapshot), plan: { ...altered, planHash: emptyPlan(snapshot.sourceSnapshotHash).planHash }
+    }, "import-e1")).toThrow(/server-authoritative/i);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM materialization_operations").get()).toEqual({ count: 0 });
   });
 
   it("allows retry only for FAILED operations and rejects completed operations or changed snapshots", () => {
@@ -105,7 +130,7 @@ describe("R10-E.1 materialization application boundary", () => {
     repository.transition("failed-e1", "EXECUTING");
     repository.transition("failed-e1", "FAILED", undefined, "test");
     const service = new MaterializationApplicationService();
-    expect(() => service.retry("actor-1", "failed-e1", { ...body(snapshot), sourceSnapshotHash: "changed", plan: emptyPlan("changed") })).toThrow(/snapshot/i);
+    expect(() => service.retry("actor-1", "failed-e1", { ...body(snapshot), sourceSnapshotHash: "changed" })).toThrow(/snapshot/i);
     const retried = service.retry("actor-1", "failed-e1", body(snapshot));
     expect(retried.operation.status).toBe("COMPLETED");
     expect(() => service.retry("actor-1", "failed-e1", body(snapshot))).toThrow(/completed/i);

@@ -50,9 +50,9 @@ export function classifyCanonicalConflict(input: {
   }];
 }
 
-export function assertLogicalEntityType(record: ImportRecord): void {
+export function assertLogicalEntityType(record: ImportRecord, planYear: number): void {
   if (!["goal", "objective", "activity", "action"].includes(record.entityType)) {
     throw new Error(`Entity type "${record.entityType}" is not materializable.`);
   }
-  logicalEntityIdentity(record, 1405);
+  logicalEntityIdentity(record, planYear);
 }

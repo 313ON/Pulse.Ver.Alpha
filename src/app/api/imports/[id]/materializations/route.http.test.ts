@@ -56,7 +56,7 @@ afterEach(async () => {
   }
 });
 
-async function approvedJob(id: string, status: "APPROVED" | "DRAFT" = "APPROVED") {
+async function approvedJob(id: string, status: "APPROVED" | "DRAFT" | "REJECTED" = "APPROVED") {
   const bytes = await fs.readFile(path.join(process.cwd(), "Samples", sourceName));
   const workbook = await new XlsxWorkbookReader().read(bytes, { name: sourceName });
   const records = new SpreadsheetMappingEngine({ sourceName }).map(workbook);
@@ -69,6 +69,7 @@ async function approvedJob(id: string, status: "APPROVED" | "DRAFT" = "APPROVED"
   review.attachRecords(id, records);
   review.analyze(id, programFixture);
   if (status === "APPROVED") review.approve(id);
+  if (status === "REJECTED") review.reject(id);
   return id;
 }
 
@@ -156,8 +157,28 @@ describe("POST /api/imports/[id]/materializations HTTP acceptance", () => {
     cookieValues.clear();
     sessionFor("http-authorized");
     const unapproved = await request(await approvedJob("http-security-unapproved", "DRAFT"));
-    expect(unapproved.status).toBe(500);
-    expect((await unapproved.json()).code).toBe("INTERNAL_ERROR");
+    expect(unapproved.status).toBe(409);
+    expect((await unapproved.json())).toMatchObject({ code: "IMPORT_NOT_APPROVED" });
+
+    cookieValues.clear();
+    sessionFor("http-authorized");
+    const rejected = await request(await approvedJob("http-security-rejected", "REJECTED"));
+    expect(rejected.status).toBe(409);
+    expect((await rejected.json())).toMatchObject({ code: "IMPORT_NOT_APPROVED" });
+
+    cookieValues.clear();
+    sessionFor("http-authorized");
+    cookieValues.set(csrfCookieName, csrfToken);
+    const malformed = await POST(
+      new Request("http://localhost/api/imports/http-security-approved/materializations", {
+        method: "POST",
+        headers: { "content-type": "application/json", [csrfHeaderName]: csrfToken },
+        body: JSON.stringify({ materializationKind: "DEPARTMENTAL" })
+      }),
+      { params: Promise.resolve({ id: "http-security-approved" }) }
+    );
+    expect(malformed.status).toBe(400);
+    expect((await malformed.json())).toMatchObject({ code: "VALIDATION" });
 
     cookieValues.clear();
     sessionFor("http-inactive");

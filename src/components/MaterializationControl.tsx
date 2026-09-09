@@ -17,6 +17,14 @@ export function canRetryMaterialization(operation: Pick<MaterializationOperation
   return operation?.status === "FAILED";
 }
 
+export function materializationErrorMessage(code: string | undefined, fallback: string): string {
+  if (code === "IMPORT_NOT_APPROVED") return "برای materialization، ورود اطلاعات باید تأیید شده باشد.";
+  if (code === "REVISION_MISMATCH" || code === "SNAPSHOT_MISMATCH") return "اطلاعات این صفحه قدیمی است؛ وضعیت ورود اطلاعات را دوباره بارگذاری کنید.";
+  if (code === "MATERIALIZATION_CONFLICT") return "این منبع قبلاً materialize شده یا با داده دیگری تعارض دارد.";
+  if (code === "VALIDATION") return fallback || "داده‌های materialization معتبر نیستند.";
+  return fallback;
+}
+
 export function MaterializationControl({ importJobId, sourceName, status }: { importJobId: string; sourceName: string; status: string }) {
   const [readiness, setReadiness] = useState<MaterializationReadiness | null>(null);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
@@ -56,12 +64,11 @@ export function MaterializationControl({ importJobId, sourceName, status }: { im
           importJobId,
           approvedAnalysisRevision: readiness.plan.approvedAnalysisRevision,
           sourceSnapshotHash: readiness.plan.sourceSnapshot.sourceSnapshotHash,
-          targetPlanYear: readiness.plan.planYear,
-          plan: readiness.plan
+          targetPlanYear: readiness.plan.planYear
         })
       });
-      const body = await response.json() as { operation?: MaterializationOperation; error?: string };
-      if (!response.ok || !body.operation) throw new Error(body.error ?? "درخواست materialization ناموفق بود.");
+      const body = await response.json() as { operation?: MaterializationOperation; error?: string; code?: string };
+      if (!response.ok || !body.operation) throw new Error(materializationErrorMessage(body.code, body.error ?? "درخواست materialization ناموفق بود."));
       setMessage(`${operationId ? "بازتلاش" : "عملیات"} ${body.operation.operationId} با وضعیت ${materializationStatusLabel(body.operation.status)} ثبت شد.`);
       await load();
     } catch (reason) {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { schemaContractErrors } from "./schema-contract";
 import { ensureReleaseMetadata } from "./release";
-import { applyDepartmentalGoalsMigration } from "./materialization/migration";
+import { applyDepartmentalGoalsMigration, applyMaterializationFoundationMigration } from "./materialization/migration";
 
 let database: Database.Database | undefined;
 let readOnlyDatabase: Database.Database | undefined;
@@ -154,6 +154,7 @@ export function getDatabase(): Database.Database {
         candidate.exec(schemaToApply);
         ensurePhaseFiveSchema(candidate);
         applyDepartmentalGoalsMigration(candidate);
+        applyMaterializationFoundationMigration(candidate);
         ensureReleaseMetadata(candidate);
         database = candidate;
         return database;

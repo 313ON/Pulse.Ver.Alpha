@@ -9,6 +9,7 @@ import {
   type MaterializationRepository,
   type MaterializationStatus
 } from "../../application/materialization/persistence";
+import { approvedMaterializationSnapshotHash } from "../../application/materialization/snapshot";
 
 type OperationRow = Record<string, unknown>;
 type MappingRow = Record<string, unknown>;
@@ -81,16 +82,24 @@ export class SQLiteMaterializationRepository implements MaterializationRepositor
     const timestamp = now();
     const existing = this.findByIdempotencyKey(input);
     if (existing) return { operation: existing };
-    this.database.prepare(`
-      INSERT INTO materialization_operations
-      (operation_id, import_job_id, approved_analysis_revision, source_snapshot_hash,
-       actor_user_id, target_plan_year, status, requested_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'REQUESTED', ?, ?, ?)
-    `).run(
-      input.operationId, input.importJobId, input.approvedAnalysisRevision,
-      input.sourceSnapshotHash, input.actorUserId, input.targetPlanYear,
-      input.requestedAt, timestamp, timestamp
-    );
+    try {
+      this.database.prepare(`
+        INSERT INTO materialization_operations
+        (operation_id, import_job_id, approved_analysis_revision, source_snapshot_hash,
+         actor_user_id, target_plan_year, status, requested_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'REQUESTED', ?, ?, ?)
+      `).run(
+        input.operationId, input.importJobId, input.approvedAnalysisRevision,
+        input.sourceSnapshotHash, input.actorUserId, input.targetPlanYear,
+        input.requestedAt, timestamp, timestamp
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("UNIQUE")) {
+        const concurrent = this.findByIdempotencyKey(input);
+        if (concurrent) return { operation: concurrent };
+      }
+      throw error;
+    }
     return { operation: this.require(input.operationId) };
   }
 
@@ -105,6 +114,37 @@ export class SQLiteMaterializationRepository implements MaterializationRepositor
   getOperation(operationId: string) {
     const row = this.database.prepare("SELECT * FROM materialization_operations WHERE operation_id = ?").get(operationId) as OperationRow | undefined;
     return row ? operation(row) : undefined;
+  }
+
+  getSnapshot(operationId: string) {
+    const operation = this.getOperation(operationId);
+    if (!operation) return undefined;
+    const row = this.database.prepare("SELECT * FROM materialization_snapshots WHERE operation_id = ?").get(operationId) as OperationRow | undefined;
+    if (!row) {
+      return {
+        operationId,
+        snapshotVersion: 1 as const,
+        importJobId: operation.importJobId,
+        approvedAnalysisRevision: operation.approvedAnalysisRevision,
+        sourceSnapshotHash: operation.sourceSnapshotHash,
+        status: "LEGACY_NON_RECONSTRUCTABLE" as const
+      };
+    }
+    const plan = JSON.parse(String(row.payload_json));
+    if (approvedMaterializationSnapshotHash(plan) !== String(row.plan_hash) || plan.planHash !== String(row.plan_hash)) {
+      throw new Error(`Materialization snapshot "${operationId}" failed its content-integrity check.`);
+    }
+    return {
+      operationId,
+      snapshotVersion: Number(row.snapshot_version) as 2,
+      importJobId: String(row.import_job_id),
+      approvedAnalysisRevision: Number(row.approved_analysis_revision),
+      sourceSnapshotHash: String(row.source_snapshot_hash),
+      planHash: String(row.plan_hash),
+      plan,
+      status: "RECONSTRUCTABLE" as const,
+      createdAt: String(row.created_at)
+    };
   }
 
   listOperationsByImport(importJobId: string) {

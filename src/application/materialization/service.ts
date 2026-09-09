@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { MaterializationPlan } from "./plan";
-import { buildMaterializationPlan } from "./plan";
+import { buildMaterializationPlan, materializationPlanHash } from "./plan";
 import { createImportSnapshotReference } from "./snapshot";
 import type { MaterializationOperation } from "./persistence";
 import { SQLiteMaterializationRepository } from "../../server/materialization/SQLiteMaterializationRepository";
@@ -30,7 +30,6 @@ export type MaterializationHttpInput = {
   approvedAnalysisRevision: number;
   sourceSnapshotHash: string;
   targetPlanYear: number;
-  plan: MaterializationPlan;
 };
 
 export type MaterializationReadiness = {
@@ -70,18 +69,18 @@ function inputFromBody(body: Record<string, unknown>, routeImportId?: string): M
   if (!Number.isInteger(targetPlanYear) || targetPlanYear < 1) {
     throw new MaterializationApplicationError("VALIDATION", "targetPlanYear must be a positive integer.");
   }
-  const plan = body.plan as MaterializationPlan | undefined;
-  if (!plan || typeof plan !== "object") throw new MaterializationApplicationError("VALIDATION", "The validated materialization plan is required.");
+  if (Object.prototype.hasOwnProperty.call(body, "plan")) {
+    throw new MaterializationApplicationError("VALIDATION", "Materialization plan content is server-authoritative and must not be supplied.");
+  }
   return {
     importJobId,
     approvedAnalysisRevision,
     sourceSnapshotHash: requiredString(body.sourceSnapshotHash, "sourceSnapshotHash"),
-    targetPlanYear,
-    plan
+    targetPlanYear
   };
 }
 
-function assertSnapshot(input: MaterializationHttpInput): void {
+function assertSnapshot(input: MaterializationHttpInput) {
   const jobs = new SQLiteImportJobRepository();
   const records = new SQLiteImportRecordRepository();
   const job = jobs.get(input.importJobId);
@@ -91,11 +90,57 @@ function assertSnapshot(input: MaterializationHttpInput): void {
   if (job.analysisRevision !== input.approvedAnalysisRevision) throw new MaterializationApplicationError("REVISION_MISMATCH", "The approved analysis revision is stale.");
   const snapshot = createImportSnapshotReference(job, input.targetPlanYear);
   if (snapshot.sourceSnapshotHash !== input.sourceSnapshotHash) throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The source snapshot no longer matches the approved import.");
-  if (input.plan.importJobId !== input.importJobId ||
-      input.plan.approvedAnalysisRevision !== input.approvedAnalysisRevision ||
-      input.plan.sourceSnapshot.sourceSnapshotHash !== input.sourceSnapshotHash ||
-      input.plan.planYear !== input.targetPlanYear) {
-    throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The supplied materialization plan is stale or mismatched.");
+  return { job, snapshot };
+}
+
+function authoritativePlan(input: MaterializationHttpInput, operationId?: string): MaterializationPlan {
+  const database = getDatabase();
+  applyMaterializationFoundationMigration(database);
+  const approvedRow = database.prepare(`
+    SELECT plan_hash, payload_json
+    FROM approved_materialization_snapshots
+    WHERE import_job_id = ? AND approved_analysis_revision = ? AND source_snapshot_hash = ?
+  `).get(input.importJobId, input.approvedAnalysisRevision, input.sourceSnapshotHash) as { plan_hash: string; payload_json: string } | undefined;
+  if (approvedRow) {
+    const status = database.prepare("SELECT status FROM import_jobs WHERE id = ?").get(input.importJobId) as { status: string } | undefined;
+    if (status?.status !== "APPROVED") throw new MaterializationApplicationError("IMPORT_NOT_APPROVED", "The import must be approved before materialization.");
+    let plan: MaterializationPlan;
+    try { plan = JSON.parse(approvedRow.payload_json) as MaterializationPlan; } catch { throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The approved materialization snapshot is invalid."); }
+    assertAuthoritativePlan(input, plan);
+    if (plan.planHash !== approvedRow.plan_hash) throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The approved materialization snapshot failed its integrity check.");
+    return plan;
+  }
+  const { job, snapshot } = assertSnapshot(input);
+  if (operationId) {
+    const persisted = repository().repository.getSnapshot(operationId);
+    if (persisted?.status === "RECONSTRUCTABLE" && persisted.plan) {
+      if (persisted.importJobId !== input.importJobId ||
+          persisted.approvedAnalysisRevision !== input.approvedAnalysisRevision ||
+          persisted.sourceSnapshotHash !== input.sourceSnapshotHash) {
+        throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The persisted materialization snapshot does not match the request.");
+      }
+      return persisted.plan;
+    }
+  }
+  const plan = buildMaterializationPlan({ importJob: job, snapshot, request: input, planYear: input.targetPlanYear });
+  database.prepare(`
+    INSERT OR IGNORE INTO approved_materialization_snapshots
+      (import_job_id, approved_analysis_revision, source_snapshot_hash, plan_hash, payload_json)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(input.importJobId, input.approvedAnalysisRevision, input.sourceSnapshotHash, plan.planHash, JSON.stringify(plan));
+  return plan;
+}
+
+function assertAuthoritativePlan(input: MaterializationHttpInput, plan: MaterializationPlan): void {
+  if (plan.importJobId !== input.importJobId ||
+      plan.approvedAnalysisRevision !== input.approvedAnalysisRevision ||
+      plan.sourceSnapshot.sourceSnapshotHash !== input.sourceSnapshotHash ||
+      plan.planYear !== input.targetPlanYear) {
+    throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The server-derived materialization plan is stale or mismatched.");
+  }
+  const { planHash, ...withoutHash } = plan;
+  if (materializationPlanHash(withoutHash) !== planHash) {
+    throw new MaterializationApplicationError("SNAPSHOT_MISMATCH", "The server-derived materialization plan failed its integrity check.");
   }
 }
 
@@ -172,33 +217,36 @@ export class MaterializationApplicationService {
 
   request(actorUserId: string, body: Record<string, unknown>, routeImportId: string): { operation: MaterializationOperation; duplicate: boolean } {
     const input = inputFromBody(body, routeImportId);
-    assertSnapshot(input);
+    const plan = authoritativePlan(input);
+    assertAuthoritativePlan(input, plan);
     const { repository: materializationRepository } = repository();
     const existing = materializationRepository.findByIdempotencyKey(input);
     if (existing) return { operation: existing, duplicate: true };
     const operationId = typeof body.operationId === "string" && body.operationId.trim() ? body.operationId : `materialization-${randomUUID()}`;
-    materializationRepository.createOperation({
+    const created = materializationRepository.createOperation({
       operationId, importJobId: input.importJobId, approvedAnalysisRevision: input.approvedAnalysisRevision,
       sourceSnapshotHash: input.sourceSnapshotHash, actorUserId, targetPlanYear: input.targetPlanYear,
       requestedAt: new Date().toISOString()
     });
-    materializationRepository.transition(operationId, "VALIDATING");
-    if (input.plan.status !== "READY" || input.plan.errors.length || input.plan.summary.blockedItems > 0) {
-      materializationRepository.transition(operationId, "REJECTED", undefined, "The supplied materialization plan is not READY.");
+    if (created.operation.operationId !== operationId) return { operation: created.operation, duplicate: true };
+    materializationRepository.transition(created.operation.operationId, "VALIDATING");
+    if (plan.status !== "READY" || plan.errors.length || plan.summary.blockedItems > 0) {
+      materializationRepository.transition(created.operation.operationId, "REJECTED", undefined, "The supplied materialization plan is not READY.");
       throw new MaterializationApplicationError("VALIDATION", "The supplied materialization plan is not READY.");
     }
-    materializationRepository.transition(operationId, "READY");
+    materializationRepository.transition(created.operation.operationId, "READY");
     const result = new SQLiteCanonicalMaterializationWriter(getDatabase()).execute({
-      operationId, importJobId: input.importJobId, approvedAnalysisRevision: input.approvedAnalysisRevision,
-      sourceSnapshotHash: input.sourceSnapshotHash, planHash: input.plan.planHash,
-      actorUserId, targetPlanYear: input.targetPlanYear, plan: input.plan
+      operationId: created.operation.operationId, importJobId: input.importJobId, approvedAnalysisRevision: input.approvedAnalysisRevision,
+      sourceSnapshotHash: input.sourceSnapshotHash, planHash: plan.planHash,
+      actorUserId, targetPlanYear: input.targetPlanYear, plan
     });
     return { operation: result.operation, duplicate: false };
   }
 
   retry(actorUserId: string, operationId: string, body: Record<string, unknown>): { operation: MaterializationOperation; duplicate: boolean } {
     const input = inputFromBody(body);
-    assertSnapshot(input);
+    const plan = authoritativePlan(input, operationId);
+    assertAuthoritativePlan(input, plan);
     const { repository: materializationRepository } = repository();
     const current = materializationRepository.getOperation(operationId);
     if (!current) throw new RepositoryError("NOT_FOUND", "The materialization operation was not found.");
@@ -210,15 +258,15 @@ export class MaterializationApplicationService {
     }
     materializationRepository.transition(operationId, "REQUESTED");
     materializationRepository.transition(operationId, "VALIDATING");
-    if (input.plan.status !== "READY" || input.plan.errors.length || input.plan.summary.blockedItems > 0) {
+    if (plan.status !== "READY" || plan.errors.length || plan.summary.blockedItems > 0) {
       materializationRepository.transition(operationId, "REJECTED", undefined, "The supplied materialization plan is not READY.");
       throw new MaterializationApplicationError("VALIDATION", "The supplied materialization plan is not READY.");
     }
     materializationRepository.transition(operationId, "READY");
     const result = new SQLiteCanonicalMaterializationWriter(getDatabase()).execute({
       operationId, importJobId: input.importJobId, approvedAnalysisRevision: input.approvedAnalysisRevision,
-      sourceSnapshotHash: input.sourceSnapshotHash, planHash: input.plan.planHash,
-      actorUserId, targetPlanYear: input.targetPlanYear, plan: input.plan
+      sourceSnapshotHash: input.sourceSnapshotHash, planHash: plan.planHash,
+      actorUserId, targetPlanYear: input.targetPlanYear, plan
     });
     return { operation: result.operation, duplicate: false };
   }
@@ -231,6 +279,10 @@ export class MaterializationApplicationService {
     const result = repository().repository.getOperation(operationId);
     if (!result) throw new RepositoryError("NOT_FOUND", "The materialization operation was not found.");
     return result;
+  }
+
+  reconstruct(operationId: string) {
+    return repository().repository.getSnapshot(operationId);
   }
 }
 

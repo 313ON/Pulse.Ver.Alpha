@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import { closeDatabase, getDatabase } from "../db";
@@ -55,6 +55,15 @@ describe("R10-B materialization persistence", () => {
     const second = repository.createOperation({ ...input, operationId: "operation-2" }).operation;
     expect(second.operationId).toBe(first.operationId);
     expect(database.prepare("SELECT COUNT(*) AS count FROM materialization_operations").get()).toEqual({ count: 1 });
+  });
+
+  it("resolves a concurrent unique-key loser to the existing operation", () => {
+    const { repository } = fixture();
+    const first = repository.createOperation(input).operation;
+    const lookup = vi.spyOn(repository, "findByIdempotencyKey");
+    lookup.mockReturnValueOnce(undefined).mockReturnValueOnce(first);
+    const concurrent = repository.createOperation({ ...input, operationId: "operation-concurrent" });
+    expect(concurrent.operation.operationId).toBe(first.operationId);
   });
 
   it("enforces the operation state machine and terminal behavior", () => {

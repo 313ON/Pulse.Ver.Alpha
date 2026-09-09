@@ -129,7 +129,16 @@ describe("legacy source_fingerprint repair acceptance", () => {
       source_snapshot_hash: string;
     };
     const beforeTables = (before.prepare("SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'index', 'trigger') ORDER BY type, name").all() as Array<{ name: string; type: string; sql: string | null }>)
-      .filter((object) => !["departmental_materialization_operations", "departmental_planning_records"].includes(object.name));
+      // The snapshot table is also deliberately rebuilt when its legacy FK
+      // points at the retired operations table name. Its data is preserved,
+      // but its sqlite_master SQL must change to satisfy the current contract.
+      .filter((object) => ![
+        "departmental_materialization_operations",
+        "departmental_materialization_snapshots",
+        "departmental_materialization_snapshots_immutable_update",
+        "departmental_materialization_snapshots_immutable_delete",
+        "departmental_planning_records"
+      ].includes(object.name));
     expect(before.prepare("PRAGMA table_info(departmental_materialization_operations)").all()).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ name: "source_fingerprint" })])
     );
@@ -146,6 +155,9 @@ describe("legacy source_fingerprint repair acceptance", () => {
     expect(repairedCatalog.foreignKeys).toEqual(expect.arrayContaining([
       expect.objectContaining({ from: "import_job_id", table: "import_jobs", to: "id", on_delete: "RESTRICT" }),
       expect.objectContaining({ from: "actor_user_id", table: "users", to: "id", on_delete: "RESTRICT" })
+    ]));
+    expect(repaired.prepare("PRAGMA foreign_key_list(departmental_materialization_snapshots)").all()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: "operation_id", table: "departmental_materialization_operations", to: "operation_id", on_delete: "RESTRICT" })
     ]));
     expect(schemaContractErrors(repaired)).toEqual([]);
     expect(repaired.prepare("SELECT source_fingerprint FROM departmental_materialization_operations WHERE operation_id = 'legacy-operation'").get())

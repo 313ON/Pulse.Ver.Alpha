@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ImportPage, ImportReview, importStatusLabel, isValidXlsxFile } from "./ImportPage";
-import { canRetryMaterialization, materializationStatusLabel } from "./MaterializationControl";
+import { canRetryMaterialization, materializationErrorMessage, materializationStatusLabel } from "./MaterializationControl";
 
 Object.assign(globalThis, { React });
 vi.mock("next/navigation", () => ({
@@ -20,6 +20,9 @@ describe("Import command center", () => {
     expect(canRetryMaterialization({ status: "FAILED" })).toBe(true);
     expect(canRetryMaterialization({ status: "COMPLETED" })).toBe(false);
     expect(canRetryMaterialization(undefined)).toBe(false);
+    expect(materializationErrorMessage("IMPORT_NOT_APPROVED", "fallback")).toContain("تأیید");
+    expect(materializationErrorMessage("SNAPSHOT_MISMATCH", "fallback")).toContain("قدیمی");
+    expect(materializationErrorMessage("UNKNOWN", "fallback")).toBe("fallback");
   });
   it("renders the RTL upload entry point and review language", () => {
     const markup = renderToStaticMarkup(<ImportPage />);

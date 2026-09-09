@@ -3,7 +3,8 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getDatabase } from "./db";
 import { seedBaseline } from "./seed";
-import { ActionRepository, ActivityRepository, DependencyRepository, PersonRepository, RepositoryError, RoleRepository, SubGoalRepository, UserRepository } from "./repositories";
+import { ActionRepository, ActivityRepository, DependencyRepository, KPIRepository, PersonRepository, RepositoryError, RiskRepository, RoleRepository, SubGoalRepository, UserRepository } from "./repositories";
+import type { KpiRecord, RiskRecord } from "../lib/domain";
 import { audit, canScope, seedAuthFoundation, type SessionUser } from "./auth";
 
 let testDatabasePath = "";
@@ -79,6 +80,11 @@ describe("SQLite repositories", () => {
       status: "باز",
       delayDays: 0
     })).toThrow(RepositoryError);
+    let dependencyError: unknown;
+    try {
+      new DependencyRepository().create({ sourceWorkItemId: "missing", targetWorkItemId: "wi-G10-O02-A01-T001", status: "باز", delayDays: 0 });
+    } catch (error) { dependencyError = error; }
+    expect(dependencyError).toMatchObject({ code: "VALIDATION" });
   });
 
   it("creates and updates an activity under a sub-goal and exposes linked actions", () => {
@@ -107,6 +113,40 @@ describe("SQLite repositories", () => {
       activityId: created.id
     });
     expect(activities.get(created.id)).toMatchObject({ title: "فعالیت به‌روزشده", activity_action_count: 1, related_actions: "G10-O99-A99-T903" });
+  });
+
+  it("creates a sub-goal with an omitted optional owner", () => {
+    const created = new SubGoalRepository().create({ id: "SG02", goalId: "G10", title: "زیرهدف بدون مالک" });
+    expect(created).toMatchObject({ id: "SG02", goal_id: "G10", owner_person_id: null });
+  });
+
+  it("supports partial updates and omitted optional dependency notes", () => {
+    const subGoals = new SubGoalRepository();
+    const kpis = new KPIRepository();
+    const risks = new RiskRepository();
+    const dependencies = new DependencyRepository();
+
+    const subGoal = subGoals.create({ id: "SG03", goalId: "G10", title: "زیرهدف قابل ویرایش" });
+    expect(subGoals.update(String((subGoal as { id: string }).id), { title: "زیرهدف ویرایش‌شده" })).toMatchObject({ title: "زیرهدف ویرایش‌شده" });
+
+    kpis.create({
+      id: "KPI03", workItemId: "G10-O02-A01-T001", name: "شاخص تست", actual: 10, target: 20,
+      direction: "higher-is-better", ownerPersonId: "it-engineer"
+    } as KpiRecord & { ownerPersonId: string; workItemId: string });
+    expect(kpis.update("KPI03", { name: "شاخص ویرایش‌شده", actual: 15 })).toMatchObject({ name: "شاخص ویرایش‌شده", actual: 15, target: 20 });
+
+    risks.create({
+      id: "RISK03", goalId: "G10", workItemId: "G10-O02-A01-T001", title: "ریسک تست", probability: 2, impact: 3,
+      status: "باز", ownerPersonId: "it-engineer"
+    } as RiskRecord & { goalId: string; ownerPersonId: string; workItemId: string });
+    expect(risks.update("RISK03", { status: "کنترل‌شده", impact: 4 })).toMatchObject({ title: "ریسک تست", probability: 2, impact: 4, status: "کنترل‌شده" });
+
+    new ActionRepository().create({
+      publicId: "G10-O99-A99-T904", goalId: "G10", title: "اقدام وابستگی تست", workType: "اقدام",
+      departmentId: "it", ownerPersonId: "it-engineer", deliverable: "خروجی", deadline: "۱۴۰۵/۰۷/۱۵",
+      status: "شروع نشده", progress: 0
+    });
+    expect(dependencies.create({ sourceWorkItemId: "G10-O02-A01-T001", targetWorkItemId: "G10-O99-A99-T904", status: "باز", delayDays: 1 })).toMatchObject({ notes: null });
   });
 
   it("rejects invalid activity input and isolates department/own scopes", () => {

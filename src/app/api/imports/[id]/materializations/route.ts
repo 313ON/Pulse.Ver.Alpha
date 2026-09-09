@@ -1,5 +1,5 @@
 import { ensureRuntimeData, handleApiError, json, readJson, requireCsrf, requirePermission } from "../../../_lib";
-import { MaterializationApplicationService } from "../../../../../application/materialization";
+import { MaterializationApplicationError, MaterializationApplicationService } from "../../../../../application/materialization";
 import { DepartmentalMaterializationService } from "../../../../../application/materialization/departmental";
 
 export const runtime = "nodejs";
@@ -25,7 +25,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await readJson(request, { csrf: false });
     if (body.materializationKind === "DEPARTMENTAL") {
       const targetPlanYear = Number(body.targetPlanYear);
-      if (!Number.isInteger(targetPlanYear) || targetPlanYear < 1) throw new Error("targetPlanYear must be a positive integer.");
+      if (!Number.isInteger(targetPlanYear) || targetPlanYear < 1) {
+        throw new MaterializationApplicationError("VALIDATION", "targetPlanYear must be a positive integer.");
+      }
       const result = new DepartmentalMaterializationService().materialize(actor.id, id, targetPlanYear);
       return json({ departmental: result }, { status: result.duplicate ? 200 : 201 });
     }

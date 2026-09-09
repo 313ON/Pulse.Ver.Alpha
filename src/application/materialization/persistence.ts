@@ -2,6 +2,7 @@ import type {
   MaterializableEntityType,
   ProvenanceRelation
 } from "./contracts";
+import type { MaterializationPlan } from "./plan";
 
 export type MaterializationStatus =
   | "REQUESTED"
@@ -66,10 +67,23 @@ export type MaterializationOperationResult = {
   operation: MaterializationOperation;
 };
 
+export type MaterializationSnapshot = {
+  operationId: string;
+  snapshotVersion: 1 | 2;
+  importJobId: string;
+  approvedAnalysisRevision: number;
+  sourceSnapshotHash: string;
+  planHash?: string;
+  plan?: MaterializationPlan;
+  status: "RECONSTRUCTABLE" | "LEGACY_NON_RECONSTRUCTABLE";
+  createdAt?: string;
+};
+
 export type MaterializationRepository = {
   createOperation(input: MaterializationOperationInput): MaterializationOperationResult;
   findByIdempotencyKey(input: Pick<MaterializationOperationInput, "importJobId" | "approvedAnalysisRevision" | "sourceSnapshotHash">): MaterializationOperation | undefined;
   getOperation(operationId: string): MaterializationOperation | undefined;
+  getSnapshot(operationId: string): MaterializationSnapshot | undefined;
   listOperationsByImport(importJobId: string): MaterializationOperation[];
   transition(operationId: string, to: MaterializationStatus, at?: string, failureReason?: string): MaterializationOperation;
   updateTerminal(operationId: string, status: "COMPLETED" | "FAILED" | "REJECTED", counts: MaterializationCounts, failureReason?: string, at?: string): MaterializationOperation;

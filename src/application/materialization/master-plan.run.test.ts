@@ -11,7 +11,6 @@ import { seedBaseline } from "../../server/seed";
 import { seedAuthFoundation } from "../../server/auth";
 import { SQLiteImportJobRepository, SQLiteImportRecordRepository } from "../../server/import/SQLiteImportRepositories";
 import { createImportSnapshotReference } from "./snapshot";
-import { buildMaterializationPlan } from "./plan";
 import { MaterializationApplicationService } from "./service";
 
 beforeEach(() => {
@@ -36,36 +35,18 @@ describe("real Master Plan operational probe", () => {
     review.approvalReadiness(job.id);
     const approved = review.approve(job.id);
     const snapshot = createImportSnapshotReference(approved, 1405);
-    const departmentIds = new Map((getDatabase().prepare("SELECT id,name FROM departments").all() as Array<{ id: string; name: string }>).map((row) => [row.name, row.id]));
-    const plan = buildMaterializationPlan({
-      importJob: approved,
-      snapshot,
-      request: snapshot,
-      planYear: 1405,
-      responsibility: {
-        resolvePerson: (value) => ({ field: "owner", resolved: false, reason: `No person authority for ${String(value)}` }),
-        resolveUnit: (value) => {
-          const name = String(value ?? "").trim();
-          const id = departmentIds.get(name);
-          return { field: "department", resolved: Boolean(id), targetType: "UNIT" as const, targetId: id, displayName: name, reason: id ? undefined : `Unknown department ${name}` };
-        }
-      }
-    });
-    if (plan.status !== "READY") throw new Error(JSON.stringify(plan.errors.slice(0, 10)));
     const service = new MaterializationApplicationService();
     const first = service.request("master-plan-actor", {
       importJobId: approved.id,
       approvedAnalysisRevision: snapshot.approvedAnalysisRevision,
       sourceSnapshotHash: snapshot.sourceSnapshotHash,
-      targetPlanYear: 1405,
-      plan
+      targetPlanYear: 1405
     }, approved.id);
     const second = service.request("master-plan-actor", {
       importJobId: approved.id,
       approvedAnalysisRevision: snapshot.approvedAnalysisRevision,
       sourceSnapshotHash: snapshot.sourceSnapshotHash,
-      targetPlanYear: 1405,
-      plan
+      targetPlanYear: 1405
     }, approved.id);
     expect(approved.status).toBe("APPROVED");
     expect(first.operation.status).toBe("COMPLETED");

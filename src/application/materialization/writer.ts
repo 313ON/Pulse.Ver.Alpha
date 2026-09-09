@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import type { MaterializationPlan, MaterializationPlanItem } from "./plan";
 import type { MaterializationOperation, MaterializationCounts } from "./persistence";
 import { assertLegalMaterializationTransition } from "./persistence";
+import { approvedMaterializationSnapshotHash, serializeApprovedMaterializationSnapshot } from "./snapshot";
 
 export type MaterializeCanonicalPlanCommand = {
   operationId: string;
@@ -183,6 +184,13 @@ export class SQLiteCanonicalMaterializationWriter {
       const result = this.database.transaction(() => {
         const executing = readOperation(this.database, command.operationId);
         assertLegalMaterializationTransition(executing.status, "EXECUTING");
+        const snapshotPayload = serializeApprovedMaterializationSnapshot(command.plan);
+        const snapshotHash = approvedMaterializationSnapshotHash(command.plan);
+        this.database.prepare(`INSERT INTO materialization_snapshots
+          (operation_id, snapshot_version, import_job_id, approved_analysis_revision, source_snapshot_hash, plan_hash, payload_json, created_at)
+          VALUES (?, 2, ?, ?, ?, ?, ?, ?)`)
+          .run(command.operationId, command.importJobId, command.approvedAnalysisRevision,
+            command.sourceSnapshotHash, snapshotHash, snapshotPayload, now());
         this.database.prepare("UPDATE materialization_operations SET status='EXECUTING', started_at=?, updated_at=? WHERE operation_id=?")
           .run(now(), now(), command.operationId);
         const ids = new Map<string, string>();

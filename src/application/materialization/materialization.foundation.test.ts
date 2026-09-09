@@ -3,11 +3,13 @@ import type { ImportJob, ImportRecord } from "../import";
 import {
   classifyCanonicalConflict,
   classifyIdentityConflicts,
+  assertLogicalEntityType,
   createImportSnapshotReference,
   groupByLogicalIdentity,
   logicalIdentityForValues,
   provenanceRelation,
   sourceSnapshotHash,
+  approvedMaterializationSnapshotHash,
   verifyMaterializationRequest,
   type MaterializationRequest
 } from "./index";
@@ -57,6 +59,12 @@ describe("R10-A logical identity", () => {
     const second = logicalIdentityForValues("objective", 1405, { goal: "Goal B", objective: "Shared objective" });
     expect(first.key).not.toBe(second.key);
     expect(first.parentKey).not.toBe(second.parentKey);
+  });
+
+  it("validates logical entity identity against the supplied plan year", () => {
+    expect(() => assertLogicalEntityType(record("objective-1", "objective", {
+      goal: "Goal", objective: "Objective"
+    }), 1406)).not.toThrow();
   });
 
   it("normalizes equivalent Persian spellings and whitespace", () => {
@@ -176,6 +184,14 @@ describe("R10-A snapshot contract", () => {
       .toContain("SNAPSHOT_MISMATCH");
     expect(verifyMaterializationRequest(approved, { ...request, sourceSnapshotHash: "changed" }, snapshot).map((item) => item.code))
       .toEqual(expect.arrayContaining(["REVISION_MISMATCH", "SNAPSHOT_MISMATCH"]));
+  });
+
+  it("uses deterministic approved-plan identity and changes it when approved content changes", () => {
+    const first = { planHash: "plan-a" } as never;
+    const equivalent = { planHash: "plan-a" } as never;
+    const changed = { planHash: "plan-b" } as never;
+    expect(approvedMaterializationSnapshotHash(first)).toBe(approvedMaterializationSnapshotHash(equivalent));
+    expect(approvedMaterializationSnapshotHash(first)).not.toBe(approvedMaterializationSnapshotHash(changed));
   });
 });
 

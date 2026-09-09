@@ -9,6 +9,7 @@ import { SpreadsheetEvaluationEngine } from "../../../application/import/spreads
 import { ImportNormalizer } from "../../../application/import/normalization";
 import { createProgramServices } from "../../../server/program";
 import { getPlanningContext } from "../../../domain/planning";
+import { applyGovernedClassification } from "../../../application/import/classification";
 import { RepositoryError } from "../../../server/repositories";
 
 export const runtime = "nodejs";
@@ -45,7 +46,11 @@ export async function POST(request: Request) {
     const jobs = new SQLiteImportJobRepository();
     const records = new SQLiteImportRecordRepository();
     const review = new ImportReviewService(undefined, jobs, records);
-    const source = { type: "EXCEL" as const, name: sourceName, metadata: { uploadedAt: new Date().toISOString(), planYear: planning.planYear } };
+    const source = applyGovernedClassification({
+      type: "EXCEL" as const,
+      name: sourceName,
+      metadata: { uploadedAt: new Date().toISOString(), planYear: planning.planYear }
+    });
     jobs.create({ id: jobId, source, status: "DRAFT", records: [], createdAt: new Date().toISOString() });
 
     const input = await file.arrayBuffer();
