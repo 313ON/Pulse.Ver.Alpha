@@ -102,9 +102,9 @@ describe("live strategic command center", () => {
     expect(classifyDashboardData({ ...program, goals: [] }).kind).toBe("empty");
     expect(classifyDashboardData({ ...program, goals: [{ ...program.goals[0], objectives: [] }] }).kind).toBe("partial");
     expect(classifyDashboardData(program).kind).toBe("partial");
-    expect(renderToStaticMarkup(<StrategicCommandCenter state={{ kind: "ready", program }} />)).toContain("امتیاز سلامت برنامه");
-    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "empty", planYear: "۱۴۰۵" }} />)).toContain("هنوز داده قابل استفاده‌ای");
-    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "partial", program, missing: ["اقدام‌های متصل"] }} />)).toContain("نمای ناقص برنامه");
+    expect(renderToStaticMarkup(<StrategicCommandCenter state={{ kind: "ready", program, lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("امتیاز سلامت برنامه");
+    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "empty", planYear: "۱۴۰۵", lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("هنوز داده قابل استفاده‌ای");
+    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "partial", program, missing: ["اقدام‌های متصل"], lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("نمای ناقص برنامه");
   });
 
   it("exposes retry for recoverable failures without exposing internals", () => {
