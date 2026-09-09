@@ -186,6 +186,50 @@ function statusTone(status: ImportStatus): string {
   return "gray";
 }
 
+const workflowStages = [
+  { key: "received", label: "دریافت", description: "فایل ثبت شد" },
+  { key: "review", label: "بازبینی", description: "داده و حاکمیت بررسی می‌شود" },
+  { key: "approval", label: "تأیید", description: "تصمیم حاکمیتی لازم است" },
+  { key: "materialization", label: "ثبت نهایی", description: "داده تأییدشده materialize می‌شود" }
+] as const;
+
+type WorkflowStage = typeof workflowStages[number]["key"];
+
+export function importWorkflowState(status: ImportStatus): { current: WorkflowStage; message: string } {
+  if (status === "APPROVED") return { current: "materialization", message: "ورود اطلاعات تأیید شده است؛ اکنون می‌توانید ثبت نهایی را اجرا کنید." };
+  if (status === "REJECTED") return { current: "approval", message: "این ورود اطلاعات رد شده است و پیش از ثبت نهایی باید دوباره وارد شود." };
+  if (status === "FAILED") return { current: "received", message: "تحلیل فایل کامل نشد؛ فایل را بررسی و دوباره ارسال کنید." };
+  if (status === "DRAFT" || status === "ANALYZING") return { current: "review", message: "تحلیل فایل در حال آماده‌سازی است؛ پس از تکمیل، یافته‌ها را بررسی کنید." };
+  return { current: "review", message: "یافته‌ها را بررسی و در صورت رفع موانع، ورود اطلاعات را برای تأیید ارسال کنید." };
+}
+
+function workflowStageClass(stage: WorkflowStage, current: WorkflowStage): string {
+  const currentIndex = workflowStages.findIndex((item) => item.key === current);
+  const stageIndex = workflowStages.findIndex((item) => item.key === stage);
+  return stageIndex < currentIndex ? "complete" : stage === current ? "current" : "upcoming";
+}
+
+function ImportWorkflow({ status }: { status: ImportStatus }) {
+  const workflow = importWorkflowState(status);
+  return (
+    <section className="panel import-workflow" aria-labelledby="import-workflow-title">
+      <div className="import-workflow-heading">
+        <div><span className="program-panel-kicker">مسیر کنترل‌شده</span><h2 id="import-workflow-title">گام بعدی این ورود اطلاعات</h2></div>
+        <span className="status-pill blue">مرحله {workflowStages.findIndex((stage) => stage.key === workflow.current) + 1} از {workflowStages.length}</span>
+      </div>
+      <ol className="import-workflow-steps">
+        {workflowStages.map((stage, index) => (
+          <li className={`import-workflow-step ${workflowStageClass(stage.key, workflow.current)}`} key={stage.key}>
+            <span className="import-workflow-marker" aria-hidden="true">{index + 1}</span>
+            <div><strong>{stage.label}</strong><small>{stage.description}</small></div>
+          </li>
+        ))}
+      </ol>
+      <p className="import-workflow-message" role="status">{workflow.message}</p>
+    </section>
+  );
+}
+
 function displayValue(value: unknown): string {
   if (value === undefined || value === null || value === "") return "—";
   if (Array.isArray(value)) return value.join("، ");
@@ -582,6 +626,8 @@ export function ImportReview({
         </div>
         <span className={`status-pill ${statusTone(job.status)}`}>{importStatusLabel(job.status)}</span>
       </section>
+
+      <ImportWorkflow status={job.status} />
 
       <section className="import-review-summary" aria-label="خلاصه تحلیل فایل">
         <div className="import-summary-card"><span>رکوردهای استخراج‌شده</span><strong>{job.records.length}</strong></div>

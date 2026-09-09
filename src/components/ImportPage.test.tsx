@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ImportPage, ImportReview, importStatusLabel, isValidXlsxFile } from "./ImportPage";
+import { ImportPage, ImportReview, importStatusLabel, importWorkflowState, isValidXlsxFile } from "./ImportPage";
 import { canRetryMaterialization, materializationErrorMessage, materializationStatusLabel } from "./MaterializationControl";
 
 Object.assign(globalThis, { React });
@@ -49,6 +49,12 @@ describe("Import command center", () => {
     expect(importStatusLabel("FAILED")).toBe("ناموفق");
   });
 
+  it("maps import status to an explicit next step without changing governance", () => {
+    expect(importWorkflowState("REVIEW_REQUIRED").current).toBe("review");
+    expect(importWorkflowState("APPROVED").current).toBe("materialization");
+    expect(importWorkflowState("APPROVED").message).toContain("ثبت نهایی");
+  });
+
   it("renders persisted review data and XLSX provenance without inventing identity", () => {
     const markup = renderToStaticMarkup(<ImportReview job={{
       id: "import-test",
@@ -65,6 +71,8 @@ describe("Import command center", () => {
     }} />);
 
     expect(markup).toContain("در انتظار بازبینی");
+    expect(markup).toContain("گام بعدی این ورود اطلاعات");
+    expect(markup).toContain("یافته‌ها را بررسی");
     expect(markup).toContain("راه‌اندازی سامانه");
     expect(markup).toContain("فناوری اطلاعات");
     expect(markup).toContain("برگه: برنامه IT");
