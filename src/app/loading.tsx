@@ -1,3 +1,3 @@
 export default function Loading() {
-  return <main className="page strategic-command-center" aria-busy="true"><section className="panel program-empty-state"><span className="program-panel-kicker">مرکز فرمان راهبردی</span><h2>در حال بارگذاری داده‌های برنامه…</h2><p>در حال اتصال به برنامه پایدار سازمان هستیم.</p></section></main>;
+  return <main className="page strategic-command-center dashboard-loading" aria-busy="true" aria-label="در حال بارگذاری داشبورد"><section className="dashboard-skeleton-heading"><span /><span /><span /></section><section className="dashboard-skeleton-grid"><i /><i /><i /><i /><i /></section><section className="panel dashboard-skeleton-panel"><span /><span /><span /><span /></section></main>;
 }

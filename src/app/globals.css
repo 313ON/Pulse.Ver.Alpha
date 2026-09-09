@@ -1081,6 +1081,24 @@ html[data-theme="dark"] .inspector-meta dt { color: var(--text-muted); }
 .import-job-file strong { color: var(--text-primary); font-size: 12px; }
 .import-job-file small, .import-job-count { color: var(--text-muted); font-size: 10px; }
 .import-review-stack { display: grid; gap: 18px; }
+.dashboard-state-page { display: grid; align-content: start; min-height: 100%; }
+.dashboard-state-card { max-width: 760px; min-height: 270px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 11px; }
+.dashboard-state-card h1 { margin: 0; color: var(--text-primary); font-size: 22px; }
+.dashboard-state-card p { max-width: 610px; margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 2; }
+.dashboard-state-card.error, .dashboard-state-card.blocking { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.dashboard-state-card.partial { border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+.dashboard-state-actions { display: flex; gap: 9px; margin-top: 8px; flex-wrap: wrap; }
+.dashboard-available-summary { display: grid; gap: 3px; margin-top: 5px; padding: 12px 15px; border-inline-start: 3px solid var(--primary); background: var(--surface-inset); }
+.dashboard-available-summary strong { color: var(--primary); font-size: 20px; }
+.dashboard-available-summary span { color: var(--text-secondary); font-size: 10px; }
+.dashboard-state-guidance { border-top: 1px solid var(--line); padding-top: 10px; }
+.dashboard-loading { display: grid; gap: 18px; align-content: start; }
+.dashboard-skeleton-heading { display: grid; gap: 10px; width: min(460px, 80%); padding: 12px 0; }
+.dashboard-skeleton-heading span, .dashboard-skeleton-grid i, .dashboard-skeleton-panel span { display: block; border-radius: 7px; background: linear-gradient(90deg, var(--surface-inset), color-mix(in srgb, var(--primary) 12%, var(--surface-inset)), var(--surface-inset)); background-size: 200% 100%; animation: dashboard-skeleton 1.4s ease-in-out infinite; }
+.dashboard-skeleton-heading span:nth-child(1) { width: 35%; height: 10px; }.dashboard-skeleton-heading span:nth-child(2) { width: 78%; height: 28px; }.dashboard-skeleton-heading span:nth-child(3) { width: 55%; height: 11px; }
+.dashboard-skeleton-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }.dashboard-skeleton-grid i { height: 96px; border: 1px solid var(--line); }
+.dashboard-skeleton-panel { display: grid; gap: 15px; min-height: 270px; }.dashboard-skeleton-panel span { height: 10px; }.dashboard-skeleton-panel span:first-child { width: 25%; height: 16px; }.dashboard-skeleton-panel span:last-child { width: 70%; }
+@keyframes dashboard-skeleton { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 .import-review-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .import-review-hero h2 { margin: 6px 0 3px; font-size: 19px; overflow-wrap: anywhere; }
 .import-review-hero p { margin: 0; color: var(--text-secondary); font-size: 11px; }
@@ -1135,6 +1153,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 @media (max-width: 700px) { .import-workflow-heading { flex-direction: column; }.import-workflow-steps { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .import-review-summary, .import-provenance-grid, .import-field-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .import-entry-card { align-items: stretch; flex-direction: column; }.reports-page > .panel, .reports-page > .score-grid { margin-bottom: 18px; } }
+@media (max-width: 700px) { .dashboard-state-card { min-height: 240px; }.dashboard-skeleton-grid { grid-template-columns: repeat(2, 1fr); }.dashboard-skeleton-grid i:last-child { display: none; } }
 .import-dropzone:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent); }
 .import-dropzone label { display: grid; place-items: center; gap: 7px; cursor: pointer; }
 .import-dropzone label:focus-visible, .import-dropzone input:focus-visible + * { outline: 2px solid var(--primary); outline-offset: 4px; }

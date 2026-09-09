@@ -6,8 +6,17 @@ import { CognitionPanel } from "../cognition/CognitionPanel";
 import { HierarchyBreadcrumb } from "./HierarchyBreadcrumb";
 import { ProgramTree } from "./ProgramTree";
 import { ProgressIndicator } from "./ProgressIndicator";
+import { DashboardStateView } from "./DashboardStateView";
+import type { DashboardState } from "./dashboard-state";
 
-export function StrategicCommandCenter({ program, today = "1405/06/15" }: { program: Program; today?: string }) {
+export function StrategicCommandCenter({ program, today = "1405/06/15", state }: { program?: Program; today?: string; state?: DashboardState }) {
+  if (state && state.kind !== "ready") {
+    if (state.kind === "loading") return null;
+    return <DashboardStateView state={state} />;
+  }
+  const resolvedProgram = state?.kind === "ready" ? state.program : program;
+  if (!resolvedProgram) return <DashboardStateView state={{ kind: "recoverable-error", message: "داده برنامه برای نمایش دریافت نشد." }} />;
+  program = resolvedProgram;
   const planYear = program.timeline.start.split("/")[0];
   const goals = program.goals;
   const objectives = goals.reduce((total, goal) => total + goal.objectives.length, 0);

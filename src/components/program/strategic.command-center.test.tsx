@@ -2,14 +2,19 @@ import path from "node:path";
 import os from "node:os";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase } from "../../server/db";
 import { seedBaseline } from "../../server/seed";
 import { createProgramServices } from "../../server/program";
 import { programDateDistance } from "../../domain/program/rules";
 import { attentionWeight, managementState, StrategicCommandCenter } from "./StrategicCommandCenter";
+import { classifyDashboardData } from "./dashboard-state";
+import { DashboardStateView } from "./DashboardStateView";
 
 Object.assign(globalThis, { React });
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() })
+}));
 
 beforeEach(() => {
   closeDatabase();
@@ -90,6 +95,30 @@ describe("live strategic command center", () => {
     expect(markup).toContain("برنامه سالانه تحول دیجیتال ۱۴۰۵");
     expect(markup).toContain("اهداف راهبردی");
     expect(markup).not.toContain("ارتقای زیرساخت فناوری اطلاعات");
+  });
+
+  it("models empty, partial, and ready dashboard data explicitly", () => {
+    const program = liveProgram();
+    expect(classifyDashboardData({ ...program, goals: [] }).kind).toBe("empty");
+    expect(classifyDashboardData({ ...program, goals: [{ ...program.goals[0], objectives: [] }] }).kind).toBe("partial");
+    expect(classifyDashboardData(program).kind).toBe("partial");
+    expect(renderToStaticMarkup(<StrategicCommandCenter state={{ kind: "ready", program }} />)).toContain("امتیاز سلامت برنامه");
+    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "empty", planYear: "۱۴۰۵" }} />)).toContain("هنوز داده قابل استفاده‌ای");
+    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "partial", program, missing: ["اقدام‌های متصل"] }} />)).toContain("نمای ناقص برنامه");
+  });
+
+  it("exposes retry for recoverable failures without exposing internals", () => {
+    const markup = renderToStaticMarkup(<DashboardStateView state={{ kind: "recoverable-error", message: "دریافت داده‌های داشبورد با مشکل روبه‌رو شد." }} />);
+    expect(markup).toContain("تلاش دوباره");
+    expect(markup).toContain("اگر مشکل ادامه داشت");
+    expect(markup).not.toContain("stack");
+  });
+
+  it("does not render fabricated metrics for a blocking dashboard failure", () => {
+    const markup = renderToStaticMarkup(<StrategicCommandCenter state={{ kind: "blocking-error", message: "داده پایدار برنامه در دسترس نیست.", guidance: "اتصال پایگاه داده را بررسی کنید." }} />);
+    expect(markup).toContain("داشبورد فعلاً قابل استفاده نیست");
+    expect(markup).toContain("اتصال پایگاه داده را بررسی کنید");
+    expect(markup).not.toContain("امتیاز سلامت برنامه");
   });
 
   it("persists a hierarchy command and renders it after refresh", () => {
