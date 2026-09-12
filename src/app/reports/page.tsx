@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PulseShell } from "../../components/PulseShell";
+import { classifyReportState } from "../../components/reporting/report-state";
 
 type Report = {
   planYear: number;
@@ -35,11 +36,14 @@ type Report = {
   }>;
   findings: Array<{ ruleId: string; severity: string; reason: string }>;
   legacyCompatibilityMetrics: Array<{ name: string; value: number | string }>;
+  availableGoals: Array<{ id: string; title: string }>;
 };
 
 export default function ReportsPage() {
   const dashboardParams = useSearchParams();
   const [report, setReport] = useState<Report | null>(null);
+  const [requestError, setRequestError] = useState("");
+  const [requestVersion, setRequestVersion] = useState(0);
   const [filters, setFilters] = useState({ goal: "", status: "" });
   const generatedAt = useMemo(() => new Date().toISOString(), []);
   const query = useMemo(() => new URLSearchParams({
@@ -51,12 +55,25 @@ export default function ReportsPage() {
   }).toString(), [dashboardParams, filters, generatedAt]);
 
   useEffect(() => {
-    void fetch(`/api/reports?${query}`)
-      .then((response) => response.json())
-      .then(setReport);
-  }, [query]);
+    const controller = new AbortController();
+    setReport(null);
+    setRequestError("");
+    void fetch(`/api/reports?${query}`, { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json() as Report & { error?: string };
+        if (!response.ok) throw new Error(body.error ?? "دریافت گزارش انجام نشد.");
+        return body;
+      })
+      .then(setReport)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setRequestError(error instanceof Error ? error.message : "دریافت گزارش انجام نشد.");
+      });
+    return () => controller.abort();
+  }, [query, requestVersion]);
 
   const exportUrl = (format: string) => `/api/reports/export?format=${format}&${query}`;
+  const viewState = classifyReportState(report, requestError);
   const stateLabel = report?.evaluationState ?? "—";
   const findingKeyCounts = new Map<string, number>();
 
@@ -79,7 +96,7 @@ export default function ReportsPage() {
           <label>هدف
             <select value={filters.goal} onChange={(event) => setFilters((current) => ({ ...current, goal: event.target.value }))}>
               <option value="">همه اهداف</option>
-              {Array.from({ length: 10 }, (_, index) => <option key={index + 1} value={`G${String(index + 1).padStart(2, "0")}`}>G{String(index + 1).padStart(2, "0")}</option>)}
+              {(report?.availableGoals ?? []).map((goal) => <option key={goal.id} value={goal.id}>{goal.id} · {goal.title}</option>)}
             </select>
           </label>
           <label>وضعیت
@@ -93,7 +110,13 @@ export default function ReportsPage() {
           </label>
         </div>
 
-        {report && (
+        {viewState.kind === "loading" && <div className="panel report-state-card" role="status" aria-live="polite"><strong>در حال تولید گزارش حاکمیتی…</strong><span>داده‌های مجاز و شواهد گزارش در حال دریافت است.</span></div>}
+
+        {viewState.kind === "error" && <div className="panel report-state-card error" role="alert"><strong>دریافت گزارش انجام نشد.</strong><span>{viewState.message}</span><button className="primary-button" type="button" onClick={() => setRequestVersion((current) => current + 1)}>تلاش دوباره</button></div>}
+
+        {viewState.kind === "empty" && <div className="panel report-state-card empty" role="status"><strong>داده قابل گزارشی برای این محدوده وجود ندارد.</strong><span>فیلترها یا زمینه برنامه را تغییر دهید، یا پس از تکمیل داده‌های governed دوباره تلاش کنید.</span></div>}
+
+        {(viewState.kind === "success" || viewState.kind === "empty") && report && (
           <>
             <div className="panel">
               <div className="panel-head">

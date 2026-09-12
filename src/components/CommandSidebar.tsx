@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const items = [
   ["مرکز راهبردی", "/", "✦"],
@@ -24,6 +24,17 @@ const items = [
   ["تنظیمات", "/settings", "⚙"]
 ] as const;
 
+const contextAwareDestinations = new Set(["/", "/program", "/reports"]);
+
+export function preserveDashboardContext(href: string, searchParams: { get(name: string): string | null }): string {
+  if (!contextAwareDestinations.has(href)) return href;
+  const planCycle = searchParams.get("planCycle");
+  const unit = searchParams.get("unit");
+  if (!planCycle || !unit) return href;
+  const params = new URLSearchParams({ planCycle, unit });
+  return `${href}?${params.toString()}`;
+}
+
 export function CommandSidebar({
   user,
   onLogout
@@ -32,6 +43,7 @@ export function CommandSidebar({
   onLogout: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
@@ -84,7 +96,7 @@ export function CommandSidebar({
       <div className="nav-caption">ناوبری فرمان</div>
       <nav aria-label="ناوبری اصلی">
         {items.map(([label, href, icon]) => (
-          <Link key={href} href={href} className={`nav-item ${pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)) ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>
+          <Link key={href} href={preserveDashboardContext(href, searchParams)} className={`nav-item ${pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)) ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>
             <span className="nav-icon">{icon}</span><span>{label}</span><span className="nav-chevron">‹</span>
           </Link>
         ))}

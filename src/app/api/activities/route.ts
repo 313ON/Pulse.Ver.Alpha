@@ -1,14 +1,17 @@
 import { auditMutation, ensureRuntimeData, handleApiError, json, readJson, requirePermission } from "../_lib";
 import { canScope } from "../../../server/auth";
 import { ActivityRepository } from "../../../server/repositories";
+import { getDashboardContextOptions, resolveDashboardContext } from "../../../server/dashboard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     ensureRuntimeData();
     const user = await requirePermission("activities.view");
-    return json(new ActivityRepository().list(user));
+    const url = new URL(request.url);
+    const context = resolveDashboardContext(getDashboardContextOptions(), { planCycle: url.searchParams.get("planCycle") ?? undefined, unit: url.searchParams.get("unit") ?? undefined }, user);
+    return json(new ActivityRepository().list(user, context));
   } catch (error) { return handleApiError(error); }
 }
 

@@ -105,6 +105,7 @@ export class ActivityRepository {
         s.department_id, d.name AS department
       FROM activities a
       JOIN sub_goals sg ON sg.id = a.sub_goal_id
+      JOIN strategic_goals g ON g.id = sg.goal_id
       LEFT JOIN people p ON p.id = a.owner_person_id
       LEFT JOIN seats s ON s.id = p.seat_id
       LEFT JOIN departments d ON d.id = s.department_id
@@ -112,12 +113,16 @@ export class ActivityRepository {
     `;
   }
 
-  list(user?: SessionUser, _context?: DashboardContext) {
+  list(user?: SessionUser, context?: DashboardContext) {
     const scope = user?.scope === "DEPARTMENT"
       ? "AND s.department_id = @scopeDepartment"
       : user?.scope === "OWN" ? "AND a.owner_person_id = @scopePerson" : "";
-    return getDatabase().prepare(`${this.query(`WHERE 1 = 1 ${scope}`)} ORDER BY sg.goal_id, a.sub_goal_id, a.title`)
-      .all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id });
+    const contextPlan = context ? "AND g.plan_year = @contextPlanYear" : "";
+    const contextUnit = context?.organizationalUnitId && context.organizationalUnitId !== "ALL"
+      ? "AND (s.department_id = @contextDepartment OR EXISTS (SELECT 1 FROM work_items scoped_w WHERE scoped_w.activity_id = a.id AND scoped_w.department_id = @contextDepartment))"
+      : "";
+    return getDatabase().prepare(`${this.query(`WHERE 1 = 1 ${scope} ${contextPlan} ${contextUnit}`)} ORDER BY sg.goal_id, a.sub_goal_id, a.title`)
+      .all({ scopeDepartment: user?.department_id, scopePerson: user?.person_id, contextPlanYear: context?.planYear, contextDepartment: context?.organizationalUnitId });
   }
 
   get(id: string, user?: SessionUser) {

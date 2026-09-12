@@ -2,6 +2,7 @@ import { handleApiError, json, requirePermission } from "../_lib";
 import {
   getCanonicalProgram,
   ProductionGovernedOperationalReportService,
+  governedGoalOptions,
 } from "../../../application/reporting";
 import { createPlanningContext } from "../../../domain/planning";
 import { getDashboardContextOptions, resolveDashboardContext } from "../../../server/dashboard";
@@ -26,12 +27,16 @@ export async function GET(request: Request) {
     }
     const context = resolveDashboardContext(options, { planCycle: requestedPlanCycle, unit: requestedUnit }, user);
     const reportPlanning = createPlanningContext({ planYear: context.planYear });
-    return json(new ProductionGovernedOperationalReportService(reportPlanning).report(
-      getCanonicalProgram(reportPlanning, context.organizationalUnitId === ALL_ORGANIZATIONAL_UNITS ? undefined : context.organizationalUnitId),
-      user,
-      params.generatedAt,
-      { goalId: params.goal, status: params.status, assignmentId: params.assignmentId }
-    ));
+    const program = getCanonicalProgram(reportPlanning, context.organizationalUnitId === ALL_ORGANIZATIONAL_UNITS ? undefined : context.organizationalUnitId);
+    const service = new ProductionGovernedOperationalReportService(reportPlanning);
+    const baseFilters = { status: params.status, assignmentId: params.assignmentId };
+    const baseReport = service.report(program, user, params.generatedAt, baseFilters);
+    const availableGoals = governedGoalOptions(baseReport, program);
+    if (params.goal && !availableGoals.some((goal) => goal.id === params.goal)) {
+      return json({ error: "The selected goal is not available in the governed report scope.", code: "VALIDATION" }, { status: 400 });
+    }
+    const report = params.goal ? service.report(program, user, params.generatedAt, { ...baseFilters, goalId: params.goal }) : baseReport;
+    return json({ ...report, availableGoals });
   } catch (error) {
     return handleApiError(error);
   }
