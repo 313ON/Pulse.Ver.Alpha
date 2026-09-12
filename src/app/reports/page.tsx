@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PulseShell } from "../../components/PulseShell";
 import { classifyReportState } from "../../components/reporting/report-state";
+import { ContextIndicator } from "../../components/program/ContextIndicator";
 
 type Report = {
   planYear: number;
@@ -80,6 +81,7 @@ export default function ReportsPage() {
   return (
     <PulseShell>
       <div className="page reports-page">
+        {(dashboardParams.get("planCycle") || dashboardParams.get("unit")) && <ContextIndicator context={{ planYear: Number(dashboardParams.get("planCycle")) || report?.planYear || 0, organizationalUnitId: dashboardParams.get("unit") || "ALL" }} unitLabel={dashboardParams.get("unit") === "ALL" || !dashboardParams.get("unit") ? "همه واحدها" : `واحد ${dashboardParams.get("unit")}`} />}
         <div className="page-heading">
           <div>
             <div className="eyebrow">گزارش‌گیری مدیریتی</div>

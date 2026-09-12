@@ -58,11 +58,14 @@ export function ManagementPage({ section }: { section: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [catalogs, setCatalogs] = useState<Record<SelectKey, Row[]>>({ goals: [], subGoals: [], departments: [], roles: [], persons: [], activities: [] });
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    setLoading(true);
+    setError("");
     const requests: Array<[SelectKey, string]> = [
       ["goals", "/api/goals"], ["subGoals", "/api/sub-goals"], ["departments", "/api/departments"],
       ["roles", "/api/roles"], ["persons", "/api/persons"], ["activities", "/api/activities"]
@@ -79,7 +82,8 @@ export function ManagementPage({ section }: { section: string }) {
       const next = {} as Record<SelectKey, Row[]>;
       requests.forEach(([key], index) => { next[key] = (Array.isArray(catalogValues[index]) ? catalogValues[index] : []) as Row[]; });
       setCatalogs(next);
-    }).catch((reason) => setError(reason instanceof Error ? reason.message : "خطا در دریافت اطلاعات"));
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "خطا در دریافت اطلاعات"))
+      .finally(() => setLoading(false));
   }, [entry.endpoint]);
 
   const displayRows = useMemo(() => rows.map((row) => {
@@ -134,7 +138,7 @@ export function ManagementPage({ section }: { section: string }) {
     <div className="page-heading"><div><div className="eyebrow">مدیریت دانش سازمان و اجرای برنامه</div><h1>{entry.title}</h1><p>واژگان کنترل‌شده، ارتباطات سازمانی و داده‌های ثبت‌شده سامانه</p></div>{fields.length > 0 && <button className="primary-button" onClick={() => setShowCreate(true)}>＋ ثبت مورد جدید</button>}</div>
     {showCreate && <div className="panel create-panel"><form onSubmit={createRecord}><div className="form-grid">{fields.map((field) => <FieldInput key={field.key} field={field} value={form[field.key] ?? ""} options={field.select ? catalogs[field.select] : []} onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))} />)}</div><div className="form-actions"><button className="primary-button" type="submit">ذخیره</button><button className="secondary-button" type="button" onClick={() => setShowCreate(false)}>انصراف</button></div></form></div>}
     <div className="panel full-panel"><div className="panel-head"><h2>{entry.title}</h2><label className="inline-search">⌕<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجو در داده‌ها..." /></label></div>
-      {error ? <div className="empty" role="alert"><strong>بارگذاری {entry.title} انجام نشد.</strong><span>داده‌های سامانه تغییری نکرده‌اند؛ صفحه را دوباره بارگذاری کنید.</span><button className="secondary-button" type="button" onClick={() => window.location.reload()}>تلاش دوباره</button></div> : <div className="table-wrap"><table><caption className="sr-only">جدول {entry.title}</caption><thead><tr>{entry.columns.map(([, label]) => <th scope="col" key={label}>{label}</th>)}<th scope="col">عملیات</th></tr></thead><tbody>{filtered.map((row, index) => { const id = detailIdForRow(section, row) || String(index); return <tr key={id}>{entry.columns.map(([key]) => <td key={key}>{key === "active" ? (row[key] ? "فعال" : "غیرفعال") : String(row[key] ?? "—")}</td>)}<td><Link className="table-action" href={`/${section}/${encodeURIComponent(id)}`}>مشاهده جزئیات</Link></td></tr>; })}</tbody></table>{filtered.length === 0 && <div className="empty"><strong>{query || statusFilter ? "نتیجه‌ای با این فیلتر پیدا نشد." : `هنوز ${entry.title} ثبت نشده است.`}</strong><span>{query || statusFilter ? "عبارت جستجو یا وضعیت را تغییر دهید." : "با ثبت نخستین مورد، داده‌ها در این جدول نمایش داده می‌شوند."}</span></div>}</div>}
+      {loading ? <div className="surface-state" role="status" aria-live="polite"><span className="surface-state-spinner" aria-hidden="true" /><strong>در حال دریافت {entry.title}…</strong><span>داده‌های سامانه در حال بارگذاری است.</span></div> : error ? <div className="surface-state surface-state-error" role="alert"><strong>بارگذاری {entry.title} انجام نشد.</strong><span>داده‌های سامانه تغییری نکرده‌اند؛ صفحه را دوباره بارگذاری کنید.</span><button className="secondary-button" type="button" onClick={() => window.location.reload()}>تلاش دوباره</button></div> : <div className="table-wrap"><table><caption className="sr-only">جدول {entry.title}</caption><thead><tr>{entry.columns.map(([, label]) => <th scope="col" key={label}>{label}</th>)}<th scope="col">عملیات</th></tr></thead><tbody>{filtered.map((row, index) => { const id = detailIdForRow(section, row) || String(index); return <tr key={id}>{entry.columns.map(([key]) => <td key={key}>{key === "active" ? (row[key] ? "فعال" : "غیرفعال") : String(row[key] ?? "—")}</td>)}<td><Link className="table-action" href={`/${section}/${encodeURIComponent(id)}`}>مشاهده جزئیات</Link></td></tr>; })}</tbody></table>{filtered.length === 0 && <div className="empty"><strong>{query || statusFilter ? "نتیجه‌ای با این فیلتر پیدا نشد." : `هنوز ${entry.title} ثبت نشده است.`}</strong><span>{query || statusFilter ? "عبارت جستجو یا وضعیت را تغییر دهید." : "با ثبت نخستین مورد، داده‌ها در این جدول نمایش داده می‌شوند."}</span></div>}</div>}
     </div>
   </div></PulseShell>;
 }

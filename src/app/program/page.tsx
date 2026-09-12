@@ -16,5 +16,8 @@ export default async function ProgramPage({ searchParams }: { searchParams: Prom
       redirect(`/program?planCycle=${encodeURIComponent(context.planYear)}&unit=${encodeURIComponent(context.organizationalUnitId)}`);
     }
   }
-  return <ExecutionCommandCenter context={context} />;
+  const unitLabel = context.organizationalUnitId === "ALL"
+    ? "همه واحدها"
+    : options.organizationalUnits.find((unit) => unit.id === context.organizationalUnitId)?.name ?? context.organizationalUnitId;
+  return <ExecutionCommandCenter context={context} unitLabel={unitLabel} />;
 }

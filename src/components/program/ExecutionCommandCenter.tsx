@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PulseShell } from "../PulseShell";
 import { classifyExecutionState } from "./execution-state";
 import type { DashboardContext } from "./dashboard-context";
+import { ContextIndicator } from "./ContextIndicator";
 
 type ActionRow = { public_id?: string; title?: string; status?: string; progress?: number; owner?: string; department?: string };
 type ActivityRow = { id?: string; title?: string; owner?: string; activity_action_count?: number };
@@ -13,7 +14,7 @@ export function executionContextQuery(context: DashboardContext): string {
   return new URLSearchParams({ planCycle: String(context.planYear), unit: context.organizationalUnitId }).toString();
 }
 
-export function ExecutionCommandCenter({ context }: { context: DashboardContext }) {
+export function ExecutionCommandCenter({ context, unitLabel }: { context: DashboardContext; unitLabel?: string }) {
   const [actions, setActions] = useState<ActionRow[] | null>(null);
   const [activities, setActivities] = useState<ActivityRow[] | null>(null);
   const [error, setError] = useState("");
@@ -54,6 +55,7 @@ export function ExecutionCommandCenter({ context }: { context: DashboardContext 
   const averageProgress = useMemo(() => visibleActions.length === 0 ? 0 : Math.round(visibleActions.reduce((total, action) => total + Number(action.progress ?? 0), 0) / visibleActions.length), [visibleActions]);
 
   return <PulseShell><div className="page execution-command-center">
+    <ContextIndicator context={context} unitLabel={unitLabel} />
     <div className="page-heading strategic-heading"><div><div className="eyebrow">نمای اجرایی / پایش عملیات</div><h1>کنترل اجرای برنامه</h1><p>فعالیت‌ها، اقدامات، پیشرفت و وضعیت اجرا در یک نمای عملیاتی مستقل</p></div><div className="strategic-heading-actions"><Link href="/activities" className="secondary-button">فعالیت‌ها</Link><Link href="/actions" className="primary-button">＋ اقدام جدید</Link></div></div>
     <div className="execution-summary"><ExecutionMetric label="اقدامات" value={visibleActions.length} detail="در محدوده دسترسی" /><ExecutionMetric label="در حال اجرا" value={active} detail="نیازمند پایش" /><ExecutionMetric label="تکمیل‌شده" value={completed} detail="به پایان رسیده" /><div className="execution-progress panel"><span>میانگین پیشرفت</span><strong>{averageProgress}٪</strong><div className="program-progress-track"><span style={{ width: `${averageProgress}%` }} /></div></div></div>
     {viewState.kind === "loading" && <div className="empty" role="status">در حال دریافت داده‌های اجرایی…</div>}
