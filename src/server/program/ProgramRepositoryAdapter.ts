@@ -1,4 +1,5 @@
 import type { SessionUser } from "../auth";
+import type { DashboardContext } from "../../components/program/dashboard-context";
 import {
   ActionRepository,
   ActivityRepository,
@@ -23,7 +24,7 @@ export class GoalRepositoryAdapter implements GoalRepositoryPort {
     private readonly mapper = new ProgramMapper()
   ) {}
 
-  list() { return this.repository.list().map((row) => this.mapper.goal(row as Record<string, unknown>, "")); }
+  list(context?: DashboardContext) { return this.repository.list(context).map((row) => this.mapper.goal(row as Record<string, unknown>, "")); }
   get(id: string) {
     const row = this.repository.get(id);
     return row ? this.mapper.goal(row as Record<string, unknown>, "") : undefined;
@@ -35,7 +36,7 @@ export class GoalRepositoryAdapter implements GoalRepositoryPort {
 
 export class DepartmentalGoalRepositoryAdapter {
   constructor(private readonly repository = new DepartmentalGoalRepository(), private readonly mapper = new ProgramMapper()) {}
-  list() { return this.repository.list().map((row) => this.mapper.departmentalGoal(row as Record<string, unknown>)); }
+  list(context?: DashboardContext) { return this.repository.list(context).map((row) => this.mapper.departmentalGoal(row as Record<string, unknown>)); }
   get(id: string) { const row = this.repository.get(id); return row ? this.mapper.departmentalGoal(row as Record<string, unknown>) : undefined; }
 }
 
@@ -45,7 +46,7 @@ export class ObjectiveRepositoryAdapter implements ObjectiveRepositoryPort {
     private readonly mapper = new ProgramMapper()
   ) {}
 
-  list() { return this.repository.list().map((row) => this.mapper.objective(row as Record<string, unknown>)); }
+  list(context?: DashboardContext) { return this.repository.list(context).map((row) => this.mapper.objective(row as Record<string, unknown>)); }
   get(id: string) {
     const row = this.repository.get(id);
     return row ? this.mapper.objective(row as Record<string, unknown>) : undefined;
@@ -64,8 +65,8 @@ export class ActivityRepositoryAdapter implements ActivityRepositoryPort {
     private readonly mapper = new ProgramMapper()
   ) {}
 
-  list(user?: SessionUser) {
-    return this.repository.list(user).map((row) => this.mapper.activity(row as Record<string, unknown>));
+  list(user?: SessionUser, context?: DashboardContext) {
+    return this.repository.list(user, context).map((row) => this.mapper.activity(row as Record<string, unknown>));
   }
   get(id: string, user?: SessionUser) {
     const row = this.repository.get(id, user);
@@ -96,8 +97,8 @@ export class ActionRepositoryAdapter implements ActionRepositoryPort {
     });
   }
 
-  list(user?: SessionUser) {
-    return this.repository.list(user).map((row) => this.mapRow(row as Record<string, unknown>));
+  list(user?: SessionUser, context?: DashboardContext) {
+    return this.repository.list(user, context).map((row) => this.mapRow(row as Record<string, unknown>));
   }
   get(publicId: string, user?: SessionUser) {
     const row = this.repository.get(publicId, user);

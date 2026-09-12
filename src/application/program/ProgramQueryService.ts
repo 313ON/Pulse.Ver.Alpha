@@ -4,6 +4,8 @@ import type { ProgramReadModel, ProgramSummary } from "./ProgramReadModel";
 import { ProgramMapper } from "./ProgramMapper";
 import type { ProgramRepositoryPorts, UnknownRow } from "./ports";
 import { calculateAggregateProgress } from "../../domain/program/metrics";
+import type { DashboardContext } from "../../components/program/dashboard-context";
+import type { SessionUser } from "../../server/auth";
 
 export type ProgramDescriptor = {
   id: string;
@@ -14,6 +16,8 @@ export type ProgramDescriptor = {
   priority?: Goal["priority"];
   start?: string;
   end?: string;
+  context?: DashboardContext;
+  user?: SessionUser;
 };
 
 export class ProgramQueryService {
@@ -23,12 +27,12 @@ export class ProgramQueryService {
   ) {}
 
   getProgram(descriptor: ProgramDescriptor): ProgramReadModel {
-    const goalRows = this.ports.goals.list().map((row) => row as UnknownRow);
-    const departmentalGoalRows = this.ports.departmentalGoals?.list().map((row) => row as UnknownRow) ?? [];
-    const objectiveRows = this.ports.objectives.list().map((row) => row as UnknownRow);
-    const activityRows = this.ports.activities.list().map((row) => row as UnknownRow);
-    const actionRows = this.ports.actions.list().map((row) => row as UnknownRow);
-    const kpiRows = this.ports.kpis.list().map((row) => row as UnknownRow);
+    const goalRows = this.ports.goals.list(descriptor.context).map((row) => row as UnknownRow);
+    const departmentalGoalRows = this.ports.departmentalGoals?.list(descriptor.context).map((row) => row as UnknownRow) ?? [];
+    const objectiveRows = this.ports.objectives.list(descriptor.context).map((row) => row as UnknownRow);
+    const activityRows = this.ports.activities.list(descriptor.user, descriptor.context).map((row) => row as UnknownRow);
+    const actionRows = this.ports.actions.list(descriptor.user, descriptor.context).map((row) => row as UnknownRow);
+    const kpiRows = this.ports.kpis.list(descriptor.context).map((row) => row as UnknownRow);
 
     const goals = goalRows.map((row) => this.mapper.goal(row, descriptor.id));
     const departmentalGoals = departmentalGoalRows.map((row) => this.mapper.departmentalGoal(row));

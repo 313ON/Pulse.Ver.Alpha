@@ -15,6 +15,12 @@ describe("dashboard refresh boundary", () => {
     await expect(refreshDashboardState(fetcher as typeof fetch)).rejects.toThrow("temporary failure");
   });
 
+  it("refreshes the currently selected context", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ state: { kind: "ready", program: {}, lastUpdated: "2026-09-12T08:00:00.000Z" } }), { status: 200 }));
+    await refreshDashboardState(fetcher as typeof fetch, { planYear: 1405, organizationalUnitId: "production" });
+    expect(fetcher).toHaveBeenCalledWith("/api/dashboard/state?planYear=1405&organizationalUnitId=production", { cache: "no-store" });
+  });
+
   it("coalesces duplicate refresh requests while one request is active", async () => {
     let resolveResponse!: (response: Response) => void;
     const fetcher = vi.fn(() => new Promise<Response>((resolve) => { resolveResponse = resolve; }));

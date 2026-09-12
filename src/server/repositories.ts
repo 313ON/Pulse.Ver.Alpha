@@ -4,6 +4,7 @@ import { inspectProgramQuality, validateWorkItem, type Dependency, type KpiRecor
 import type { SessionUser } from "./auth";
 import { hashPasswordForStorage } from "./auth";
 import { getPlanningContext } from "../domain/planning";
+import type { DashboardContext } from "../components/program/dashboard-context";
 
 export class RepositoryError extends Error {
   constructor(public code: "NOT_FOUND" | "DUPLICATE" | "VALIDATION" | "DATABASE", message: string) {
@@ -20,7 +21,7 @@ function mapDatabaseError(error: unknown): never {
 }
 
 export class GoalRepository {
-  list() { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE plan_year = @planYear ORDER BY id").all({ planYear: getPlanningContext().planYear }); }
+  list(context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE plan_year = @planYear ORDER BY id").all({ planYear: context?.planYear ?? getPlanningContext().planYear }); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE id = ?").get(id); }
   create(input: { id: string; title: string }) {
     if (!/^G\d{2}$/.test(input.id) || !input.title.trim()) throw new RepositoryError("VALIDATION", "Goal ID and title are required.");
@@ -33,14 +34,14 @@ export class GoalRepository {
 }
 
 export class DepartmentalGoalRepository {
-  list() {
+  list(context?: DashboardContext) {
     return getDatabase().prepare(`
       SELECT dg.*, d.name AS department, sg.title AS strategic_goal
       FROM departmental_goals dg
       JOIN strategic_goals sg ON sg.id = dg.strategic_goal_id
       LEFT JOIN departments d ON d.id = dg.department_id
       WHERE dg.plan_year = @planYear ORDER BY dg.strategic_goal_id, dg.title
-    `).all({ planYear: getPlanningContext().planYear });
+    `).all({ planYear: context?.planYear ?? getPlanningContext().planYear });
   }
   get(id: string) { return getDatabase().prepare("SELECT * FROM departmental_goals WHERE id = ?").get(id); }
   create(input: { id: string; strategicGoalId: string; departmentId?: string; title: string; ownerPersonId?: string }) {
@@ -67,7 +68,7 @@ export class DepartmentRepository {
 }
 
 export class SubGoalRepository {
-  list() { return getDatabase().prepare("SELECT * FROM sub_goals ORDER BY goal_id, title").all(); }
+  list(_context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM sub_goals ORDER BY goal_id, title").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM sub_goals WHERE id = ?").get(id); }
   create(input: { id: string; goalId: string; title: string; ownerPersonId?: string }) {
     if (!input.id.trim() || !input.goalId.trim() || !input.title.trim()) throw new RepositoryError("VALIDATION", "Sub-goal ID, goal, and title are required.");
@@ -111,7 +112,7 @@ export class ActivityRepository {
     `;
   }
 
-  list(user?: SessionUser) {
+  list(user?: SessionUser, _context?: DashboardContext) {
     const scope = user?.scope === "DEPARTMENT"
       ? "AND s.department_id = @scopeDepartment"
       : user?.scope === "OWN" ? "AND a.owner_person_id = @scopePerson" : "";
@@ -288,7 +289,7 @@ export class UserRepository {
 }
 
 export class ActionRepository {
-  list(user?: SessionUser) {
+  list(user?: SessionUser, context?: DashboardContext) {
     const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
     return getDatabase().prepare(`
       SELECT w.*, p.full_name AS owner, d.name AS department, a.title AS activity_title
@@ -296,8 +297,8 @@ export class ActionRepository {
       JOIN people p ON p.id = w.owner_person_id
       JOIN departments d ON d.id = w.department_id
       LEFT JOIN activities a ON a.id = w.activity_id
-      WHERE w.plan_year = @planYear ${scopeClause} ORDER BY w.planned_end, w.public_id
-    `).all({ planYear: getPlanningContext().planYear, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
+      WHERE w.plan_year = @planYear ${scopeClause} ${context?.organizationalUnitId && context.organizationalUnitId !== "ALL" ? "AND w.department_id = @contextDepartment" : ""} ORDER BY w.planned_end, w.public_id
+    `).all({ planYear: context?.planYear ?? getPlanningContext().planYear, scopeDepartment: user?.department_id, scopePerson: user?.person_id, contextDepartment: context?.organizationalUnitId ?? null });
   }
   get(publicId: string, user?: SessionUser) {
     const scopeClause = user?.scope === "DEPARTMENT" ? "AND w.department_id = @scopeDepartment" : user?.scope === "OWN" ? "AND w.owner_person_id = @scopePerson" : "";
@@ -364,7 +365,7 @@ function nextPublicId(goalId: string): string {
 }
 
 export class KPIRepository {
-  list() { return getDatabase().prepare("SELECT * FROM kpis ORDER BY name").all(); }
+  list(_context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM kpis ORDER BY name").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM kpis WHERE id = ?").get(id); }
   create(input: KpiRecord & { ownerPersonId: string; workItemId?: string; kind?: string }) {
     try {

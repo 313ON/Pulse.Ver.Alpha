@@ -5,15 +5,20 @@ import type { DashboardState } from "./dashboard-state";
 import { DashboardStateView } from "./DashboardStateView";
 import { StrategicCommandCenter } from "./StrategicCommandCenter";
 import { createDashboardRefreshCoordinator } from "./dashboard-refresh";
+import type { DashboardContext, DashboardContextOptions } from "./dashboard-context";
+import { ALL_ORGANIZATIONAL_UNITS } from "./dashboard-context";
 
 type RefreshState = "idle" | "refreshing" | "failed";
 
-export function DashboardController({ initialState, today }: { initialState: DashboardState; today: string }) {
+export function DashboardController({ initialState, today, initialContext, contextOptions }: { initialState: DashboardState; today: string; initialContext: DashboardContext; contextOptions: DashboardContextOptions }) {
   const [state, setState] = useState(initialState);
+  const [context, setContext] = useState(initialContext);
+  const contextRef = useRef(initialContext);
+  contextRef.current = context;
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [refreshError, setRefreshError] = useState("");
   const coordinatorRef = useRef<(() => Promise<DashboardState>) | null>(null);
-  if (!coordinatorRef.current) coordinatorRef.current = createDashboardRefreshCoordinator(fetch);
+  if (!coordinatorRef.current) coordinatorRef.current = createDashboardRefreshCoordinator(fetch, () => contextRef.current);
 
   function refresh(): Promise<void> {
     setRefreshState("refreshing");
@@ -31,9 +36,20 @@ export function DashboardController({ initialState, today }: { initialState: Das
     return request;
   }
 
+  function changeContext(next: DashboardContext) {
+    setContext(next);
+    setRefreshState("refreshing");
+    setRefreshError("");
+    void fetch(`/api/dashboard/state?planYear=${encodeURIComponent(next.planYear)}&organizationalUnitId=${encodeURIComponent(next.organizationalUnitId)}`, { cache: "no-store" })
+      .then(async (response) => { const body = await response.json() as { state?: DashboardState; error?: string }; if (!response.ok || !body.state) throw new Error(body.error ?? "دریافت زمینه داشبورد انجام نشد."); return body.state; })
+      .then((nextState) => { setState(nextState); setRefreshState("idle"); })
+      .catch((error: unknown) => { setRefreshState("failed"); setRefreshError(error instanceof Error ? error.message : "دریافت زمینه داشبورد انجام نشد."); });
+  }
+
   const lastUpdated = state.kind === "ready" || state.kind === "partial" || state.kind === "empty" ? state.lastUpdated : undefined;
   return (
     <div className="dashboard-controller">
+      <div className="dashboard-context-bar" aria-label="زمینه داشبورد"><label>چرخه برنامه<select value={context.planYear} onChange={(event) => changeContext({ ...context, planYear: Number(event.target.value) })} disabled={refreshState === "refreshing"}>{contextOptions.planYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label><label>واحد سازمانی<select value={context.organizationalUnitId} onChange={(event) => changeContext({ ...context, organizationalUnitId: event.target.value })} disabled={refreshState === "refreshing"}><option value={ALL_ORGANIZATIONAL_UNITS}>همه واحدها</option>{contextOptions.organizationalUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label><span>زمینه فعال: {context.planYear} / {context.organizationalUnitId === ALL_ORGANIZATIONAL_UNITS ? "همه واحدها" : contextOptions.organizationalUnits.find((unit) => unit.id === context.organizationalUnitId)?.name}</span></div>
       <div className="dashboard-freshness-bar" role="status" aria-live="polite">
         <div><span className="program-panel-kicker">وضعیت داده</span><strong>{refreshState === "refreshing" ? "در حال به‌روزرسانی…" : refreshState === "failed" ? "به‌روزرسانی ناموفق بود" : "آخرین داده معتبر"}</strong>{lastUpdated && <time dateTime={lastUpdated}>آخرین دریافت: {formatFreshness(lastUpdated)}</time>}</div>
         <button className="secondary-button dashboard-refresh-button" type="button" onClick={() => void refresh()} disabled={refreshState === "refreshing"} aria-label="به‌روزرسانی داشبورد">{refreshState === "refreshing" ? "در حال دریافت…" : "↻ به‌روزرسانی"}</button>
