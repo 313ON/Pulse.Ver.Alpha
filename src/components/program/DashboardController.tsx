@@ -76,7 +76,7 @@ export function DashboardController({ initialState, today, initialContext, conte
         <button className="secondary-button dashboard-refresh-button" type="button" onClick={() => void refresh()} disabled={refreshState === "refreshing"} aria-label="به‌روزرسانی داشبورد">{refreshState === "refreshing" ? "در حال دریافت…" : "↻ به‌روزرسانی"}</button>
       </div>
       {refreshState === "failed" && <div className="dashboard-refresh-error" role="alert"><span>{refreshError}</span><button className="primary-button" type="button" onClick={() => void refresh()}>تلاش دوباره</button></div>}
-      {state.kind === "ready" ? <StrategicCommandCenter state={state} today={today} /> : state.kind === "partial" ? <><StrategicCommandCenter state={state} today={today} /><div className="dashboard-partial-data-note">داده‌های موجود نگه داشته شده‌اند؛ پس از تکمیل ورودی، داشبورد را دوباره به‌روزرسانی کنید.</div></> : state.kind === "loading" ? null : <DashboardStateView state={state} onRetry={() => void refresh()} />}
+      {state.kind === "ready" ? <StrategicCommandCenter state={state} today={today} dashboardContext={context} /> : state.kind === "partial" ? <><StrategicCommandCenter state={state} today={today} dashboardContext={context} /><div className="dashboard-partial-data-note">داده‌های موجود نگه داشته شده‌اند؛ پس از تکمیل ورودی، داشبورد را دوباره به‌روزرسانی کنید.</div></> : state.kind === "loading" ? null : <DashboardStateView state={state} onRetry={() => void refresh()} />}
     </div>
   );
 }

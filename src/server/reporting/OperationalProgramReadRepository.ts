@@ -14,25 +14,25 @@ type AssignmentRow = {
 };
 
 export class SQLiteOperationalProgramReadRepository implements OperationalProgramReadPort {
-  listGoals(planYear: number): UnknownRow[] {
+  listGoals(planYear: number, organizationalUnitId?: string): UnknownRow[] {
     return getReadOnlyDatabase()
-      .prepare("SELECT * FROM strategic_goals WHERE plan_year = ? ORDER BY id")
-      .all(planYear) as UnknownRow[];
+      .prepare("SELECT * FROM strategic_goals WHERE plan_year = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM work_items w WHERE w.goal_id = strategic_goals.id AND w.plan_year = ? AND w.department_id = ?)) ORDER BY id")
+      .all(planYear, organizationalUnitId ?? null, planYear, organizationalUnitId ?? null) as UnknownRow[];
   }
 
-  listObjectives(planYear: number): UnknownRow[] {
+  listObjectives(planYear: number, organizationalUnitId?: string): UnknownRow[] {
     return getReadOnlyDatabase()
       .prepare(`
         SELECT sg.*, g.plan_year
         FROM sub_goals sg
         JOIN strategic_goals g ON g.id = sg.goal_id
-        WHERE g.plan_year = ?
+        WHERE g.plan_year = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM work_items w WHERE w.goal_id = sg.goal_id AND w.plan_year = ? AND w.department_id = ?))
         ORDER BY sg.goal_id, sg.id
       `)
-      .all(planYear) as UnknownRow[];
+      .all(planYear, organizationalUnitId ?? null, planYear, organizationalUnitId ?? null) as UnknownRow[];
   }
 
-  listActivities(planYear: number): UnknownRow[] {
+  listActivities(planYear: number, organizationalUnitId?: string): UnknownRow[] {
     return getReadOnlyDatabase()
       .prepare(`
         SELECT a.*, sg.goal_id, g.plan_year, p.full_name AS owner
@@ -40,38 +40,38 @@ export class SQLiteOperationalProgramReadRepository implements OperationalProgra
         JOIN sub_goals sg ON sg.id = a.sub_goal_id
         JOIN strategic_goals g ON g.id = sg.goal_id
         LEFT JOIN people p ON p.id = a.owner_person_id
-        WHERE g.plan_year = ?
+        WHERE g.plan_year = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM work_items w WHERE w.activity_id = a.id AND w.plan_year = ? AND w.department_id = ?))
         ORDER BY sg.goal_id, a.sub_goal_id, a.id
       `)
-      .all(planYear) as UnknownRow[];
+      .all(planYear, organizationalUnitId ?? null, planYear, organizationalUnitId ?? null) as UnknownRow[];
   }
 
-  listActions(planYear: number): UnknownRow[] {
+  listActions(planYear: number, organizationalUnitId?: string): UnknownRow[] {
     return getReadOnlyDatabase()
       .prepare(`
         SELECT w.*, p.full_name AS owner, d.name AS department
         FROM work_items w
         JOIN people p ON p.id = w.owner_person_id
         JOIN departments d ON d.id = w.department_id
-        WHERE w.plan_year = ?
+        WHERE w.plan_year = ? AND (? IS NULL OR w.department_id = ?)
         ORDER BY w.planned_end, w.public_id
       `)
-      .all(planYear) as UnknownRow[];
+      .all(planYear, organizationalUnitId ?? null, organizationalUnitId ?? null) as UnknownRow[];
   }
 
-  listKpis(planYear: number): UnknownRow[] {
+  listKpis(planYear: number, organizationalUnitId?: string): UnknownRow[] {
     return getReadOnlyDatabase()
       .prepare(`
         SELECT k.*
         FROM kpis k
         LEFT JOIN work_items w ON w.id = k.work_item_id
-        WHERE k.work_item_id IS NULL OR w.plan_year = ?
+        WHERE (k.work_item_id IS NULL OR w.plan_year = ?) AND (? IS NULL OR w.department_id = ?)
         ORDER BY k.name
       `)
-      .all(planYear) as UnknownRow[];
+      .all(planYear, organizationalUnitId ?? null, organizationalUnitId ?? null) as UnknownRow[];
   }
 
-  listActionAssignments(planYear: number): ReadonlyMap<string, readonly ContextProgramAssignment[]> {
+  listActionAssignments(planYear: number, organizationalUnitId?: string): ReadonlyMap<string, readonly ContextProgramAssignment[]> {
     const rows = getReadOnlyDatabase()
       .prepare(`
         SELECT w.id AS work_item_id, w.public_id, w.owner_person_id, owner.full_name AS owner,
@@ -81,10 +81,10 @@ export class SQLiteOperationalProgramReadRepository implements OperationalProgra
         JOIN people owner ON owner.id = w.owner_person_id
         LEFT JOIN work_item_collaborators wc ON wc.work_item_id = w.id
         LEFT JOIN people collaborator ON collaborator.id = wc.person_id
-        WHERE w.plan_year = ?
+        WHERE w.plan_year = ? AND (? IS NULL OR w.department_id = ?)
         ORDER BY w.public_id, collaborator.id
       `)
-      .all(planYear) as AssignmentRow[];
+      .all(planYear, organizationalUnitId ?? null, organizationalUnitId ?? null) as AssignmentRow[];
     const assignments = new Map<string, ContextProgramAssignment[]>();
     for (const [index, row] of rows.entries()) {
       const provenance = {

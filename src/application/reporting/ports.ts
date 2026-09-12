@@ -2,10 +2,10 @@ import type { ContextProgramAssignment } from "../organization/OrganizationalCon
 import type { UnknownRow } from "../program/ports";
 
 export type OperationalProgramReadPort = {
-  listGoals(planYear: number): UnknownRow[];
-  listObjectives(planYear: number): UnknownRow[];
-  listActivities(planYear: number): UnknownRow[];
-  listActions(planYear: number): UnknownRow[];
-  listKpis(planYear: number): UnknownRow[];
-  listActionAssignments(planYear: number): ReadonlyMap<string, readonly ContextProgramAssignment[]>;
+  listGoals(planYear: number, organizationalUnitId?: string): UnknownRow[];
+  listObjectives(planYear: number, organizationalUnitId?: string): UnknownRow[];
+  listActivities(planYear: number, organizationalUnitId?: string): UnknownRow[];
+  listActions(planYear: number, organizationalUnitId?: string): UnknownRow[];
+  listKpis(planYear: number, organizationalUnitId?: string): UnknownRow[];
+  listActionAssignments(planYear: number, organizationalUnitId?: string): ReadonlyMap<string, readonly ContextProgramAssignment[]>;
 };

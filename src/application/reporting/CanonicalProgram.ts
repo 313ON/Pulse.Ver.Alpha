@@ -2,7 +2,7 @@ import { getPlanningContext, type PlanningContext } from "../../domain/planning"
 import { SQLiteOperationalProgramReadRepository } from "../../server/reporting/OperationalProgramReadRepository";
 import { ReadOnlyProgramQueryService } from "./ReadOnlyProgramQueryService";
 
-export function getCanonicalProgram(planning: PlanningContext = getPlanningContext()) {
+export function getCanonicalProgram(planning: PlanningContext = getPlanningContext(), organizationalUnitId?: string) {
   return new ReadOnlyProgramQueryService(
     new SQLiteOperationalProgramReadRepository(),
     undefined,
@@ -14,6 +14,7 @@ export function getCanonicalProgram(planning: PlanningContext = getPlanningConte
     status: "در حال اجرا",
     priority: "بحرانی",
     start: planning.startDate,
-    end: planning.endDate
+    end: planning.endDate,
+    organizationalUnitId
   }).hierarchy;
 }

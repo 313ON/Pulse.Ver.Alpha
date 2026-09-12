@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PulseShell } from "../../components/PulseShell";
 
 type Report = {
@@ -37,14 +38,17 @@ type Report = {
 };
 
 export default function ReportsPage() {
+  const dashboardParams = useSearchParams();
   const [report, setReport] = useState<Report | null>(null);
   const [filters, setFilters] = useState({ goal: "", status: "" });
   const generatedAt = useMemo(() => new Date().toISOString(), []);
   const query = useMemo(() => new URLSearchParams({
     mode: "governed",
     generatedAt,
+    ...(dashboardParams.get("planCycle") ? { planCycle: dashboardParams.get("planCycle")! } : {}),
+    ...(dashboardParams.get("unit") ? { unit: dashboardParams.get("unit")! } : {}),
     ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value))
-  }).toString(), [filters, generatedAt]);
+  }).toString(), [dashboardParams, filters, generatedAt]);
 
   useEffect(() => {
     void fetch(`/api/reports?${query}`)

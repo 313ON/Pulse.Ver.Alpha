@@ -21,16 +21,18 @@ export class ReadOnlyProgramQueryService {
     priority?: Goal["priority"];
     start?: string;
     end?: string;
+    organizationalUnitId?: string;
   }): ProgramReadModel {
     const planYear = this.planning.planYear;
-    const goals = this.readRepository.listGoals(planYear)
+    const organizationalUnitId = descriptor.organizationalUnitId;
+    const goals = this.readRepository.listGoals(planYear, organizationalUnitId)
       .map((row) => this.mapper.goal(row, descriptor.id));
-    const objectives = this.readRepository.listObjectives(planYear)
+    const objectives = this.readRepository.listObjectives(planYear, organizationalUnitId)
       .map((row) => this.mapper.objective(row));
-    const activities = this.readRepository.listActivities(planYear)
+    const activities = this.readRepository.listActivities(planYear, organizationalUnitId)
       .map((row) => this.mapper.activity(row));
-    const actionRows = this.readRepository.listActions(planYear);
-    const assignmentsByActionId = this.readRepository.listActionAssignments(planYear);
+    const actionRows = this.readRepository.listActions(planYear, organizationalUnitId);
+    const assignmentsByActionId = this.readRepository.listActionAssignments(planYear, organizationalUnitId);
     const actions = actionRows.map((row) => {
       const identity = parseWorkItemHierarchyIdentity(String(row.public_id ?? ""));
       return this.mapper.action({
@@ -40,7 +42,7 @@ export class ReadOnlyProgramQueryService {
         assignments: assignmentsByActionId.get(String(row.public_id ?? "")) ?? []
       });
     });
-    const kpiRows = this.readRepository.listKpis(planYear);
+    const kpiRows = this.readRepository.listKpis(planYear, organizationalUnitId);
     const actionByInternalId = new Map(actionRows.flatMap((row, index) => [
       [String(row.id ?? ""), actions[index]] as const,
       [String(row.public_id ?? ""), actions[index]] as const

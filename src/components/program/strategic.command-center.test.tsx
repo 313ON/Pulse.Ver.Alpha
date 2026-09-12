@@ -97,6 +97,11 @@ describe("live strategic command center", () => {
     expect(markup).not.toContain("ارتقای زیرساخت فناوری اطلاعات");
   });
 
+  it("preserves dashboard context on the report link", () => {
+    const markup = renderToStaticMarkup(<StrategicCommandCenter program={liveProgram()} dashboardContext={{ planYear: 1405, organizationalUnitId: "production" }} />);
+    expect(markup).toContain("/reports?planCycle=1405&amp;unit=production");
+  });
+
   it("models empty, partial, and ready dashboard data explicitly", () => {
     const program = liveProgram();
     expect(classifyDashboardData({ ...program, goals: [] }).kind).toBe("empty");

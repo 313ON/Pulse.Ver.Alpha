@@ -7,7 +7,9 @@ import {
   getCanonicalProgram,
   ProductionGovernedOperationalReportService,
 } from "../../../../application/reporting";
-import { getPlanningContext } from "../../../../domain/planning";
+import { createPlanningContext } from "../../../../domain/planning";
+import { getDashboardContextOptions, resolveDashboardContext } from "../../../../server/dashboard";
+import { ALL_ORGANIZATIONAL_UNITS } from "../../../../components/program/dashboard-context";
 
 export const runtime = "nodejs";
 
@@ -18,13 +20,21 @@ export async function GET(request: Request) {
     if (params.mode && params.mode !== "governed") {
       return new Response(JSON.stringify({ error: "Legacy non-governed exports are no longer available.", code: "GONE" }), { status: 410, headers: { "Content-Type": "application/json" } });
     }
-    const planning = getPlanningContext();
     const user = await requirePermission("reports.export");
     if (!params.generatedAt) {
       return new Response(JSON.stringify({ error: "generatedAt is required for governed reports.", code: "VALIDATION" }), { status: 400, headers: { "Content-Type": "application/json" } });
     }
-    const report = new ProductionGovernedOperationalReportService(planning).report(
-      getCanonicalProgram(planning),
+    const options = getDashboardContextOptions();
+    const requestedUnit = params.unit;
+    const requestedPlanCycle = params.planCycle;
+    const validUnit = requestedUnit === ALL_ORGANIZATIONAL_UNITS || options.organizationalUnits.some((unit) => unit.id === requestedUnit);
+    if (user.scope === "DEPARTMENT" && validUnit && requestedUnit && requestedUnit !== ALL_ORGANIZATIONAL_UNITS && requestedUnit !== user.department_id) {
+      return new Response(JSON.stringify({ error: "دسترسی شما به این واحد سازمانی مجاز نیست.", code: "FORBIDDEN" }), { status: 403, headers: { "Content-Type": "application/json" } });
+    }
+    const context = resolveDashboardContext(options, { planCycle: requestedPlanCycle, unit: requestedUnit }, user);
+    const reportPlanning = createPlanningContext({ planYear: context.planYear });
+    const report = new ProductionGovernedOperationalReportService(reportPlanning).report(
+      getCanonicalProgram(reportPlanning, context.organizationalUnitId === ALL_ORGANIZATIONAL_UNITS ? undefined : context.organizationalUnitId),
       user,
       params.generatedAt,
       { goalId: params.goal, status: params.status, assignmentId: params.assignmentId }

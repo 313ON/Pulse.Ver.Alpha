@@ -8,8 +8,9 @@ import { ProgramTree } from "./ProgramTree";
 import { ProgressIndicator } from "./ProgressIndicator";
 import { DashboardStateView } from "./DashboardStateView";
 import type { DashboardState } from "./dashboard-state";
+import type { DashboardContext } from "./dashboard-context";
 
-export function StrategicCommandCenter({ program, today = "1405/06/15", state }: { program?: Program; today?: string; state?: DashboardState }) {
+export function StrategicCommandCenter({ program, today = "1405/06/15", state, dashboardContext }: { program?: Program; today?: string; state?: DashboardState; dashboardContext?: DashboardContext }) {
   if (state && state.kind !== "ready") {
     if (state.kind === "loading") return null;
     return <DashboardStateView state={state} />;
@@ -43,7 +44,7 @@ export function StrategicCommandCenter({ program, today = "1405/06/15", state }:
           <HierarchyBreadcrumb nodes={[program]} />
         </div>
         <div className="strategic-heading-actions">
-          <Link href="/reports" className="secondary-button">گزارش برنامه</Link>
+          <Link href={dashboardContext ? `/reports?planCycle=${encodeURIComponent(dashboardContext.planYear)}&unit=${encodeURIComponent(dashboardContext.organizationalUnitId)}` : "/reports"} className="secondary-button">گزارش برنامه</Link>
           <Link href="/actions" className="primary-button">＋ اقدام جدید</Link>
         </div>
       </div>
