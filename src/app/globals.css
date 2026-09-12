@@ -514,6 +514,8 @@ code, kbd, .command-kicker, .goal-id, td small, .system-footer b {
 .strategic-heading { margin-bottom: 20px; }
 .strategic-heading-actions { display: flex; gap: 10px; align-items: center; }
 .strategic-heading-actions .secondary-button { display: inline-flex; align-items: center; min-height: 42px; }
+.dashboard-share-control { display: inline-flex; align-items: center; gap: 8px; }
+.dashboard-share-feedback { min-width: 104px; color: var(--green); font-size: 10px; }
 .hierarchy-breadcrumb { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--text-secondary); font-size: 10px; }
 .hierarchy-breadcrumb span { display: inline-flex; align-items: center; gap: 8px; }
 .hierarchy-breadcrumb i { color: var(--primary); font-style: normal; font-size: 16px; }

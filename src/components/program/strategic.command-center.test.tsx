@@ -10,10 +10,12 @@ import { programDateDistance } from "../../domain/program/rules";
 import { attentionWeight, managementState, StrategicCommandCenter } from "./StrategicCommandCenter";
 import { classifyDashboardData } from "./dashboard-state";
 import { DashboardStateView } from "./DashboardStateView";
+import { DashboardShareButton, copyDashboardLink, dashboardShareUrl } from "./DashboardShareButton";
 
 Object.assign(globalThis, { React });
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() })
+  useRouter: () => ({ refresh: vi.fn() }),
+  usePathname: () => "/program"
 }));
 
 beforeEach(() => {
@@ -100,6 +102,27 @@ describe("live strategic command center", () => {
   it("preserves dashboard context on the report link", () => {
     const markup = renderToStaticMarkup(<StrategicCommandCenter program={liveProgram()} dashboardContext={{ planYear: 1405, organizationalUnitId: "production" }} />);
     expect(markup).toContain("/reports?planCycle=1405&amp;unit=production");
+  });
+
+  it("renders a share control for the current canonical dashboard context", () => {
+    const markup = renderToStaticMarkup(<StrategicCommandCenter program={liveProgram()} dashboardContext={{ planYear: 1405, organizationalUnitId: "production" }} />);
+    expect(markup).toContain('aria-label="کپی لینک داشبورد"');
+    expect(markup).toContain("اشتراک‌گذاری");
+    expect(dashboardShareUrl("/program", { planYear: 1405, organizationalUnitId: "production" }, "https://pulse.example/")).toBe("https://pulse.example/program?planCycle=1405&unit=production");
+  });
+
+  it("copies the current context and reflects later context changes", async () => {
+    const writes: string[] = [];
+    const clipboard = { writeText: async (url: string) => { writes.push(url); } };
+    await copyDashboardLink(dashboardShareUrl("/program", { planYear: 1405, organizationalUnitId: "production" }), clipboard);
+    await copyDashboardLink(dashboardShareUrl("/program", { planYear: 1404, organizationalUnitId: "management" }), clipboard);
+    expect(writes).toEqual(["/program?planCycle=1405&unit=production", "/program?planCycle=1404&unit=management"]);
+  });
+
+  it("surfaces clipboard failures to the share control", async () => {
+    await expect(copyDashboardLink("/program?planCycle=1405&unit=production", { writeText: async () => { throw new Error("denied"); } })).rejects.toThrow("denied");
+    const markup = renderToStaticMarkup(<DashboardShareButton context={{ planYear: 1405, organizationalUnitId: "production" }} />);
+    expect(markup).toContain('role="status"');
   });
 
   it("models empty, partial, and ready dashboard data explicitly", () => {
