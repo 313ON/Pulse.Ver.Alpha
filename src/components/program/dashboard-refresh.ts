@@ -4,7 +4,7 @@ import type { DashboardContext } from "./dashboard-context";
 export type DashboardStateFetcher = typeof fetch;
 
 export function refreshDashboardState(fetcher: DashboardStateFetcher, context?: DashboardContext): Promise<DashboardState> {
-  const query = context ? `?planYear=${encodeURIComponent(context.planYear)}&organizationalUnitId=${encodeURIComponent(context.organizationalUnitId)}` : "";
+  const query = context ? `?planCycle=${encodeURIComponent(context.planYear)}&unit=${encodeURIComponent(context.organizationalUnitId)}` : "";
   const response = fetcher(`/api/dashboard/state${query}`, { cache: "no-store" });
   return response.then(async (result) => {
     const body = await result.json() as { state?: DashboardState; error?: string };

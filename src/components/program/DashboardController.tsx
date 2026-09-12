@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { DashboardState } from "./dashboard-state";
 import { DashboardStateView } from "./DashboardStateView";
 import { StrategicCommandCenter } from "./StrategicCommandCenter";
-import { createDashboardRefreshCoordinator } from "./dashboard-refresh";
+import { createDashboardRefreshCoordinator, refreshDashboardState } from "./dashboard-refresh";
 import type { DashboardContext, DashboardContextOptions } from "./dashboard-context";
-import { ALL_ORGANIZATIONAL_UNITS } from "./dashboard-context";
+import { ALL_ORGANIZATIONAL_UNITS, dashboardContextFromSearchParams, dashboardContextToSearchParams, normalizeDashboardContext } from "./dashboard-context";
 
 type RefreshState = "idle" | "refreshing" | "failed";
 
@@ -17,8 +18,33 @@ export function DashboardController({ initialState, today, initialContext, conte
   contextRef.current = context;
   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
   const [refreshError, setRefreshError] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialUrlSyncRef = useRef(true);
   const coordinatorRef = useRef<(() => Promise<DashboardState>) | null>(null);
   if (!coordinatorRef.current) coordinatorRef.current = createDashboardRefreshCoordinator(fetch, () => contextRef.current);
+
+  useEffect(() => {
+    const requested = dashboardContextFromSearchParams(new URLSearchParams(searchParams.toString()), initialContext);
+    const next = normalizeDashboardContext(requested, contextOptions, initialContext);
+    if (requested.planYear !== next.planYear || requested.organizationalUnitId !== next.organizationalUnitId) {
+      router.replace(`${pathname}?${dashboardContextToSearchParams(next).toString()}`, { scroll: false });
+      return;
+    }
+    const sameContext = next.planYear === contextRef.current.planYear && next.organizationalUnitId === contextRef.current.organizationalUnitId;
+    if (initialUrlSyncRef.current) {
+      initialUrlSyncRef.current = false;
+      return;
+    }
+    if (sameContext) return;
+    setContext(next);
+    setRefreshState("refreshing");
+    setRefreshError("");
+    void refreshDashboardState(fetch, next)
+      .then((nextState) => { setState(nextState); setRefreshState("idle"); })
+      .catch((error: unknown) => { setRefreshState("failed"); setRefreshError(error instanceof Error ? error.message : "دریافت زمینه داشبورد انجام نشد."); });
+  }, [initialContext.planYear, pathname, searchParams]);
 
   function refresh(): Promise<void> {
     setRefreshState("refreshing");
@@ -37,13 +63,8 @@ export function DashboardController({ initialState, today, initialContext, conte
   }
 
   function changeContext(next: DashboardContext) {
-    setContext(next);
-    setRefreshState("refreshing");
-    setRefreshError("");
-    void fetch(`/api/dashboard/state?planYear=${encodeURIComponent(next.planYear)}&organizationalUnitId=${encodeURIComponent(next.organizationalUnitId)}`, { cache: "no-store" })
-      .then(async (response) => { const body = await response.json() as { state?: DashboardState; error?: string }; if (!response.ok || !body.state) throw new Error(body.error ?? "دریافت زمینه داشبورد انجام نشد."); return body.state; })
-      .then((nextState) => { setState(nextState); setRefreshState("idle"); })
-      .catch((error: unknown) => { setRefreshState("failed"); setRefreshError(error instanceof Error ? error.message : "دریافت زمینه داشبورد انجام نشد."); });
+    const params = dashboardContextToSearchParams(next, new URLSearchParams(searchParams.toString()));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   const lastUpdated = state.kind === "ready" || state.kind === "partial" || state.kind === "empty" ? state.lastUpdated : undefined;

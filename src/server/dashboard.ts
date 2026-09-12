@@ -33,3 +33,17 @@ export function loadDashboardState(user: SessionUser, context: DashboardContext)
 export function defaultDashboardContext(): DashboardContext {
   return { planYear: getPlanningContext().planYear, organizationalUnitId: ALL_ORGANIZATIONAL_UNITS };
 }
+
+export function resolveDashboardContext(
+  options: DashboardContextOptions,
+  input: { planCycle?: string; unit?: string },
+  user?: SessionUser
+): DashboardContext {
+  const defaults = defaultDashboardContext();
+  const requestedPlanYear = Number(input.planCycle);
+  const planYear = options.planYears.includes(requestedPlanYear) ? requestedPlanYear : defaults.planYear;
+  const requestedUnit = input.unit || defaults.organizationalUnitId;
+  const validUnit = requestedUnit === ALL_ORGANIZATIONAL_UNITS || options.organizationalUnits.some((unit) => unit.id === requestedUnit);
+  const authorizedUnit = user?.scope === "DEPARTMENT" && requestedUnit !== ALL_ORGANIZATIONAL_UNITS && requestedUnit !== user.department_id ? false : true;
+  return { planYear, organizationalUnitId: validUnit && authorizedUnit ? requestedUnit : defaults.organizationalUnitId };
+}
