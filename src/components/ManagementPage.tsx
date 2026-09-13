@@ -15,26 +15,26 @@ export function detailIdForRow(section: string, row: Row): string {
 }
 
 const config: Record<string, { title: string; endpoint: string; columns: Array<[string, string]> }> = {
-  goals: { title: "اهداف کلی", endpoint: "/api/goals", columns: [["id", "شناسه"], ["title", "عنوان"]] },
-  "sub-goals": { title: "اهداف جزئی", endpoint: "/api/sub-goals", columns: [["id", "شناسه"], ["goal_id", "هدف کلی"], ["title", "عنوان"]] },
-  activities: { title: "فعالیت‌ها", endpoint: "/api/activities", columns: [["id", "شناسه"], ["sub_goal_id", "هدف جزئی"], ["title", "عنوان"], ["owner", "مسئول"], ["activity_action_count", "اقدامات مرتبط"]] },
-  departments: { title: "واحدها", endpoint: "/api/departments", columns: [["id", "شناسه"], ["name", "نام واحد"], ["active", "وضعیت"]] },
-  roles: { title: "سمت‌ها و نقش‌ها", endpoint: "/api/roles", columns: [["id", "شناسه"], ["title", "سمت / نقش"], ["department_id", "واحد"], ["assigned_people", "پرسنل تخصیص‌یافته"]] },
+  goals: { title: "اهداف کلی", endpoint: "/api/goals", columns: [["pulse_identifier", "شناسه PULSE"], ["title", "عنوان"]] },
+  "sub-goals": { title: "اهداف جزئی", endpoint: "/api/sub-goals", columns: [["pulse_identifier", "شناسه PULSE"], ["goal_id", "هدف کلی"], ["title", "عنوان"]] },
+  activities: { title: "فعالیت‌ها", endpoint: "/api/activities", columns: [["pulse_identifier", "شناسه PULSE"], ["sub_goal_id", "هدف جزئی"], ["title", "عنوان"], ["owner", "مسئول"], ["activity_action_count", "اقدامات مرتبط"]] },
+  departments: { title: "واحدها", endpoint: "/api/departments", columns: [["pulse_identifier", "شناسه PULSE"], ["name", "نام واحد"], ["active", "وضعیت"]] },
+  roles: { title: "سمت‌ها و نقش‌ها", endpoint: "/api/roles", columns: [["pulse_identifier", "شناسه PULSE"], ["title", "سمت / نقش"], ["department_id", "واحد"], ["assigned_people", "پرسنل تخصیص‌یافته"]] },
   persons: { title: "پرسنل", endpoint: "/api/persons", columns: [["id", "کد پرسنلی"], ["full_name", "نام"], ["department", "واحد"], ["position", "سمت"], ["role", "نقش"]] },
   users: { title: "کاربران سامانه", endpoint: "/api/users", columns: [["id", "شناسه"], ["username", "نام کاربری"], ["role", "نقش"], ["active", "وضعیت"]] },
   actions: { title: "اقدامات", endpoint: "/api/actions", columns: [["public_id", "شناسه اقدام"], ["title", "عنوان"], ["status", "وضعیت"], ["progress", "پیشرفت"], ["planned_end", "موعد"]] },
-  kpis: { title: "شاخص‌ها", endpoint: "/api/kpis", columns: [["id", "شناسه"], ["name", "نام شاخص"], ["actual", "مقدار فعلی"], ["target", "هدف"]] },
+  kpis: { title: "شاخص‌ها", endpoint: "/api/kpis", columns: [["pulse_identifier", "شناسه PULSE"], ["name", "نام شاخص"], ["actual", "مقدار فعلی"], ["target", "هدف"]] },
   risks: { title: "ریسک‌ها", endpoint: "/api/risks", columns: [["id", "شناسه"], ["title", "عنوان"], ["severity", "شدت"], ["status", "وضعیت"]] },
   dependencies: { title: "وابستگی‌ها", endpoint: "/api/dependencies", columns: [["id", "شناسه"], ["source_work_item_id", "مبدأ"], ["target_work_item_id", "مقصد"], ["status", "وضعیت"]] },
   "monthly-reviews": { title: "بازبینی‌های ماهانه", endpoint: "/api/monthly-reviews", columns: [["id", "شناسه"], ["month_key", "ماه"], ["department_id", "واحد"], ["actual_summary", "عملکرد واقعی"], ["management_decision", "تصمیم مدیریت"]] }
 };
 
 const fieldsBySection: Record<string, Field[]> = {
-  goals: [{ key: "id", label: "شناسه هدف", required: true }, { key: "title", label: "عنوان هدف کلی", required: true }],
-  "sub-goals": [{ key: "id", label: "شناسه هدف جزئی", required: true }, { key: "goalId", label: "هدف کلی", select: "goals", required: true }, { key: "title", label: "عنوان هدف جزئی", required: true }],
-  activities: [{ key: "id", label: "شناسه فعالیت" }, { key: "subGoalId", label: "هدف جزئی", select: "subGoals", required: true }, { key: "title", label: "عنوان فعالیت", required: true }, { key: "description", label: "شرح" }, { key: "ownerPersonId", label: "مسئول", select: "persons" }],
-  departments: [{ key: "id", label: "شناسه واحد", required: true }, { key: "name", label: "نام واحد", required: true }],
-  roles: [{ key: "id", label: "شناسه سمت / نقش", required: true }, { key: "title", label: "عنوان سمت / نقش", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }],
+  goals: [{ key: "title", label: "عنوان هدف کلی", required: true }],
+  "sub-goals": [{ key: "goalId", label: "هدف کلی", select: "goals", required: true }, { key: "title", label: "عنوان هدف جزئی", required: true }],
+  activities: [{ key: "subGoalId", label: "هدف جزئی", select: "subGoals", required: true }, { key: "title", label: "عنوان فعالیت", required: true }, { key: "description", label: "شرح" }, { key: "ownerPersonId", label: "مسئول", select: "persons" }],
+  departments: [{ key: "name", label: "نام واحد", required: true }],
+  roles: [{ key: "title", label: "عنوان سمت / نقش", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }],
   persons: [{ key: "id", label: "کد پرسنلی", required: true }, { key: "fullName", label: "نام و نام خانوادگی", required: true }, { key: "seatId", label: "سمت / نقش", select: "roles", required: true }],
   actions: [{ key: "goalId", label: "هدف کلی", select: "goals", required: true }, { key: "objectiveId", label: "هدف جزئی", select: "subGoals" }, { key: "activityId", label: "فعالیت", select: "activities" }, { key: "title", label: "عنوان اقدام", required: true }, { key: "departmentId", label: "واحد", select: "departments", required: true }, { key: "ownerPersonId", label: "مجری", select: "persons", required: true }, { key: "roleId", label: "سمت / نقش مسئول", select: "roles" }, { key: "workType", label: "نوع کار", required: true }, { key: "deliverable", label: "خروجی مورد انتظار", required: true }, { key: "deadline", label: "موعد پایان", required: true }],
   "monthly-reviews": [

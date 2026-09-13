@@ -45,6 +45,7 @@ export const requiredTables = [
   "import_remediations",
   "pulse_release_metadata"
   ,"pulse_identifier_allocations"
+  ,"pulse_entity_identities"
 ] as const;
 
 export const requiredIndexes = [
@@ -57,11 +58,14 @@ export const requiredIndexes = [
   "import_remediations_job_idx",
   "sessions_expiry_idx",
   "departmental_materialization_source_fingerprint_idx"
+  ,"pulse_entity_identities_type_idx"
 ] as const;
 
 export const requiredTriggers = [
   "audit_log_immutable_update",
   "audit_log_immutable_delete"
+  ,"pulse_entity_identities_immutable_update"
+  ,"pulse_entity_identities_immutable_delete"
 ] as const;
 
 export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
@@ -347,6 +351,13 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     last_value: column("INTEGER", { notNull: true }),
     created_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" }),
     updated_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" })
+  }
+  ,pulse_entity_identities: {
+    technical_id: column("TEXT"),
+    entity_type: column("TEXT", { notNull: true }),
+    pulse_identifier: column("TEXT", { notNull: true }),
+    external_source_id: column("TEXT"),
+    created_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" })
   }
 };
 

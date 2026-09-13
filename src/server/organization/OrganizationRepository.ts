@@ -10,18 +10,21 @@ import type {
 
 type UnitRow = {
   id: string;
+  pulse_identifier?: string | null;
   name: string;
   active: number;
 };
 
 type PositionRow = {
   id: string;
+  pulse_identifier?: string | null;
   title: string;
   department_id: string;
 };
 
 type PersonRow = {
   id: string;
+  pulse_identifier?: string | null;
   full_name: string;
   active: number;
   seat_id?: string | null;
@@ -52,7 +55,7 @@ export class SQLiteOrganizationRepository
   implements OrganizationRepository, OrganizationContractBoundary {
   listUnits(): Unit[] {
     const rows = getReadOnlyDatabase()
-      .prepare("SELECT id, name, active FROM departments ORDER BY name")
+      .prepare("SELECT id, pulse_identifier, name, active FROM departments ORDER BY name")
       .all() as UnitRow[];
     return rows.map((row) => ({
       id: row.id,
@@ -63,7 +66,7 @@ export class SQLiteOrganizationRepository
 
   getUnit(id: string): Unit | undefined {
     const row = getReadOnlyDatabase()
-      .prepare("SELECT id, name, active FROM departments WHERE id = ?")
+      .prepare("SELECT id, pulse_identifier, name, active FROM departments WHERE id = ?")
       .get(id) as UnitRow | undefined;
     return row
       ? { id: row.id, name: row.name, status: status(row.active) }
@@ -72,7 +75,7 @@ export class SQLiteOrganizationRepository
 
   listPositions(): Position[] {
     const rows = getReadOnlyDatabase()
-      .prepare("SELECT id, title, department_id FROM seats ORDER BY title")
+      .prepare("SELECT id, pulse_identifier, title, department_id FROM seats ORDER BY title")
       .all() as PositionRow[];
     return rows.map((row) => ({
       id: row.id,
@@ -83,7 +86,7 @@ export class SQLiteOrganizationRepository
 
   getPosition(id: string): Position | undefined {
     const row = getReadOnlyDatabase()
-      .prepare("SELECT id, title, department_id FROM seats WHERE id = ?")
+      .prepare("SELECT id, pulse_identifier, title, department_id FROM seats WHERE id = ?")
       .get(id) as PositionRow | undefined;
     return row
       ? { id: row.id, title: row.title, unitId: row.department_id }
@@ -92,7 +95,7 @@ export class SQLiteOrganizationRepository
 
   listPeople(): Person[] {
     const rows = getReadOnlyDatabase()
-      .prepare("SELECT id, full_name, active, seat_id FROM people ORDER BY full_name")
+      .prepare("SELECT id, pulse_identifier, full_name, active, seat_id FROM people ORDER BY full_name")
       .all() as PersonRow[];
     return rows.map((row) => ({
       id: row.id,
@@ -104,7 +107,7 @@ export class SQLiteOrganizationRepository
 
   getPerson(id: string): Person | undefined {
     const row = getReadOnlyDatabase()
-      .prepare("SELECT id, full_name, active, seat_id FROM people WHERE id = ?")
+      .prepare("SELECT id, pulse_identifier, full_name, active, seat_id FROM people WHERE id = ?")
       .get(id) as PersonRow | undefined;
     return row
       ? {

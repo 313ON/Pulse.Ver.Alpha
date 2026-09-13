@@ -2,6 +2,8 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS strategic_goals (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   title TEXT NOT NULL,
   owner_person_id TEXT,
   plan_year INTEGER NOT NULL,
@@ -10,6 +12,8 @@ CREATE TABLE IF NOT EXISTS strategic_goals (
 
 CREATE TABLE IF NOT EXISTS departmental_goals (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   strategic_goal_id TEXT NOT NULL,
   department_id TEXT,
   title TEXT NOT NULL,
@@ -23,12 +27,16 @@ CREATE TABLE IF NOT EXISTS departmental_goals (
 
 CREATE TABLE IF NOT EXISTS departments (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   name TEXT NOT NULL UNIQUE,
   active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS seats (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   title TEXT NOT NULL UNIQUE,
   department_id TEXT NOT NULL,
   FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
@@ -36,6 +44,8 @@ CREATE TABLE IF NOT EXISTS seats (
 
 CREATE TABLE IF NOT EXISTS people (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   full_name TEXT NOT NULL,
   seat_id TEXT,
   active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
@@ -44,6 +54,8 @@ CREATE TABLE IF NOT EXISTS people (
 
 CREATE TABLE IF NOT EXISTS sub_goals (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   goal_id TEXT NOT NULL,
   title TEXT NOT NULL,
   owner_person_id TEXT,
@@ -56,6 +68,7 @@ CREATE TABLE IF NOT EXISTS sub_goals (
 
 CREATE TABLE IF NOT EXISTS work_items (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
   public_id TEXT NOT NULL UNIQUE CHECK (public_id GLOB 'G[0-9][0-9]-O[0-9][0-9]-A[0-9][0-9]-T[0-9][0-9][0-9]'),
   goal_id TEXT NOT NULL,
   sub_goal_id TEXT,
@@ -100,6 +113,8 @@ CREATE TABLE IF NOT EXISTS work_item_collaborators (
 
 CREATE TABLE IF NOT EXISTS kpis (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   work_item_id TEXT,
   name TEXT NOT NULL,
   definition TEXT,
@@ -117,6 +132,8 @@ CREATE TABLE IF NOT EXISTS kpis (
 
 CREATE TABLE IF NOT EXISTS risks (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   goal_id TEXT NOT NULL,
   work_item_id TEXT,
   title TEXT NOT NULL,
@@ -133,6 +150,8 @@ CREATE TABLE IF NOT EXISTS risks (
 
 CREATE TABLE IF NOT EXISTS dependencies (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   source_work_item_id TEXT NOT NULL,
   target_work_item_id TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'باز' CHECK (status IN ('باز','حل‌شده')),
@@ -146,6 +165,8 @@ CREATE TABLE IF NOT EXISTS dependencies (
 
 CREATE TABLE IF NOT EXISTS monthly_reviews (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   month_key TEXT NOT NULL,
   department_id TEXT NOT NULL,
   plan_summary TEXT,
@@ -176,6 +197,8 @@ CREATE INDEX IF NOT EXISTS work_item_assignments_work_item_idx ON work_item_assi
 
 CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
+  pulse_identifier TEXT UNIQUE,
+  external_source_id TEXT,
   sub_goal_id TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
@@ -407,11 +430,33 @@ CREATE TABLE IF NOT EXISTS pulse_release_metadata (
 
 CREATE TABLE IF NOT EXISTS pulse_identifier_allocations (
   allocation_key TEXT PRIMARY KEY,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('goal', 'action')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('department','position','person','program','goal','departmental_goal','objective','activity','action','kpi','risk','dependency','monthly_review')),
   last_value INTEGER NOT NULL CHECK (last_value >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS pulse_entity_identities (
+  technical_id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  pulse_identifier TEXT NOT NULL UNIQUE,
+  external_source_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS pulse_entity_identities_type_idx ON pulse_entity_identities(entity_type);
+
+CREATE TRIGGER IF NOT EXISTS pulse_entity_identities_immutable_update
+BEFORE UPDATE OF pulse_identifier ON pulse_entity_identities
+BEGIN
+  SELECT RAISE(ABORT, 'PULSE identifiers are immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pulse_entity_identities_immutable_delete
+BEFORE DELETE ON pulse_entity_identities
+BEGIN
+  SELECT RAISE(ABORT, 'PULSE identities are append-only');
+END;
 
 CREATE TRIGGER IF NOT EXISTS pulse_identifier_allocations_updated_at
 AFTER UPDATE ON pulse_identifier_allocations

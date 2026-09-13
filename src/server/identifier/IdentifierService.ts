@@ -1,24 +1,49 @@
 import type Database from "better-sqlite3";
 
-export type PulseIdentifierType = "goal" | "action";
+export type PulseIdentifierType =
+  | "department" | "position" | "person"
+  | "program" | "goal" | "departmental_goal" | "objective" | "activity" | "action"
+  | "kpi" | "risk" | "dependency" | "monthly_review";
 
 export type ActionIdentifierScope = {
   planYear: number;
   goalId: string;
   objectiveId?: string;
   activityId?: string;
-  /** Existing format may be used as a shape hint, never as the allocated value. */
   shapeHint?: string;
 };
 
-type GoalIdentifierScope = { planYear?: number; preferredId?: string };
+export type IdentifierScope = {
+  planYear?: number;
+  parentId?: string;
+  goalId?: string;
+  objectiveId?: string;
+  activityId?: string;
+  shapeHint?: string;
+};
 
-function nextValue(database: Database.Database, key: string, initialValue: number): number {
-  database.prepare(
-    `INSERT INTO pulse_identifier_allocations (allocation_key, entity_type, last_value)
-     VALUES (?, ?, ?)
-     ON CONFLICT(allocation_key) DO NOTHING`
-  ).run(key, key.startsWith("goal:") ? "goal" : "action", initialValue);
+type GoalIdentifierScope = { planYear?: number };
+
+const policies: Record<Exclude<PulseIdentifierType, "goal" | "action">, { prefix: string; scope: (scope: IdentifierScope) => string }> = {
+  department: { prefix: "UNIT", scope: () => "global" },
+  position: { prefix: "POS", scope: () => "global" },
+  person: { prefix: "PER", scope: () => "global" },
+  program: { prefix: "PROG", scope: (scope) => `cycle:${scope.planYear ?? "global"}` },
+  departmental_goal: { prefix: "DG", scope: (scope) => `cycle:${scope.planYear ?? "global"}` },
+  objective: { prefix: "OBJ", scope: (scope) => `parent:${scope.parentId ?? "global"}` },
+  activity: { prefix: "ACT", scope: (scope) => `parent:${scope.parentId ?? "global"}` },
+  kpi: { prefix: "KPI", scope: (scope) => `cycle:${scope.planYear ?? "global"}` },
+  risk: { prefix: "RISK", scope: (scope) => `cycle:${scope.planYear ?? "global"}` },
+  dependency: { prefix: "DEP", scope: () => "global" },
+  monthly_review: { prefix: "REV", scope: (scope) => `cycle:${scope.planYear ?? "global"}` }
+};
+
+function nextValue(database: Database.Database, key: string, entityType: string, initialValue: number): number {
+  database.prepare(`
+    INSERT INTO pulse_identifier_allocations (allocation_key, entity_type, last_value)
+    VALUES (?, ?, ?)
+    ON CONFLICT(allocation_key) DO NOTHING
+  `).run(key, entityType, initialValue);
   database.prepare("UPDATE pulse_identifier_allocations SET last_value = MAX(last_value, ?) WHERE allocation_key = ?")
     .run(initialValue, key);
   const row = database.prepare(
@@ -29,8 +54,8 @@ function nextValue(database: Database.Database, key: string, initialValue: numbe
 }
 
 function maxGoalNumber(database: Database.Database): number {
-  const rows = database.prepare("SELECT id FROM strategic_goals WHERE id GLOB 'G[0-9]*'").all() as Array<{ id: string }>;
-  return rows.reduce((max, row) => Math.max(max, Number(/^G(\d+)$/.exec(row.id)?.[1] ?? 0)), 0);
+  const rows = database.prepare("SELECT pulse_identifier FROM pulse_entity_identities WHERE entity_type = 'goal'").all() as Array<{ pulse_identifier: string }>;
+  return rows.reduce((max, row) => Math.max(max, Number(/^G(\d+)$/.exec(row.pulse_identifier)?.[1] ?? 0)), 0);
 }
 
 function actionShape(scope: ActionIdentifierScope): string {
@@ -42,42 +67,45 @@ function actionShape(scope: ActionIdentifierScope): string {
   return `${goal}-O${objective}-A${activity}`;
 }
 
-function maxActionNumber(database: Database.Database, shape: string, planYear: number): number {
-  const rows = database.prepare("SELECT public_id FROM work_items WHERE plan_year = ? AND public_id LIKE ?")
-    .all(planYear, `${shape}-T%`) as Array<{ public_id: string }>;
-  return rows.reduce((max, row) => Math.max(max, Number(/-T(\d+)$/.exec(row.public_id)?.[1] ?? 0)), 0);
-}
-
 export class IdentifierService {
-  constructor(private readonly database: Database.Database) {}
+  private readonly database: Database.Database;
+
+  constructor(database: Database.Database) { this.database = database; }
 
   generate(type: "goal", scope?: GoalIdentifierScope): string;
   generate(type: "action", scope: ActionIdentifierScope): string;
-  generate(type: PulseIdentifierType, scope: { planYear?: number } | ActionIdentifierScope = {}): string {
+  generate(type: Exclude<PulseIdentifierType, "goal" | "action">, scope?: IdentifierScope): string;
+  generate(type: PulseIdentifierType, scope: { planYear?: number } | ActionIdentifierScope | IdentifierScope = {}): string {
     if (type === "goal") {
-      const preferred = (scope as GoalIdentifierScope).preferredId;
-      if (preferred && /^G\d+$/.test(preferred)
-        && !this.database.prepare("SELECT 1 FROM strategic_goals WHERE id=?").get(preferred)) {
-        const reserved = this.database.prepare(
-          `INSERT OR IGNORE INTO pulse_identifier_allocations (allocation_key, entity_type, last_value)
-           VALUES (?, 'goal', 1)`
-        ).run(`goal:value:${preferred}`);
-        if (reserved.changes === 1) return preferred;
-      }
-      const initial = maxGoalNumber(this.database);
-      const number = nextValue(this.database, "goal:global", initial);
+      const number = nextValue(this.database, "goal:global", "goal", maxGoalNumber(this.database));
       return `G${String(number).padStart(2, "0")}`;
     }
-    const actionScope = scope as ActionIdentifierScope;
-    const shape = actionShape(actionScope);
-    const key = `action:${actionScope.planYear}:${shape}`;
-    const initial = maxActionNumber(this.database, shape, actionScope.planYear);
-    const number = nextValue(this.database, key, initial);
-    return `${shape}-T${String(number).padStart(3, "0")}`;
+    if (type === "action") {
+      const actionScope = scope as ActionIdentifierScope;
+      const shape = actionShape(actionScope);
+      const key = `action:${actionScope.planYear}:${shape}`;
+      const rows = this.database.prepare("SELECT pulse_identifier FROM pulse_entity_identities WHERE entity_type = 'action' AND pulse_identifier LIKE ?")
+        .all(`${shape}-T%`) as Array<{ pulse_identifier: string }>;
+      const initial = rows.reduce((max, row) => Math.max(max, Number(/-T(\d+)$/.exec(row.pulse_identifier)?.[1] ?? 0)), 0);
+      const number = nextValue(this.database, key, "action", initial);
+      return `${shape}-T${String(number).padStart(3, "0")}`;
+    }
+    const policy = policies[type as Exclude<PulseIdentifierType, "goal" | "action">];
+    if (!policy) throw new Error(`Unsupported PULSE identifier type: ${type}`);
+    const identifierScope = scope as IdentifierScope;
+    const key = `${type}:${policy.scope(identifierScope)}`;
+    const rows = this.database.prepare("SELECT pulse_identifier FROM pulse_entity_identities WHERE pulse_identifier LIKE ?")
+      .all(`${policy.prefix}-%`) as Array<{ pulse_identifier: string }>;
+    const initial = rows.reduce((max, row) => Math.max(max, Number(new RegExp(`^${policy.prefix}-(\\d+)$`).exec(row.pulse_identifier)?.[1] ?? 0)), 0);
+    const number = nextValue(this.database, key, type, initial);
+    return `${policy.prefix}-${String(number).padStart(3, "0")}`;
   }
 
-  generateInTransaction<T>(callback: () => T): T {
-    return this.database.transaction(callback)();
+  generateInTransaction<T>(callback: () => T): T { return this.database.transaction(callback)(); }
+
+  register(technicalId: string, entityType: PulseIdentifierType, pulseIdentifier: string, externalSourceId?: string | null): void {
+    this.database.prepare("INSERT OR IGNORE INTO pulse_entity_identities (technical_id, entity_type, pulse_identifier, external_source_id) VALUES (?, ?, ?, ?)")
+      .run(technicalId, entityType, pulseIdentifier, externalSourceId ?? null);
   }
 }
 

@@ -2,12 +2,14 @@ export type OrganizationStatus = "ACTIVE" | "INACTIVE";
 
 export type Unit = {
   id: string;
+  pulseIdentifier?: string;
   name: string;
   status: OrganizationStatus;
 };
 
 export type Position = {
   id: string;
+  pulseIdentifier?: string;
   title: string;
   unitId: string;
   status?: OrganizationStatus;
@@ -15,6 +17,7 @@ export type Position = {
 
 export type Person = {
   id: string;
+  pulseIdentifier?: string;
   fullName: string;
   status: OrganizationStatus;
   positionId?: string;

@@ -55,4 +55,23 @@ describe("system-owned PULSE identifiers", () => {
     expect(created.external_source_id).toBe("legacy-42");
     expect(created.public_id).not.toBe("legacy-42");
   });
+
+  it("allocates every supported domain namespace and keeps registry identities immutable", () => {
+    const database = getDatabase();
+    const service = createIdentifierService(database);
+    const values = [
+      service.generate("department"), service.generate("position"), service.generate("person"),
+      service.generate("departmental_goal", { planYear: 1405 }), service.generate("objective", { parentId: "G10" }),
+      service.generate("activity", { parentId: "O01" }), service.generate("kpi"), service.generate("risk"),
+      service.generate("dependency"), service.generate("monthly_review", { planYear: 1405 })
+    ];
+    expect(values).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^UNIT-\d{3}$/), expect.stringMatching(/^POS-\d{3}$/), expect.stringMatching(/^PER-\d{3}$/),
+      expect.stringMatching(/^DG-\d{3}$/), expect.stringMatching(/^OBJ-\d{3}$/), expect.stringMatching(/^ACT-\d{3}$/),
+      expect.stringMatching(/^KPI-\d{3}$/), expect.stringMatching(/^RISK-\d{3}$/), expect.stringMatching(/^DEP-\d{3}$/),
+      expect.stringMatching(/^REV-\d{3}$/)
+    ]));
+    service.register("technical-identity-test", "department", values[0]);
+    expect(() => database.prepare("UPDATE pulse_entity_identities SET pulse_identifier='UNIT-999' WHERE technical_id='technical-identity-test'").run()).toThrow(/immutable/i);
+  });
 });

@@ -27,9 +27,9 @@ export class GoalRepository {
   create(input: { id?: string; title: string }) {
     if (!input.title?.trim()) throw new RepositoryError("VALIDATION", "Goal title is required.");
     const database = getDatabase();
-    const id = input.id?.trim() || createIdentifierService(database).generate("goal", { planYear: getPlanningContext().planYear });
-    if (!/^G\d+$/.test(id)) throw new RepositoryError("VALIDATION", "Goal ID is invalid.");
-    try { database.prepare("INSERT INTO strategic_goals (id, title, plan_year) VALUES (@id,@title,@planYear)").run({ id, title: input.title.trim(), planYear: getPlanningContext().planYear }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    const id = input.id?.trim() || randomUUID();
+    const pulseIdentifier = createIdentifierService(database).generate("goal", { planYear: getPlanningContext().planYear });
+    try { database.transaction(() => { database.prepare("INSERT INTO strategic_goals (id, pulse_identifier, title, plan_year) VALUES (@id,@pulseIdentifier,@title,@planYear)").run({ id, pulseIdentifier, title: input.title.trim(), planYear: getPlanningContext().planYear }); createIdentifierService(database).register(id, "goal", pulseIdentifier); })(); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { title?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The goal was not found.");
@@ -51,8 +51,10 @@ export class DepartmentalGoalRepository {
   create(input: { id: string; strategicGoalId: string; departmentId?: string; title: string; ownerPersonId?: string }) {
     if (!input.id.trim() || !input.strategicGoalId.trim() || !input.title.trim()) throw new RepositoryError("VALIDATION", "Departmental goal ID, strategic goal, and title are required.");
     try {
-      getDatabase().prepare("INSERT INTO departmental_goals (id, strategic_goal_id, department_id, title, owner_person_id, plan_year) VALUES (@id,@strategicGoalId,@departmentId,@title,@ownerPersonId,@planYear)")
-        .run({ ...input, departmentId: input.departmentId ?? null, ownerPersonId: input.ownerPersonId ?? null, planYear: getPlanningContext().planYear });
+      const database = getDatabase(); const pulseIdentifier = createIdentifierService(database).generate("departmental_goal", { planYear: getPlanningContext().planYear });
+      database.prepare("INSERT INTO departmental_goals (id, pulse_identifier, strategic_goal_id, department_id, title, owner_person_id, plan_year) VALUES (@id,@pulseIdentifier,@strategicGoalId,@departmentId,@title,@ownerPersonId,@planYear)")
+        .run({ ...input, pulseIdentifier, departmentId: input.departmentId ?? null, ownerPersonId: input.ownerPersonId ?? null, planYear: getPlanningContext().planYear });
+      createIdentifierService(database).register(input.id, "departmental_goal", pulseIdentifier);
       return this.get(input.id);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -61,9 +63,10 @@ export class DepartmentalGoalRepository {
 export class DepartmentRepository {
   list() { return getDatabase().prepare("SELECT * FROM departments WHERE active = 1 ORDER BY name").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM departments WHERE id = ?").get(id); }
-  create(input: { id: string; name: string }) {
-    if (!input.id.trim() || !input.name.trim()) throw new RepositoryError("VALIDATION", "Department ID and name are required.");
-    try { getDatabase().prepare("INSERT INTO departments (id, name) VALUES (@id,@name)").run(input); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+  create(input: { id?: string; name: string }) {
+    if (!input.name.trim()) throw new RepositoryError("VALIDATION", "Department name is required.");
+    const database = getDatabase(); const id = input.id?.trim() || randomUUID(); const pulseIdentifier = createIdentifierService(database).generate("department");
+    try { database.prepare("INSERT INTO departments (id, pulse_identifier, name) VALUES (@id,@pulseIdentifier,@name)").run({ id, pulseIdentifier, name: input.name.trim() }); createIdentifierService(database).register(id, "department", pulseIdentifier); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { name?: string; active?: boolean }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The department was not found.");
@@ -76,9 +79,11 @@ export class SubGoalRepository {
   get(id: string) { return getDatabase().prepare("SELECT * FROM sub_goals WHERE id = ?").get(id); }
   create(input: { id: string; goalId: string; title: string; ownerPersonId?: string }) {
     if (!input.id.trim() || !input.goalId.trim() || !input.title.trim()) throw new RepositoryError("VALIDATION", "Sub-goal ID, goal, and title are required.");
+    const database = getDatabase(); const pulseIdentifier = createIdentifierService(database).generate("objective", { parentId: input.goalId });
     try {
-      getDatabase().prepare("INSERT INTO sub_goals (id, goal_id, title, owner_person_id) VALUES (@id,@goalId,@title,@ownerPersonId)")
-        .run({ ...input, ownerPersonId: input.ownerPersonId ?? null });
+      database.prepare("INSERT INTO sub_goals (id, pulse_identifier, goal_id, title, owner_person_id) VALUES (@id,@pulseIdentifier,@goalId,@title,@ownerPersonId)")
+        .run({ ...input, pulseIdentifier, ownerPersonId: input.ownerPersonId ?? null });
+      createIdentifierService(database).register(input.id, "objective", pulseIdentifier);
       return this.get(input.id);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -153,6 +158,7 @@ export class ActivityRepository {
 
   create(input: ActivityRecord) {
     const id = input.id?.trim() || randomUUID();
+    const database = getDatabase(); const pulseIdentifier = createIdentifierService(database).generate("activity", { parentId: input.subGoalId });
     if (!input.subGoalId?.trim() || !input.title?.trim()) {
       throw new RepositoryError("VALIDATION", "Sub-goal and activity title are required.");
     }
@@ -163,16 +169,16 @@ export class ActivityRepository {
     this.scopeForInput(input);
     try {
       getDatabase().prepare(`
-        INSERT INTO activities (id, sub_goal_id, title, description, owner_person_id)
-        VALUES (@id, @subGoalId, @title, @description, @ownerPersonId)
+        INSERT INTO activities (id, pulse_identifier, sub_goal_id, title, description, owner_person_id)
+        VALUES (@id, @pulseIdentifier, @subGoalId, @title, @description, @ownerPersonId)
       `).run({
-        id,
+        id, pulseIdentifier,
         subGoalId: input.subGoalId,
         title: input.title.trim(),
         description: input.description?.trim() || null,
         ownerPersonId: input.ownerPersonId?.trim() || null
       });
-      return this.getUnscoped(id);
+      createIdentifierService(database).register(id, "activity", pulseIdentifier); return this.getUnscoped(id);
     } catch (error) { return mapDatabaseError(error); }
   }
 
@@ -215,9 +221,10 @@ export class ActivityRepository {
 export class RoleRepository {
   list() { return getDatabase().prepare("SELECT * FROM seats ORDER BY title").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM seats WHERE id = ?").get(id); }
-  create(input: { id: string; title: string; departmentId: string }) {
-    if (!input.id.trim() || !input.title.trim() || !input.departmentId.trim()) throw new RepositoryError("VALIDATION", "Role ID, title, and department are required.");
-    try { getDatabase().prepare("INSERT INTO seats (id, title, department_id) VALUES (@id,@title,@departmentId)").run(input); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+  create(input: { id?: string; title: string; departmentId: string }) {
+    if (!input.title.trim() || !input.departmentId.trim()) throw new RepositoryError("VALIDATION", "Role title and department are required.");
+    const database = getDatabase(); const id = input.id?.trim() || randomUUID(); const pulseIdentifier = createIdentifierService(database).generate("position");
+    try { database.prepare("INSERT INTO seats (id, pulse_identifier, title, department_id) VALUES (@id,@pulseIdentifier,@title,@departmentId)").run({ ...input, id, pulseIdentifier }); createIdentifierService(database).register(id, "position", pulseIdentifier); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { title?: string; departmentId?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The role was not found.");
@@ -235,9 +242,10 @@ export class RoleRepository {
 export class PersonRepository {
   list() { return getDatabase().prepare("SELECT * FROM people WHERE active = 1 ORDER BY full_name").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM people WHERE id = ?").get(id); }
-  create(input: { id: string; fullName: string; seatId?: string }) {
-    if (!input.id.trim() || !input.fullName.trim()) throw new RepositoryError("VALIDATION", "Person ID and name are required.");
-    try { getDatabase().prepare("INSERT INTO people (id, full_name, seat_id) VALUES (@id,@fullName,@seatId)").run(input); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+  create(input: { id?: string; fullName: string; seatId?: string }) {
+    if (!input.fullName.trim()) throw new RepositoryError("VALIDATION", "Person name is required.");
+    const database = getDatabase(); const id = input.id?.trim() || randomUUID(); const pulseIdentifier = createIdentifierService(database).generate("person");
+    try { database.prepare("INSERT INTO people (id, pulse_identifier, full_name, seat_id) VALUES (@id,@pulseIdentifier,@fullName,@seatId)").run({ ...input, id, pulseIdentifier }); createIdentifierService(database).register(id, "person", pulseIdentifier); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { fullName?: string; seatId?: string; active?: boolean }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The person was not found.");
@@ -334,9 +342,11 @@ export class ActionRepository {
     try {
       db.prepare(`
         INSERT INTO work_items
-        (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, activity_id, description, role_id, external_source_id, plan_year)
-        VALUES (@id, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @activityId, @description, @roleId, @externalSourceId, @planYear)
+        (id, public_id, pulse_identifier, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, activity_id, description, role_id, external_source_id, plan_year)
+        VALUES (@id, @publicId, @publicId, @goalId, @departmentId, @ownerPersonId, @title, @workType, @deliverable, @status, @progress, @plannedStart, @deadline, @activityId, @description, @roleId, @externalSourceId, @planYear)
       `).run({ ...normalized, id: randomUUID(), publicId, planYear: getPlanningContext().planYear, plannedStart: input.plannedStart ?? getPlanningContext().startDate, activityId: input.activityId ?? null, description: input.description ?? null, roleId: input.roleId ?? null, externalSourceId: input.externalSourceId ?? null });
+      const technicalId = String((db.prepare("SELECT id FROM work_items WHERE public_id=?").get(publicId) as { id: string }).id);
+      createIdentifierService(db).register(technicalId, "action", publicId, input.externalSourceId ?? null);
       return this.get(publicId);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -376,12 +386,14 @@ export class KPIRepository {
   list(_context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM kpis ORDER BY name").all(); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM kpis WHERE id = ?").get(id); }
   create(input: KpiRecord & { ownerPersonId: string; workItemId?: string; kind?: string }) {
+    const database = getDatabase(); const id = String(input.id ?? randomUUID()); const pulseIdentifier = createIdentifierService(database).generate("kpi");
     try {
       getDatabase().prepare(`
-        INSERT INTO kpis (id, work_item_id, name, kind, target, actual, direction, owner_person_id)
-        VALUES (@id, @workItemId, @name, @kind, @target, @actual, @direction, @ownerPersonId)
-      `).run({ ...input, workItemId: resolveWorkItemId(input.workItemId), kind: input.kind ?? "شاخص نتیجه" });
-      return this.get(input.id);
+        INSERT INTO kpis (id, pulse_identifier, work_item_id, name, kind, target, actual, direction, owner_person_id)
+        VALUES (@id, @pulseIdentifier, @workItemId, @name, @kind, @target, @actual, @direction, @ownerPersonId)
+      `).run({ ...input, id, pulseIdentifier, workItemId: resolveWorkItemId(input.workItemId), kind: input.kind ?? "شاخص نتیجه" });
+      createIdentifierService(database).register(id, "kpi", pulseIdentifier);
+      return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: Partial<KpiRecord>) {
@@ -398,9 +410,11 @@ export class RiskRepository {
   list() { return getDatabase().prepare("SELECT *, probability * impact AS severity FROM risks ORDER BY severity DESC").all(); }
   get(id: string) { return getDatabase().prepare("SELECT *, probability * impact AS severity FROM risks WHERE id = ?").get(id); }
   create(input: RiskRecord & { goalId: string; ownerPersonId: string; workItemId?: string }) {
+    const database = getDatabase(); const id = String(input.id ?? randomUUID()); const pulseIdentifier = createIdentifierService(database).generate("risk");
     try {
-      getDatabase().prepare("INSERT INTO risks (id, goal_id, work_item_id, title, probability, impact, owner_person_id, response_action, status) VALUES (@id,@goalId,@workItemId,@title,@probability,@impact,@ownerPersonId,@responseAction,@status)").run({ ...input, workItemId: resolveWorkItemId(input.workItemId), responseAction: input.responseAction ?? null });
-      return this.get(input.id);
+      database.prepare("INSERT INTO risks (id, pulse_identifier, goal_id, work_item_id, title, probability, impact, owner_person_id, response_action, status) VALUES (@id,@pulseIdentifier,@goalId,@workItemId,@title,@probability,@impact,@ownerPersonId,@responseAction,@status)").run({ ...input, id, pulseIdentifier, workItemId: resolveWorkItemId(input.workItemId), responseAction: input.responseAction ?? null });
+      createIdentifierService(database).register(id, "risk", pulseIdentifier);
+      return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: Partial<RiskRecord>) {
@@ -419,7 +433,9 @@ export class DependencyRepository {
   create(input: Dependency & { id?: string; notes?: string }) {
     try {
       const id = input.id ?? randomUUID();
-      getDatabase().prepare("INSERT INTO dependencies (id, source_work_item_id, target_work_item_id, status, delay_days, notes) VALUES (@id,@sourceWorkItemId,@targetWorkItemId,@status,@delayDays,@notes)").run({ id, sourceWorkItemId: resolveWorkItemId(input.sourceWorkItemId), targetWorkItemId: resolveWorkItemId(input.targetWorkItemId), status: input.status, delayDays: input.delayDays, notes: input.notes ?? null });
+      const database = getDatabase(); const pulseIdentifier = createIdentifierService(database).generate("dependency");
+      database.prepare("INSERT INTO dependencies (id, pulse_identifier, source_work_item_id, target_work_item_id, status, delay_days, notes) VALUES (@id,@pulseIdentifier,@sourceWorkItemId,@targetWorkItemId,@status,@delayDays,@notes)").run({ id, pulseIdentifier, sourceWorkItemId: resolveWorkItemId(input.sourceWorkItemId), targetWorkItemId: resolveWorkItemId(input.targetWorkItemId), status: input.status, delayDays: input.delayDays, notes: input.notes ?? null });
+      createIdentifierService(database).register(id, "dependency", pulseIdentifier);
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }
@@ -457,7 +473,9 @@ export class MonthlyReviewRepository {
   create(input: Record<string, unknown>) {
     try {
       const id = String(input.id ?? randomUUID());
-      getDatabase().prepare("INSERT INTO monthly_reviews (id, month_key, department_id, plan_summary, actual_summary, deviation, root_cause, corrective_action, management_decision, next_month_commitment) VALUES (@id,@monthKey,@departmentId,@planSummary,@actualSummary,@deviation,@rootCause,@correctiveAction,@managementDecision,@nextMonthCommitment)").run({ ...input, id });
+      const database = getDatabase(); const pulseIdentifier = createIdentifierService(database).generate("monthly_review");
+      database.prepare("INSERT INTO monthly_reviews (id, pulse_identifier, month_key, department_id, plan_summary, actual_summary, deviation, root_cause, corrective_action, management_decision, next_month_commitment) VALUES (@id,@pulseIdentifier,@monthKey,@departmentId,@planSummary,@actualSummary,@deviation,@rootCause,@correctiveAction,@managementDecision,@nextMonthCommitment)").run({ ...input, id, pulseIdentifier });
+      createIdentifierService(database).register(id, "monthly_review", pulseIdentifier);
       return this.get(id);
     } catch (error) { return mapDatabaseError(error); }
   }

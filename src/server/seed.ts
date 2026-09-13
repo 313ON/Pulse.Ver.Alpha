@@ -1,6 +1,7 @@
 import { actionRecords, departments, dependencyRecords, goals, kpiRecords, riskRecords } from "../lib/data";
 import { getDatabase } from "./db";
 import { getPlanningContext } from "../domain/planning";
+import { createIdentifierService } from "./identifier/IdentifierService";
 
 const departmentIds: Record<string, string> = {
   "تولید": "production",
@@ -37,15 +38,26 @@ export function seedBaseline(): void {
   const planning = getPlanningContext();
   const mode = getSeedMode();
   const seed = db.transaction(() => {
+    const identifiers = createIdentifierService(db);
+    const registerIfMissing = (table: string, id: string, type: Parameters<typeof identifiers.register>[1], pulse: string, external?: string | null) => {
+      const current = db.prepare(`SELECT pulse_identifier FROM ${table} WHERE id=?`).get(id) as { pulse_identifier?: string | null } | undefined;
+      if (current?.pulse_identifier) return;
+      db.prepare(`UPDATE ${table} SET pulse_identifier=? WHERE id=?`).run(pulse, id);
+      identifiers.register(id, type, pulse, external);
+    };
     const insertDepartment = db.prepare("INSERT OR IGNORE INTO departments (id, name) VALUES (?, ?)");
     departments.forEach(([name]) => insertDepartment.run(departmentIds[name], name));
+    departments.forEach(([name]) => registerIfMissing("departments", departmentIds[name], "department", identifiers.generate("department")));
     const insertSeat = db.prepare("INSERT OR IGNORE INTO seats (id, title, department_id) VALUES (?, ?, ?)");
     seatRecords.forEach(([id, title, departmentId]) => insertSeat.run(id, title, departmentId));
+    seatRecords.forEach(([id]) => registerIfMissing("seats", id, "position", identifiers.generate("position")));
     const insertPerson = db.prepare("INSERT OR IGNORE INTO people (id, full_name, seat_id) VALUES (?, ?, ?)");
     seatRecords.forEach(([id, title]) => insertPerson.run(id, title, id));
+    seatRecords.forEach(([id]) => registerIfMissing("people", id, "person", identifiers.generate("person")));
     if (mode !== "demo") return;
     const insertGoal = db.prepare("INSERT OR IGNORE INTO strategic_goals (id, title, plan_year) VALUES (@id, @title, @planYear)");
     goals.forEach(([id, title]) => insertGoal.run({ id, title, planYear: planning.planYear }));
+    goals.forEach(([id]) => registerIfMissing("strategic_goals", id, "goal", id));
     const insertAction = db.prepare(`
       INSERT OR IGNORE INTO work_items
       (id, public_id, goal_id, department_id, owner_person_id, title, work_type, deliverable, status, progress, planned_start, planned_end, plan_year)
@@ -66,6 +78,7 @@ export function seedBaseline(): void {
       deadline: action.deadline.replace(/^[^/]+(?=\/)/, String(planning.planYear)),
       planYear: planning.planYear
     }));
+    actionRecords.forEach((action) => registerIfMissing("work_items", `wi-${action.publicId}`, "action", action.publicId));
     const insertKpi = db.prepare(`
       INSERT OR IGNORE INTO kpis
       (id, name, kind, unit, target, actual, direction, owner_person_id)

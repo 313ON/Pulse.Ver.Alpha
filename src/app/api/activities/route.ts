@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     ensureRuntimeData();
     const user = await requirePermission("activities.create");
     const body = await readJson(request);
+    delete body.id; delete body.pulse_identifier; delete body.pulseIdentifier;
     const repo = new ActivityRepository();
     const scope = repo.scopeForInput({ ownerPersonId: typeof body.ownerPersonId === "string" ? body.ownerPersonId : undefined });
     if (!canScope(user, scope)) return json({ error: "دسترسی شما به این رکورد مجاز نیست.", code: "FORBIDDEN" }, { status: 403 });

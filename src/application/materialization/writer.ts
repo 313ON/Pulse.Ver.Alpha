@@ -116,7 +116,7 @@ function canonicalId(item: MaterializationPlanItem, ids: Map<string, string>, id
   const existing = item.canonicalReference?.canonicalId;
   if (item.conflictState === "REUSE" && existing) return existing;
   const id = item.entityType === "goal"
-    ? identifiers.generate("goal", { planYear: item.logicalIdentity.planYear, preferredId: `G${String(item.canonicalAllocation.ordinal).padStart(2, "0")}` })
+    ? identifiers.generate("goal", { planYear: item.logicalIdentity.planYear })
     : item.entityType === "departmental_goal"
       ? `DG-${item.logicalIdentity.planYear}-${item.canonicalAllocation.ordinal}`
     : idFor(item, item.entityType === "objective" ? "objective" : item.entityType === "activity" ? "activity" : "work-item");
@@ -215,8 +215,11 @@ export class SQLiteCanonicalMaterializationWriter {
             const ownerId = item.responsibility.find((value) =>
               value.field === "owner" && value.targetType === "PERSON" && value.resolved
             )?.targetId ?? null;
-            if (!reused) this.database.prepare("INSERT INTO strategic_goals (id,title,owner_person_id,plan_year) VALUES (?,?,?,?)")
-              .run(id, item.logicalIdentity.title, ownerId, command.targetPlanYear);
+            if (!reused) {
+              this.database.prepare("INSERT INTO strategic_goals (id,pulse_identifier,title,owner_person_id,plan_year) VALUES (?,?,?,?,?)")
+                .run(id, id, item.logicalIdentity.title, ownerId, command.targetPlanYear);
+              identifiers.register(id, "goal", id);
+            }
           } else if (item.entityType === "departmental_goal") {
             failIf(this.options.failurePoint, "goal");
             const strategicGoalId = resolveParent(item, ids);
@@ -224,10 +227,14 @@ export class SQLiteCanonicalMaterializationWriter {
             const conflict = this.database.prepare("SELECT id FROM departmental_goals WHERE strategic_goal_id=? AND IFNULL(department_id,'')=IFNULL(?, '') AND title=? AND plan_year=? AND id<>?")
               .get(strategicGoalId, departmentId, item.logicalIdentity.title, command.targetPlanYear, id);
             if (conflict && !reused) throw new Error(`Canonical departmental goal conflict for "${identityKey}".`);
-            if (!reused) this.database.prepare("INSERT INTO departmental_goals (id,strategic_goal_id,department_id,title,owner_person_id,plan_year) VALUES (?,?,?,?,?,?)")
-              .run(id, strategicGoalId, departmentId, item.logicalIdentity.title,
-                item.responsibility.find((value) => value.field === "owner" && value.targetType === "PERSON" && value.resolved)?.targetId ?? null,
-                command.targetPlanYear);
+            if (!reused) {
+              const pulseIdentifier = identifiers.generate("departmental_goal", { planYear: command.targetPlanYear });
+              this.database.prepare("INSERT INTO departmental_goals (id,pulse_identifier,strategic_goal_id,department_id,title,owner_person_id,plan_year) VALUES (?,?,?,?,?,?,?)")
+                .run(id, pulseIdentifier, strategicGoalId, departmentId, item.logicalIdentity.title,
+                  item.responsibility.find((value) => value.field === "owner" && value.targetType === "PERSON" && value.resolved)?.targetId ?? null,
+                  command.targetPlanYear);
+              identifiers.register(id, "departmental_goal", pulseIdentifier);
+            }
           } else if (item.entityType === "objective") {
             failIf(this.options.failurePoint, "objective");
             const parentId = resolveParent(item, ids);
@@ -239,16 +246,24 @@ export class SQLiteCanonicalMaterializationWriter {
             const conflict = this.database.prepare("SELECT id FROM sub_goals WHERE goal_id=? AND title=? AND id<>?")
               .get(goalId, item.logicalIdentity.title, id);
             if (conflict && !reused) throw new Error(`Canonical objective conflict for "${identityKey}".`);
-            if (!reused) this.database.prepare("INSERT INTO sub_goals (id,goal_id,title,owner_person_id,departmental_goal_id) VALUES (?,?,?,?,?)")
-              .run(id, goalId, item.logicalIdentity.title, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null, departmentalGoalId);
+            if (!reused) {
+              const pulseIdentifier = identifiers.generate("objective", { parentId: goalId });
+              this.database.prepare("INSERT INTO sub_goals (id,pulse_identifier,goal_id,title,owner_person_id,departmental_goal_id) VALUES (?,?,?,?,?,?)")
+                .run(id, pulseIdentifier, goalId, item.logicalIdentity.title, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null, departmentalGoalId);
+              identifiers.register(id, "objective", pulseIdentifier);
+            }
           } else if (item.entityType === "activity") {
             failIf(this.options.failurePoint, "activity");
             const objectiveId = resolveParent(item, ids);
             const conflict = this.database.prepare("SELECT id FROM activities WHERE sub_goal_id=? AND title=? AND id<>?")
               .get(objectiveId, item.logicalIdentity.title, id);
             if (conflict && !reused) throw new Error(`Canonical activity conflict for "${identityKey}".`);
-            if (!reused) this.database.prepare("INSERT INTO activities (id,sub_goal_id,title,description,owner_person_id) VALUES (?,?,?,?,?)")
-              .run(id, objectiveId, item.logicalIdentity.title, item.normalizedValues.description ?? null, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null);
+            if (!reused) {
+              const pulseIdentifier = identifiers.generate("activity", { parentId: objectiveId });
+              this.database.prepare("INSERT INTO activities (id,pulse_identifier,sub_goal_id,title,description,owner_person_id) VALUES (?,?,?,?,?,?)")
+                .run(id, pulseIdentifier, objectiveId, item.logicalIdentity.title, item.normalizedValues.description ?? null, item.responsibility.find((v) => v.field === "owner" && v.targetType === "PERSON")?.targetId ?? null);
+              identifiers.register(id, "activity", pulseIdentifier);
+            }
           } else {
             failIf(this.options.failurePoint, "work-item");
             const activityId = resolveParent(item, ids);
@@ -278,13 +293,14 @@ export class SQLiteCanonicalMaterializationWriter {
                 .get(publicId, id);
               if (conflict) throw new Error(`Canonical work-item conflict for "${identityKey}".`);
               this.database.prepare(`INSERT INTO work_items
-                (id,public_id,goal_id,sub_goal_id,activity_id,department_id,owner_person_id,title,work_type,deliverable,status,progress,planned_start,planned_end,description,external_source_id,plan_year)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-                id, publicId, goal, subGoal?.sub_goal_id ?? null, activityId, departmentId, ownerId,
+                (id,public_id,pulse_identifier,goal_id,sub_goal_id,activity_id,department_id,owner_person_id,title,work_type,deliverable,status,progress,planned_start,planned_end,description,external_source_id,plan_year)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+                id, publicId, publicId, goal, subGoal?.sub_goal_id ?? null, activityId, departmentId, ownerId,
                 item.logicalIdentity.title, values.workType ?? "اقدام", values.deliverable ?? null, canonicalStatus(values.status), Number(values.progress ?? 0),
                 values.startDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.startDate)) ? values.startDate : null,
                 values.endDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.endDate)) ? values.endDate : null, values.description ?? null,
                 item.sourceRecords[0]?.recordId ?? null, command.targetPlanYear);
+              identifiers.register(id, "action", publicId, item.sourceRecords[0]?.recordId ?? null);
               const assignments = Array.isArray(values.assignments) ? values.assignments : [];
               for (const assignment of assignments) {
                 const candidate = assignment as Row;
