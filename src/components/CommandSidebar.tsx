@@ -5,23 +5,23 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const items = [
-  ["مرکز راهبردی", "/", "✦"],
-  ["نمای اجرایی", "/program", "⌂"],
-  ["اهداف کلی", "/goals", "◎"],
+  ["نمای کلی", "/", "✦"],
+  ["برنامه", "/program", "⌂"],
+  ["اهداف", "/goals", "◎"],
   ["اهداف جزئی", "/sub-goals", "◇"],
   ["فعالیت‌ها", "/activities", "◌"],
-  ["اقدام‌ها", "/actions", "✓"],
+  ["کارهای من", "/actions", "✓"],
+  ["شاخص‌ها", "/kpis", "◆"],
+  ["پایش عملکرد", "/reports", "▤"],
+  ["پیگیری", "/monthly-reviews", "◷"],
+  ["ریسک‌ها", "/risks", "△"],
+  ["وابستگی‌ها", "/dependencies", "↔"],
   ["واحدها", "/departments", "▦"],
   ["سمت‌ها و نقش‌ها", "/roles", "◈"],
   ["پرسنل", "/persons", "●"],
-  ["شاخص‌ها", "/kpis", "◆"],
-  ["ریسک‌ها", "/risks", "△"],
-  ["وابستگی‌ها", "/dependencies", "↔"],
-  ["بازبینی ماهانه", "/monthly-reviews", "◷"],
   ["ورودی داده‌ها", "/imports", "⇩"],
-  ["گزارش‌ها", "/reports", "▤"],
-  ["کاربران سامانه", "/users", "♙"],
-  ["تنظیمات", "/settings", "⚙"]
+  ["مدیریت سامانه", "/settings", "⚙"],
+  ["کاربران سامانه", "/users", "♙"]
 ] as const;
 
 const contextAwareDestinations = new Set(["/", "/program", "/reports"]);
@@ -93,7 +93,7 @@ export function CommandSidebar({
         <div><strong>PULSE</strong><span>برنامه دیجیتال سازمان</span><small>چرب شیمی</small></div>
       </div>
       <div className="workspace-label"><span className="status-dot green" /> سازمان / چرب شیمی</div>
-      <div className="nav-caption">ناوبری فرمان</div>
+      <div className="nav-caption">مسیرهای اصلی عملیات</div>
       <nav aria-label="ناوبری اصلی">
         {items.map(([label, href, icon]) => (
           <Link key={href} href={preserveDashboardContext(href, searchParams)} className={`nav-item ${pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)) ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>

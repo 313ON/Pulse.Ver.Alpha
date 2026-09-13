@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { Action, Program } from "../../domain/program";
+import type { Action, KPI, Program } from "../../domain/program";
 import { isActionOverdue, programDateDistance } from "../../domain/program/rules";
 import { CognitionPanel } from "../cognition/CognitionPanel";
 import { HierarchyBreadcrumb } from "./HierarchyBreadcrumb";
@@ -10,6 +10,7 @@ import { DashboardStateView } from "./DashboardStateView";
 import type { DashboardState } from "./dashboard-state";
 import type { DashboardContext } from "./dashboard-context";
 import { DashboardShareButton } from "./DashboardShareButton";
+import { DomainSummaryCard, StatCard } from "../design-system/PulseUI";
 
 export function StrategicCommandCenter({ program, today = "1405/06/15", state, dashboardContext }: { program?: Program; today?: string; state?: DashboardState; dashboardContext?: DashboardContext }) {
   if (state && state.kind !== "ready") {
@@ -58,6 +59,7 @@ export function StrategicCommandCenter({ program, today = "1405/06/15", state, d
         <SummaryMetric label="اقدامات متصل" value={actions.length} detail="قابل پیگیری" tone="green" />
       </div>
       <CognitionPanel />
+      <KpiHighlights kpis={kpis} />
       {goals.length === 0 ? <EmptyProgramState /> : <ProgramTree program={program} />}
     </div>
   );
@@ -106,7 +108,8 @@ function PanelHeading({ kicker, title, meta }: { kicker: string; title: string; 
 }
 
 function MetricTile({ href, label, value, detail, tone }: { href: string; label: string; value: number | string; detail: string; tone: string }) {
-  return <Link href={href} className={`executive-kpi metric-tile ${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></Link>;
+  const mappedTone = tone === "green" ? "success" : tone === "amber" ? "warning" : tone === "red" ? "danger" : tone === "violet" ? "info" : "neutral";
+  return <StatCard href={href} label={label} value={value} detail={detail} tone={mappedTone} />;
 }
 
 function AttentionGroup({ title, tone, items, today }: { title: string; tone: string; today: string; items: Array<{ id: string; title: string; owner: string; progress: number; status: string; timeline: { end: string } }> }) {
@@ -151,4 +154,9 @@ function EmptyProgramState() {
 
 function SummaryMetric({ label, value, detail, tone }: { label: string; value: number; detail: string; tone: string }) {
   return <div className={`strategic-metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
+}
+
+function KpiHighlights({ kpis }: { kpis: KPI[] }) {
+  if (kpis.length === 0) return null;
+  return <section className="pulse-kpi-highlights" aria-labelledby="pulse-kpi-highlights-title"><div className="pulse-section-heading"><div><span className="program-panel-kicker">پایش نتیجه</span><h2 id="pulse-kpi-highlights-title">شاخص‌های قابل توجه</h2></div><Link href="/kpis" className="table-action">مشاهده همه شاخص‌ها</Link></div><div className="pulse-kpi-grid">{kpis.slice(0, 4).map((kpi) => { const achieved = kpi.direction === "lower-is-better" ? kpi.actual <= kpi.target : kpi.actual >= kpi.target; return <DomainSummaryCard key={kpi.id} kind="kpi" title={kpi.title} context={kpi.unit} status={{ label: achieved ? "در هدف" : "نیازمند توجه", tone: achieved ? "success" : "warning" }} meta={`مقدار فعلی ${kpi.actual} · هدف ${kpi.target}`} />; })}</div></section>;
 }

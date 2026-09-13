@@ -4,21 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const sectionNames: Record<string, string> = {
-  "/": "مرکز فرمان راهبردی",
-  "/program": "نمای اجرایی برنامه",
-  "/goals": "اهداف سازمانی",
+  "/": "نمای کلی",
+  "/program": "برنامه",
+  "/goals": "اهداف",
   "/sub-goals": "اهداف جزئی",
   "/departments": "واحدهای عملیاتی",
   "/roles": "سمت‌ها و نقش‌ها",
   "/persons": "پرسنل",
   "/users": "کاربران",
-  "/actions": "اقدامات",
+  "/actions": "کارهای من",
   "/activities": "فعالیت‌ها",
   "/kpis": "شاخص‌های کلیدی",
   "/risks": "ریسک‌ها",
   "/dependencies": "وابستگی‌ها",
   "/imports": "ورودی داده‌ها",
-  "/reports": "گزارش‌ها",
+  "/reports": "پایش عملکرد",
   "/settings": "تنظیمات"
 };
 
@@ -157,7 +157,7 @@ export function CommandHeader() {
             </div>
           )}
         </div>
-        <button className="icon-button command-alert" aria-label="اعلان‌ها">♧<i /></button>
+        <button className="icon-button command-alert" type="button" aria-label="اعلان‌ها" title="اعلان‌ها">♧<i /></button>
         <div className="date-chip"><span>چرخه</span> {planYear ?? "—"}</div>
       </div>
     </header>
