@@ -8,7 +8,7 @@ import type { ProgramRepositoryPorts, UnknownRow } from "./ports";
 export type ProgramAuthorizationHook = (operation: string, context: Record<string, unknown>) => void;
 
 export type CreateActionInput = {
-  publicId: string;
+  publicId?: string;
   goalId: string;
   objectiveId: string;
   activityId: string;
@@ -34,7 +34,7 @@ export class ProgramCommandService {
     private readonly authorize?: ProgramAuthorizationHook
   ) {}
 
-  createGoal(input: { id: string; title: string; programId?: string }) {
+  createGoal(input: { id?: string; title: string; programId?: string }) {
     this.authorize?.("program.goal.create", input);
     const report = this.governance.validateGoal({
       ...input,
@@ -42,7 +42,7 @@ export class ProgramCommandService {
       status: "پیش‌نویس"
     });
     this.assertGovernance(report);
-    const result = this.ports.goals.create(input);
+    const result = this.ports.goals.create({ id: input.id ?? "", title: input.title });
     return this.mapper.goal(result as UnknownRow, input.programId ?? "");
   }
 
@@ -87,9 +87,10 @@ export class ProgramCommandService {
     const goalId = String((objective as UnknownRow).goal_id ?? (objective as UnknownRow).goalId ?? "");
     if (goalId !== input.goalId) throw new Error("The objective does not belong to the selected goal.");
 
+    const validationPublicId = input.publicId ?? "G01-O01-A01-T001";
     const action = this.mapper.action({
-      id: input.publicId,
-      public_id: input.publicId,
+      id: validationPublicId,
+      public_id: validationPublicId,
       goal_id: input.goalId,
       sub_goal_id: input.objectiveId,
       activity_id: input.activityId,
@@ -106,7 +107,7 @@ export class ProgramCommandService {
     });
     this.assertGovernance(this.governance.validateAction({
       ...input,
-      id: input.publicId,
+      id: validationPublicId,
       type: "action",
       owner: input.ownerPersonId,
       deadline: input.deadline,

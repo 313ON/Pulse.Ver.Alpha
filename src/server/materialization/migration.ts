@@ -7,6 +7,7 @@ export const DEPARTMENTAL_GOALS_MIGRATION_ID = "0003_departmental_goals";
 export const MATERIALIZATION_SNAPSHOT_MIGRATION_ID = "0004_materialization_snapshots";
 export const DEPARTMENTAL_MATERIALIZATION_SNAPSHOT_MIGRATION_ID = "0005_departmental_materialization_snapshots";
 export const APPROVED_MATERIALIZATION_SNAPSHOT_MIGRATION_ID = "0006_approved_materialization_snapshots";
+export const PULSE_IDENTIFIER_ALLOCATION_MIGRATION_ID = "0007_pulse_identifier_allocations";
 
 export function applyMaterializationFoundationMigration(database: Database.Database): void {
   const migrationPath = path.join(process.cwd(), "db", "migrations", `${MATERIALIZATION_MIGRATION_ID}.sql`);
@@ -21,6 +22,8 @@ export function applyMaterializationFoundationMigration(database: Database.Datab
   database.exec(fs.readFileSync(departmentalSnapshotMigrationPath, "utf8"));
   const approvedSnapshotMigrationPath = path.join(process.cwd(), "db", "migrations", `${APPROVED_MATERIALIZATION_SNAPSHOT_MIGRATION_ID}.sql`);
   database.exec(fs.readFileSync(approvedSnapshotMigrationPath, "utf8"));
+  const identifierMigrationPath = path.join(process.cwd(), "db", "migrations", `${PULSE_IDENTIFIER_ALLOCATION_MIGRATION_ID}.sql`);
+  database.exec(fs.readFileSync(identifierMigrationPath, "utf8"));
   repairDepartmentalSnapshotForeignKeys(database);
 }
 

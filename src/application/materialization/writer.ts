@@ -4,6 +4,7 @@ import type { MaterializationPlan, MaterializationPlanItem } from "./plan";
 import type { MaterializationOperation, MaterializationCounts } from "./persistence";
 import { assertLegalMaterializationTransition } from "./persistence";
 import { approvedMaterializationSnapshotHash, serializeApprovedMaterializationSnapshot } from "./snapshot";
+import { createIdentifierService } from "../../server/identifier/IdentifierService";
 
 export type MaterializeCanonicalPlanCommand = {
   operationId: string;
@@ -96,11 +97,6 @@ function assertCommand(command: MaterializeCanonicalPlanCommand): void {
   const { planHash: supplied, ...withoutHash } = plan;
   const expected = createHash("sha256").update(stable({ ...withoutHash, items: [...plan.items].sort((a, b) => a.logicalIdentity.logicalKey.localeCompare(b.logicalIdentity.logicalKey)) })).digest("hex");
   if (expected !== supplied || supplied !== command.planHash) throw new Error("Materialization plan hash mismatch.");
-  for (const item of plan.items) {
-    if (item.entityType === "action" && !item.canonicalAllocation.publicIdInput) {
-      throw new Error(`The READY plan has no public ID allocation for "${item.logicalIdentity.logicalKey}".`);
-    }
-  }
 }
 
 function failIf(point: MaterializationWriterFailurePoint | undefined, expected: MaterializationWriterFailurePoint): void {
@@ -116,11 +112,11 @@ function canonicalStatus(value: unknown): string {
   return status === "برنامه‌ریزی‌شده" || status === "برنامه ریزی شده" ? "شروع نشده" : status;
 }
 
-function canonicalId(item: MaterializationPlanItem, ids: Map<string, string>): string {
+function canonicalId(item: MaterializationPlanItem, ids: Map<string, string>, identifiers: ReturnType<typeof createIdentifierService>): string {
   const existing = item.canonicalReference?.canonicalId;
   if (item.conflictState === "REUSE" && existing) return existing;
   const id = item.entityType === "goal"
-    ? `G${String(item.canonicalAllocation.ordinal).padStart(2, "0")}`
+    ? identifiers.generate("goal", { planYear: item.logicalIdentity.planYear, preferredId: `G${String(item.canonicalAllocation.ordinal).padStart(2, "0")}` })
     : item.entityType === "departmental_goal"
       ? `DG-${item.logicalIdentity.planYear}-${item.canonicalAllocation.ordinal}`
     : idFor(item, item.entityType === "objective" ? "objective" : item.entityType === "activity" ? "activity" : "work-item");
@@ -194,6 +190,7 @@ export class SQLiteCanonicalMaterializationWriter {
         this.database.prepare("UPDATE materialization_operations SET status='EXECUTING', started_at=?, updated_at=? WHERE operation_id=?")
           .run(now(), now(), command.operationId);
         const ids = new Map<string, string>();
+        const identifiers = createIdentifierService(this.database);
         const created = new Map<string, number>();
         const reusedCounts = new Map<string, number>();
         const canonicalByKey = new Map<string, string>();
@@ -206,7 +203,7 @@ export class SQLiteCanonicalMaterializationWriter {
           const identityKey = item.logicalIdentity.logicalKey;
           const existing = item.canonicalReference?.canonicalId;
           const reused = item.conflictState === "REUSE" && Boolean(existing);
-          const id = reused ? existing! : canonicalId(item, ids);
+          const id = reused ? existing! : canonicalId(item, ids, identifiers);
           ids.set(identityKey, id);
           if (canonicalByKey.has(identityKey) && canonicalByKey.get(identityKey) !== id) throw new Error(`Canonical identity collision for "${identityKey}".`);
           canonicalByKey.set(identityKey, id);
@@ -258,24 +255,36 @@ export class SQLiteCanonicalMaterializationWriter {
             const goalRow = this.database.prepare(`SELECT sg.goal_id
               FROM activities a JOIN sub_goals sg ON sg.id = a.sub_goal_id WHERE a.id=?`).get(activityId) as Row | undefined;
             const goal = String(goalRow?.goal_id ?? "");
-            const publicId = item.canonicalAllocation.publicIdInput!;
+            const subGoal = this.database.prepare("SELECT sub_goal_id FROM activities WHERE id=?").get(activityId) as { sub_goal_id?: string } | undefined;
+            const reusedPublicId = reused
+              ? String((this.database.prepare("SELECT public_id FROM work_items WHERE id=?").get(id) as Row | undefined)?.public_id ?? "")
+              : "";
+            const publicId = reused
+              ? reusedPublicId
+              : identifiers.generate("action", {
+                planYear: command.targetPlanYear,
+                goalId: goal,
+                objectiveId: subGoal?.sub_goal_id,
+                activityId,
+                shapeHint: item.canonicalAllocation.publicIdInput
+              });
             const departmentId = item.responsibility.find((value) => ["department", "unit", "responsible"].includes(value.field) && value.targetType === "UNIT" && value.resolved)?.targetId ?? null;
             const ownerId = item.responsibility.find((value) => value.field === "owner" && value.targetType === "PERSON" && value.resolved)?.targetId ?? null;
             if (!reused) {
                 const values = item.normalizedValues;
-              const subGoal = this.database.prepare("SELECT sub_goal_id FROM activities WHERE id=?").get(activityId) as { sub_goal_id?: string } | undefined;
               if (!this.database.prepare("SELECT 1 FROM strategic_goals WHERE id=?").get(goal)) throw new Error(`Action goal is missing: ${goal} for ${identityKey}`);
               if (subGoal?.sub_goal_id && !this.database.prepare("SELECT 1 FROM sub_goals WHERE id=?").get(subGoal.sub_goal_id)) throw new Error(`Action objective is missing: ${subGoal.sub_goal_id} for ${identityKey}`);
               const conflict = this.database.prepare("SELECT id FROM work_items WHERE public_id=? AND id<>?")
                 .get(publicId, id);
               if (conflict) throw new Error(`Canonical work-item conflict for "${identityKey}".`);
               this.database.prepare(`INSERT INTO work_items
-                (id,public_id,goal_id,sub_goal_id,activity_id,department_id,owner_person_id,title,work_type,deliverable,status,progress,planned_start,planned_end,description,plan_year)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+                (id,public_id,goal_id,sub_goal_id,activity_id,department_id,owner_person_id,title,work_type,deliverable,status,progress,planned_start,planned_end,description,external_source_id,plan_year)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
                 id, publicId, goal, subGoal?.sub_goal_id ?? null, activityId, departmentId, ownerId,
                 item.logicalIdentity.title, values.workType ?? "اقدام", values.deliverable ?? null, canonicalStatus(values.status), Number(values.progress ?? 0),
                 values.startDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.startDate)) ? values.startDate : null,
-                values.endDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.endDate)) ? values.endDate : null, values.description ?? null, command.targetPlanYear);
+                values.endDate && /^\d{4}\/\d{2}\/\d{2}$/u.test(String(values.endDate)) ? values.endDate : null, values.description ?? null,
+                item.sourceRecords[0]?.recordId ?? null, command.targetPlanYear);
               const assignments = Array.isArray(values.assignments) ? values.assignments : [];
               for (const assignment of assignments) {
                 const candidate = assignment as Row;

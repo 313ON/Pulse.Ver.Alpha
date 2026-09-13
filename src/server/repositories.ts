@@ -5,6 +5,7 @@ import type { SessionUser } from "./auth";
 import { hashPasswordForStorage } from "./auth";
 import { getPlanningContext } from "../domain/planning";
 import type { DashboardContext } from "../components/program/dashboard-context";
+import { createIdentifierService } from "./identifier/IdentifierService";
 
 export class RepositoryError extends Error {
   constructor(public code: "NOT_FOUND" | "DUPLICATE" | "VALIDATION" | "DATABASE", message: string) {
@@ -23,9 +24,12 @@ function mapDatabaseError(error: unknown): never {
 export class GoalRepository {
   list(context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE plan_year = @planYear ORDER BY id").all({ planYear: context?.planYear ?? getPlanningContext().planYear }); }
   get(id: string) { return getDatabase().prepare("SELECT * FROM strategic_goals WHERE id = ?").get(id); }
-  create(input: { id: string; title: string }) {
-    if (!/^G\d{2}$/.test(input.id) || !input.title.trim()) throw new RepositoryError("VALIDATION", "Goal ID and title are required.");
-    try { getDatabase().prepare("INSERT INTO strategic_goals (id, title, plan_year) VALUES (@id,@title,@planYear)").run({ ...input, planYear: getPlanningContext().planYear }); return this.get(input.id); } catch (error) { return mapDatabaseError(error); }
+  create(input: { id?: string; title: string }) {
+    if (!input.title?.trim()) throw new RepositoryError("VALIDATION", "Goal title is required.");
+    const database = getDatabase();
+    const id = input.id?.trim() || createIdentifierService(database).generate("goal", { planYear: getPlanningContext().planYear });
+    if (!/^G\d+$/.test(id)) throw new RepositoryError("VALIDATION", "Goal ID is invalid.");
+    try { database.prepare("INSERT INTO strategic_goals (id, title, plan_year) VALUES (@id,@title,@planYear)").run({ id, title: input.title.trim(), planYear: getPlanningContext().planYear }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
   update(id: string, input: { title?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The goal was not found.");
@@ -315,12 +319,18 @@ export class ActionRepository {
     `).get({ publicId, scopeDepartment: user?.department_id, scopePerson: user?.person_id });
   }
   create(input: WorkItem & { departmentId: string; publicId?: string; activityId?: string; description?: string; roleId?: string; externalSourceId?: string }): unknown {
-    const publicId = input.publicId ?? nextPublicId(input.goalId ?? "G01");
+    const database = getDatabase();
+    const publicId = input.publicId?.trim() || createIdentifierService(database).generate("action", {
+      planYear: getPlanningContext().planYear,
+      goalId: input.goalId ?? "G01",
+      objectiveId: input.subGoalId,
+      activityId: input.activityId
+    });
     const normalized = { ...input, publicId };
     const errors = validateWorkItem(normalized, new Set((new GoalRepository()).list().map((goal) => (goal as { id: string }).id)));
     if (errors.length) throw new RepositoryError("VALIDATION", errors.join(" "));
     if (input.activityId) resolveActivityId(input.activityId, input.goalId);
-    const db = getDatabase();
+    const db = database;
     try {
       db.prepare(`
         INSERT INTO work_items
@@ -361,13 +371,6 @@ export class ActionRepository {
   }
 }
 
-function nextPublicId(goalId: string): string {
-  const db = getDatabase();
-  const prefix = `${goalId}-O01-A01-T`;
-  const rows = db.prepare("SELECT public_id FROM work_items WHERE public_id LIKE ?").all(`${prefix}%`) as Array<{ public_id: string }>;
-  const max = rows.reduce((largest, row) => Math.max(largest, Number(row.public_id.split("-T").pop() ?? 0)), 0);
-  return `${prefix}${String(max + 1).padStart(3, "0")}`;
-}
 
 export class KPIRepository {
   list(_context?: DashboardContext) { return getDatabase().prepare("SELECT * FROM kpis ORDER BY name").all(); }

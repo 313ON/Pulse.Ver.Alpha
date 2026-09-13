@@ -29,7 +29,7 @@ export class GoalRepositoryAdapter implements GoalRepositoryPort {
     const row = this.repository.get(id);
     return row ? this.mapper.goal(row as Record<string, unknown>, "") : undefined;
   }
-  create(input: { id: string; title: string }) {
+  create(input: { id?: string; title: string }) {
     return this.mapper.goal(this.repository.create(input) as Record<string, unknown>, "");
   }
 }

@@ -44,6 +44,7 @@ export const requiredTables = [
   "import_analysis_revisions",
   "import_remediations",
   "pulse_release_metadata"
+  ,"pulse_identifier_allocations"
 ] as const;
 
 export const requiredIndexes = [
@@ -338,6 +339,13 @@ export const requiredColumns: Record<string, Record<string, ColumnContract>> = {
     application_version: column("TEXT", { notNull: true }),
     schema_version: column("TEXT", { notNull: true }),
     released_commit: column("TEXT", { notNull: true }),
+    updated_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" })
+  },
+  pulse_identifier_allocations: {
+    allocation_key: column("TEXT"),
+    entity_type: column("TEXT", { notNull: true }),
+    last_value: column("INTEGER", { notNull: true }),
+    created_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" }),
     updated_at: column("TEXT", { notNull: true, defaultValue: "CURRENT_TIMESTAMP" })
   }
 };

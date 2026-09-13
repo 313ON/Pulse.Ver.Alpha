@@ -20,9 +20,7 @@ export async function POST(request: Request) {
     const { commands, query } = createProgramServices();
     if (type === "goal") {
       await requirePermission("goals.edit");
-      const program = query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy;
-      const nextId = nextIdentifier("G", program.goals.map((goal) => goal.id));
-      return json(commands.createGoal({ id: nextId, title, programId: parentId }), { status: 201 });
+      return json(commands.createGoal({ title, programId: parentId }), { status: 201 });
     }
     if (type === "objective") {
       await requirePermission("goals.edit");
@@ -41,7 +39,6 @@ export async function POST(request: Request) {
     const goal = objective ? findGoal(query.getProgram({ id: `program-${planning.planYear}`, title: `برنامه ${planning.planYear}` }).hierarchy, objective.goalId) : undefined;
     if (!objective || !goal) return json({ error: "زنجیره والد اقدام کامل نیست.", code: "VALIDATION" }, { status: 400 });
     return json(commands.createAction({
-      publicId: `${goal.id}-${objective.id}-${activity.id}-T${Date.now().toString().slice(-3)}`,
       goalId: goal.id,
       objectiveId: objective.id,
       activityId: activity.id,
