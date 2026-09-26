@@ -5,6 +5,7 @@ import { getDatabase } from "./db";
 import type { SessionUser } from "./auth";
 import type { DashboardContext, DashboardContextOptions } from "../components/program/dashboard-context";
 import { ALL_ORGANIZATIONAL_UNITS } from "../components/program/dashboard-context";
+import { ActionRepository } from "./repositories";
 
 export function getDashboardContextOptions(): DashboardContextOptions {
   const db = getDatabase();
@@ -27,7 +28,14 @@ export function loadDashboardState(user: SessionUser, context: DashboardContext)
     context,
     user
   }).hierarchy;
-  return classifyDashboardData(program, new Date().toISOString(), context);
+  const dashboardState = classifyDashboardData(program, new Date().toISOString(), context);
+  if (dashboardState.kind === "partial") {
+    const calendarEvents = (new ActionRepository().list(user, context) as Array<Record<string, unknown>>)
+      .filter((row) => typeof row.planned_end === "string" && row.planned_end.trim())
+      .map((row) => ({ date: String(row.planned_end), label: String(row.title ?? row.public_id ?? "اقدام") }));
+    return { ...dashboardState, calendarEvents };
+  }
+  return dashboardState;
 }
 
 export function defaultDashboardContext(): DashboardContext {

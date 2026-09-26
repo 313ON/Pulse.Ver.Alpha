@@ -11,6 +11,7 @@ import { attentionWeight, managementState, StrategicCommandCenter } from "./Stra
 import { classifyDashboardData } from "./dashboard-state";
 import { DashboardStateView } from "./DashboardStateView";
 import { DashboardShareButton, copyDashboardLink, dashboardShareUrl } from "./DashboardShareButton";
+import { JalaliCalendar } from "./JalaliCalendar";
 
 Object.assign(globalThis, { React });
 vi.mock("next/navigation", () => ({
@@ -132,7 +133,7 @@ describe("live strategic command center", () => {
     expect(classifyDashboardData(program).kind).toBe("partial");
     expect(renderToStaticMarkup(<StrategicCommandCenter state={{ kind: "ready", program, lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("امتیاز سلامت برنامه");
     expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "empty", planYear: "۱۴۰۵", lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("هنوز داده قابل استفاده‌ای");
-    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "partial", program, missing: ["اقدام‌های متصل"], lastUpdated: "2026-09-09T08:00:00.000Z" }} />)).toContain("نمای ناقص برنامه");
+    expect(renderToStaticMarkup(<DashboardStateView state={{ kind: "partial", program, missing: ["اقدام‌های متصل"], lastUpdated: "2026-09-09T08:00:00.000Z", calendarEvents: [{ date: "1405/06/20", label: "اقدام واقعی" }] }} today="1405/06/15" />)).toContain("تقویم برنامه‌ریزی");
   });
 
   it("exposes retry for recoverable failures without exposing internals", () => {
@@ -147,6 +148,12 @@ describe("live strategic command center", () => {
     expect(markup).toContain("داشبورد فعلاً قابل استفاده نیست");
     expect(markup).toContain("اتصال پایگاه داده را بررسی کنید");
     expect(markup).not.toContain("امتیاز سلامت برنامه");
+  });
+
+  it("normalizes persisted Persian event dates for calendar indicators", () => {
+    const markup = renderToStaticMarkup(<JalaliCalendar today="1405/06/15" events={[{ date: "۱۴۰۵/۰۶/۲۰", label: "اقدام واقعی" }]} />);
+    expect(markup).toContain("calendar-day has-event");
+    expect(markup).toContain("1405/06/20، اقدام واقعی");
   });
 
   it("persists a hierarchy command and renders it after refresh", () => {

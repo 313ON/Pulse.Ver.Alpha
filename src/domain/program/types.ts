@@ -44,8 +44,18 @@ export type Program = ProgramEntity & {
 export type Goal = ProgramEntity & {
   type: "goal";
   programId: string;
+  brief?: GoalBrief;
   objectives: Objective[];
   departmentalGoals?: DepartmentalGoal[];
+};
+
+export type GoalBrief = {
+  brief: string;
+  strategicRationale: string;
+  expectedOutcome: string;
+  scope: string;
+  successCriteria: string;
+  source?: string;
 };
 
 export type DepartmentalGoal = ProgramEntity & {

@@ -6,6 +6,7 @@ import { hashPasswordForStorage } from "./auth";
 import { getPlanningContext } from "../domain/planning";
 import type { DashboardContext } from "../components/program/dashboard-context";
 import { createIdentifierService } from "./identifier/IdentifierService";
+import { normalizeGoalBrief, validateGoalBrief } from "../domain/program/goal-brief";
 
 export class RepositoryError extends Error {
   constructor(public code: "NOT_FOUND" | "DUPLICATE" | "VALIDATION" | "DATABASE", message: string) {
@@ -31,9 +32,20 @@ export class GoalRepository {
     const pulseIdentifier = createIdentifierService(database).generate("goal", { planYear: getPlanningContext().planYear });
     try { database.transaction(() => { database.prepare("INSERT INTO strategic_goals (id, pulse_identifier, title, plan_year) VALUES (@id,@pulseIdentifier,@title,@planYear)").run({ id, pulseIdentifier, title: input.title.trim(), planYear: getPlanningContext().planYear }); createIdentifierService(database).register(id, "goal", pulseIdentifier); })(); return this.get(id); } catch (error) { return mapDatabaseError(error); }
   }
-  update(id: string, input: { title?: string }) {
+  update(id: string, input: { title?: string; brief?: string; strategicRationale?: string; expectedOutcome?: string; scope?: string; successCriteria?: string; source?: string }) {
     if (!this.get(id)) throw new RepositoryError("NOT_FOUND", "The goal was not found.");
-    try { getDatabase().prepare("UPDATE strategic_goals SET title=COALESCE(@title,title) WHERE id=@id").run({ id, title: input.title ?? null }); return this.get(id); } catch (error) { return mapDatabaseError(error); }
+    const briefKeys = ["brief", "strategicRationale", "expectedOutcome", "scope", "successCriteria", "source"] as const;
+    const hasBriefChange = briefKeys.some((key) => input[key] !== undefined);
+    const brief = hasBriefChange ? normalizeGoalBrief({ brief: input.brief, strategicRationale: input.strategicRationale, expectedOutcome: input.expectedOutcome, scope: input.scope, successCriteria: input.successCriteria, source: input.source }) : undefined;
+    const errors = brief ? validateGoalBrief(brief) : [];
+    if (errors.length) throw new RepositoryError("VALIDATION", errors.join(" "));
+    try {
+      const statement = hasBriefChange
+        ? "UPDATE strategic_goals SET title=COALESCE(@title,title), brief=@brief, strategic_rationale=@strategicRationale, expected_outcome=@expectedOutcome, scope=@scope, success_criteria=@successCriteria, brief_source=@source WHERE id=@id"
+        : "UPDATE strategic_goals SET title=COALESCE(@title,title) WHERE id=@id";
+      getDatabase().prepare(statement).run({ id, title: input.title ?? null, brief: brief?.brief ?? null, strategicRationale: brief?.strategicRationale ?? null, expectedOutcome: brief?.expectedOutcome ?? null, scope: brief?.scope ?? null, successCriteria: brief?.successCriteria ?? null, source: brief?.source ?? null });
+      return this.get(id);
+    } catch (error) { return mapDatabaseError(error); }
   }
 }
 

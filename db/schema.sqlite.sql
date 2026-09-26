@@ -5,6 +5,12 @@ CREATE TABLE IF NOT EXISTS strategic_goals (
   pulse_identifier TEXT UNIQUE,
   external_source_id TEXT,
   title TEXT NOT NULL,
+  brief TEXT,
+  strategic_rationale TEXT,
+  expected_outcome TEXT,
+  scope TEXT,
+  success_criteria TEXT,
+  brief_source TEXT,
   owner_person_id TEXT,
   plan_year INTEGER NOT NULL,
   FOREIGN KEY (owner_person_id) REFERENCES people(id) ON DELETE RESTRICT

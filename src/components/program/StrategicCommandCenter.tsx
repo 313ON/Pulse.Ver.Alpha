@@ -11,11 +11,12 @@ import type { DashboardState } from "./dashboard-state";
 import type { DashboardContext } from "./dashboard-context";
 import { DashboardShareButton } from "./DashboardShareButton";
 import { DomainSummaryCard, StatCard } from "../design-system/PulseUI";
+import { JalaliCalendar } from "./JalaliCalendar";
 
 export function StrategicCommandCenter({ program, today = "1405/06/15", state, dashboardContext }: { program?: Program; today?: string; state?: DashboardState; dashboardContext?: DashboardContext }) {
   if (state && state.kind !== "ready") {
     if (state.kind === "loading") return null;
-    return <DashboardStateView state={state} />;
+    return <DashboardStateView state={state} today={today} />;
   }
   const resolvedProgram = state?.kind === "ready" ? state.program : program;
   if (!resolvedProgram) return <DashboardStateView state={{ kind: "recoverable-error", message: "داده برنامه برای نمایش دریافت نشد." }} />;
@@ -100,6 +101,7 @@ function ExecutivePulse({ score, progress, atRisk, overdue, blocked, dueSoon, co
     <section className="executive-panel department-panel"><PanelHeading kicker="مقایسه واحدها" title="عملکرد واحدی" meta="بر اساس اقدام" /><div className="department-list">{departments.slice(0, 6).map((row) => <Link className="department-row" href="/departments" key={row.department}><div className="department-label"><strong>{row.department}</strong><small>{row.count} اقدام</small></div><div className="department-bar"><span style={{ width: `${row.progress}%` }} /></div><b>{row.progress}٪</b><span className={`status-dot ${row.progress >= 70 ? "green" : row.progress >= 50 ? "yellow" : "red"}`} aria-label="وضعیت عملکرد" /></Link>)}</div></section>
     <section className="executive-panel attention-panel"><PanelHeading kicker="سیگنال‌های مدیریتی" title="مرکز توجه مدیریت" meta="بر اساس مهلت و وضعیت" /><div className="attention-grid"><AttentionGroup title="اقدام فوری" tone="critical" items={attention.slice(0, 2)} today={today} /><AttentionGroup title="موعد نزدیک" tone="warning" items={upcoming.slice(0, 2)} today={today} /><AttentionGroup title="در مسیر صحیح" tone="healthy" items={healthy.slice(0, 2)} today={today} /></div></section>
     <section className="executive-panel timeline-panel"><PanelHeading kicker="جریان عملیاتی" title="موعدهای پیش‌رو" meta={`تا ۱۴ روز آینده / چرخه ${planYear}`} /><div className="operational-timeline">{upcoming.slice(0, 4).map((action) => <div className="timeline-event" key={action.id}><time>{action.timeline.end}</time><i /><div><strong>{action.department?.label ?? "واحد عملیاتی"}</strong><p>اقدام «{action.title}» · مسئول: {action.owner || "تعیین نشده"} · {action.progress}٪</p></div></div>)}</div>{upcoming.length === 0 && <p className="attention-empty">موعد نزدیکی در داده‌های برنامه ثبت نشده است.</p>}</section>
+    <section className="executive-panel planning-calendar-panel"><PanelHeading kicker="تقویم برنامه‌ریزی" title="تقویم جلالی عملیات" meta="تاریخ‌های ثبت‌شده برنامه" /><JalaliCalendar today={today} events={actions.filter((action) => action.timeline.end).map((action) => ({ date: action.timeline.end, label: action.title }))} /></section>
   </section>;
 }
 

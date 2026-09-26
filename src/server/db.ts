@@ -110,6 +110,11 @@ function ensurePhaseFiveSchema(database: Database.Database): void {
   for (const [name, definition] of additions) {
     if (!known.has(name)) database.exec(`ALTER TABLE work_items ADD COLUMN ${name} ${definition}`);
   }
+  const goalColumns = database.prepare("PRAGMA table_info(strategic_goals)").all() as Array<{ name: string }>;
+  const knownGoalColumns = new Set(goalColumns.map((column) => column.name));
+  for (const [name, definition] of [["brief", "TEXT"], ["strategic_rationale", "TEXT"], ["expected_outcome", "TEXT"], ["scope", "TEXT"], ["success_criteria", "TEXT"], ["brief_source", "TEXT"]] as const) {
+    if (!knownGoalColumns.has(name)) database.exec(`ALTER TABLE strategic_goals ADD COLUMN ${name} ${definition}`);
+  }
   const roleColumns = database.prepare("PRAGMA table_info(app_roles)").all() as Array<{ name: string }>;
   if (!roleColumns.some((column) => column.name === "scope")) database.exec("ALTER TABLE app_roles ADD COLUMN scope TEXT NOT NULL DEFAULT 'COMPANY'");
   const userColumns = database.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
