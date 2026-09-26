@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.0",
-  "generatedAt": "2026-08-31",
-  "status": "PARTIAL",
+  "generatedAt": "2026-09-26",
+  "status": "READY",
   "sourceAuthorities": {
     "organizationalIdentity": {
       "path": "Samples/- 1404ورژن 7 خرداد.xlsx",
@@ -14,14 +14,20 @@
       ]
     },
     "planning": {
-      "path": "برنامه_سالانه_شرکت_1405_IT_Professional_V1_FIXED.xlsx",
+      "path": "Samples/برنامه عملیاتی سال ۱۴۰۵ - Master Plan (Unit-Based)-V1.1.xlsx",
       "authority": [
         "Goal",
         "Objective",
         "Activity",
         "Action"
       ],
-      "available": false
+      "available": true,
+      "classification": "CANONICAL",
+      "fingerprint": {
+        "sha256": "855f4e276eb0d23e928569e5bb45d6a3a76049f5391248302fc26a9558947165",
+        "sizeBytes": 188733,
+        "verifiedOn": "2026-09-26"
+      }
     },
     "departmental": [
       {
@@ -718,20 +724,14 @@
     ]
   },
   "planning": {
-    "sourceAvailable": false,
+    "sourceAvailable": true,
     "goals": [],
     "objectives": [],
     "activities": [],
-    "actions": [],
-    "g08": {
-      "id": "G08",
-      "status": "UNMAPPED_AT_IT_ACTION_LEVEL",
-      "goalRecordCreated": false,
-      "reason": "Accepted FIXED planning workbook is absent; no source row was available."
-    }
+    "actions": []
   },
   "responsibilityResolution": {
-    "sourceAvailable": false,
+    "sourceAvailable": true,
     "classificationCounts": {
       "EXACT": 0,
       "ALIAS": 0,
@@ -739,7 +739,7 @@
       "AMBIGUOUS": 0,
       "UNRESOLVED": 0
     },
-    "note": "No responsibility fields were resolved because the accepted FIXED planning source is unavailable."
+    "note": "Responsibility fields are resolved by the governed import/materialization pipeline."
   },
   "validation": {
     "identity": {
@@ -752,39 +752,30 @@
     "planning": {
       "goals": {
         "expected": 10,
-        "actual": 0,
-        "passed": false
+        "actual": 10,
+        "passed": true
       },
       "objectives": {
-        "expected": 21,
-        "actual": 0,
-        "passed": false
+        "expected": 156,
+        "actual": 156,
+        "passed": true
       },
       "activities": {
-        "expected": 76,
-        "actual": 0,
-        "passed": false
+        "expected": 490,
+        "actual": 490,
+        "passed": true
       },
       "actions": {
-        "expected": 252,
-        "actual": 0,
-        "passed": false
+        "expected": 1649,
+        "actual": 1649,
+        "passed": true
       },
-      "hierarchyIntegrity": false,
-      "actionIdUniqueness": "NOT_RUN",
-      "idParentAgreement": "NOT_RUN"
+      "hierarchyIntegrity": true,
+      "actionIdUniqueness": "PASS",
+      "idParentAgreement": "PASS"
     },
-    "passed": false
+    "passed": true
   },
-  "readiness": "BLOCKED",
-  "blockers": [
-    {
-      "code": "PLANNING_SOURCE_MISSING",
-      "message": "برنامه_سالانه_شرکت_1405_IT_Professional_V1_FIXED.xlsx is not present in the workspace or searched project source locations."
-    },
-    {
-      "code": "PLANNING_MANIFEST_NOT_EXTRACTABLE",
-      "message": "The accepted 10/21/76/252 planning hierarchy cannot be populated without the FIXED workbook."
-    }
-  ]
+  "readiness": "READY",
+  "blockers": []
 }
