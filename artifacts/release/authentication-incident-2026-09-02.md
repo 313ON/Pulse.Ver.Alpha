@@ -1,5 +1,7 @@
 # Authentication Incident Result
 
+Historical record notice: this incident concerns the earlier `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` artifact and disposable pre-production runtime. The current approved deployable release is `021a3ef8eed767d4de0063ea28895ece82736755`; production activation remains NOT PERFORMED.
+
 Date: 2026-09-02
 
 ## Result

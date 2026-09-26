@@ -1,5 +1,8 @@
 release:
-  certified_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
+  current_deployable_commit: 021a3ef8eed767d4de0063ea28895ece82736755
+  historical_record: true
+  production_activation: NOT_PERFORMED
+  historical_certified_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
   branch: release/pulse-departmental-materialization
   application_version: "1.0.0"
 
@@ -23,7 +26,7 @@ operations:
 
 configuration:
   node_env: production
-  pulse_release_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
+  historical_pulse_release_commit: e810e41c1133a84eb07ff4f5c119cd93a9b32d92
   pulse_seed_mode: reference
   pulse_plan_year: "1405"
   pulse_plan_start_date: "1405/01/01"

@@ -1,5 +1,9 @@
 # PULSE Release 1 — Windows Server Activation Commands
 
+Current approved deployable release commit: `021a3ef8eed767d4de0063ea28895ece82736755`.
+The historical/example commit `98ed206b98631f2f6b966a3cd5fb0f513c5a4ed6` is not current.
+Production activation remains NOT_PERFORMED.
+
 This procedure is for the approved Windows Server administrator. It does not
 assume the final database path, service account, port, or service manager.
 Replace every `<...>` value after approval. Do not paste secrets into commands.
@@ -28,7 +32,7 @@ Node 22.x. Do not change `package.json` to accommodate an unsupported runtime.
 ## 2. Artifact verification
 
 The release artifact must be exactly commit
-`98ed206b98631f2f6b966a3cd5fb0f513c5a4ed6` or a separately approved immutable
+`021a3ef8eed767d4de0063ea28895ece82736755` or a separately approved immutable
 artifact built from that commit:
 
 ```powershell
@@ -100,7 +104,7 @@ PULSE_PLAN_YEAR=1405
 PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29
 PULSE_PLAN_TODAY=<approved reference date>
-PULSE_RELEASE_COMMIT=98ed206b98631f2f6b966a3cd5fb0f513c5a4ed6
+PULSE_RELEASE_COMMIT=021a3ef8eed767d4de0063ea28895ece82736755
 ```
 
 For first provisioning only, add `PULSE_ADMIN_PASSWORD` through the approved
@@ -221,7 +225,7 @@ Record:
 
 ```text
 RELEASE: PULSE Release 1
-COMMIT: 98ed206b98631f2f6b966a3cd5fb0f513c5a4ed6
+COMMIT: 021a3ef8eed767d4de0063ea28895ece82736755
 SCHEMA: v1
 SERVER: <hostname>
 APPLICATION PATH: <path>

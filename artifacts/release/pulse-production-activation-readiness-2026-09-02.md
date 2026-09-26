@@ -1,12 +1,14 @@
 # PRODUCTION ACTIVATION READINESS
 
+Historical record notice: this September 2, 2026 assessment records the then-certified `e810e41c1133a84eb07ff4f5c119cd93a9b32d92`. The current approved deployable release is `021a3ef8eed767d4de0063ea28895ece82736755`; production activation remains NOT PERFORMED.
+
 Assessment date: 2026-09-02  
 Host: `IT-Station`  
 Operator: not supplied
 
 STATUS: READY_FOR_OPERATIONS_INPUT
 
-## CERTIFIED RELEASE
+## HISTORICAL CERTIFIED RELEASE
 
 - Certified commit: `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` — available locally.
 - Release branch: `release/pulse-departmental-materialization` — checked out.

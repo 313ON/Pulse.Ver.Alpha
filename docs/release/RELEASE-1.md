@@ -1,5 +1,9 @@
 # PULSE Release 1
 
+Current approved release commit: `021a3ef8eed767d4de0063ea28895ece82736755`
+
+Production activation: NOT_PERFORMED
+
 ## Release contract
 
 | Item | Release 1 value |
@@ -8,7 +12,7 @@
 | Application version | 1.0.0 |
 | Database schema version | 1 |
 | Release name | PULSE Release 1 |
-| Source commit | Record the output of `git rev-parse HEAD` for the deployment artifact |
+| Source commit | `021a3ef8eed767d4de0063ea28895ece82736755` |
 | Node.js | 22.x (`package.json` engines: `>=22 <23`) |
 | Database | External SQLite file opened by `better-sqlite3` |
 | Production seed mode | `PULSE_SEED_MODE=reference` |

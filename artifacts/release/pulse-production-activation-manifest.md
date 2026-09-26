@@ -9,22 +9,23 @@ execution-ready change record. Do not execute activation until every required
 external value is completed and approved. Do not place secrets in this file,
 Git, command arguments, logs, or screenshots.
 
-## 1. Certified release identity
+## 1. Current approved release identity
 
 | Item | Value |
 |---|---|
 | Release branch | `release/pulse-departmental-materialization` |
-| Certified release HEAD | `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` |
+| Current deployable release commit | `021a3ef8eed767d4de0063ea28895ece82736755` |
 | Original release commit | `fa4e89bffb41bd881881458dd27e4697d5245ad6` |
 | Base commit | `ff5a04e07386c5c52c03af5b6b73a5a09c2b4221` |
-| Corrective commit | `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` |
-| Commit message | `fix(import): correct committed manifest JSON` |
+| Current release commit | `021a3ef8eed767d4de0063ea28895ece82736755` |
+| Current release message | `feat(import): register authoritative 1405 master plan` |
 | Promotion gate | `PROMOTION READY WITH WARNINGS` |
-| Required deployed commit | `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` |
+| Required deployed commit | `021a3ef8eed767d4de0063ea28895ece82736755` |
 
-The historical activation procedure contains an older example commit identity;
-it is superseded for this activation. Use only the required deployed commit
-above.
+Historical release evidence identifies `e810e41` as an earlier corrective
+activation target and `1e5e166` as an earlier freeze identity. Both are
+superseded by the current approved commit above. The older `98ed206` reference
+is historical/example-only. Production activation has not been performed.
 
 ## 2. Preconditions
 
@@ -66,7 +67,7 @@ above.
 | `PULSE_PLAN_START_DATE` | Yes | Activation procedure | `1405/01/01` | Release operator | No |
 | `PULSE_PLAN_END_DATE` | Yes | Activation procedure | `1405/12/29` | Release operator | No |
 | `PULSE_PLAN_TODAY` | Yes | Procedure requires approved operational reference date | MISSING — EXTERNAL OPS INPUT REQUIRED | Business / release owner | No |
-| `PULSE_RELEASE_COMMIT` | Yes | Certified release identity | `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` | Release operator | No |
+| `PULSE_RELEASE_COMMIT` | Yes | Current approved release identity | `021a3ef8eed767d4de0063ea28895ece82736755` | Release operator | No |
 | `PULSE_HTTPS` | Conditional | Deployment guide; true only when TLS terminates before Next.js | MISSING — EXTERNAL OPS INPUT REQUIRED | Network / security owner | No |
 | `PULSE_ADMIN_PASSWORD` | First provisioning only | Procedure; protected service configuration only | Existence confirmation MISSING — EXTERNAL OPS INPUT REQUIRED; never record the value | Security / release operator | Yes |
 | Elevated PowerShell | Yes | Procedure requires Administrator for service, ACL, and firewall operations | MISSING — EXTERNAL OPS INPUT REQUIRED | Infrastructure operator | No |
@@ -107,7 +108,7 @@ PULSE_PLAN_YEAR=1405
 PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29
 PULSE_PLAN_TODAY=MISSING — EXTERNAL OPS INPUT REQUIRED
-PULSE_RELEASE_COMMIT=e810e41c1133a84eb07ff4f5c119cd93a9b32d92
+PULSE_RELEASE_COMMIT=021a3ef8eed767d4de0063ea28895ece82736755
 PULSE_HTTPS=MISSING — EXTERNAL OPS INPUT REQUIRED
 ```
 
@@ -134,7 +135,7 @@ marked `MISSING — EXTERNAL OPS INPUT REQUIRED` after approval:
    ```
 
    Require HEAD equal to
-   `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` and empty tracked status.
+   `021a3ef8eed767d4de0063ea28895ece82736755` and empty tracked status.
 3. Set the approved release, database, backup, log, service, account, port,
    and environment values. Confirm the database path is absolute, persistent,
    ACL-protected, and outside the release directory.
@@ -214,7 +215,7 @@ For corruption or an incorrect import:
 
 Activation is accepted only when all are evidenced:
 
-- [ ] Deployed HEAD equals `e810e41c1133a84eb07ff4f5c119cd93a9b32d92`.
+- [ ] Deployed HEAD equals `021a3ef8eed767d4de0063ea28895ece82736755`.
 - [ ] Release directory tracked status is empty.
 - [ ] Node.js is 22.x and build artifact is present.
 - [ ] Production DB is external to the release directory.

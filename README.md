@@ -1,5 +1,9 @@
 # PULSE — Release 1.0.0
 
+Current approved release commit: `021a3ef8eed767d4de0063ea28895ece82736755`
+Branch: `release/pulse-departmental-materialization`
+Production activation: NOT_PERFORMED
+
 PULSE سامانه‌ی فارسی و راست‌به‌چپ برنامه‌ریزی، اجرا و پایش عملکرد شرکت چرب شیمی است.
 
 ## الزامات اجرا

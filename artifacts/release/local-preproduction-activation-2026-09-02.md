@@ -1,5 +1,7 @@
 # PULSE Local Pre-Production Activation Evidence
 
+Historical record notice: this evidence concerns the earlier `e810e41c1133a84eb07ff4f5c119cd93a9b32d92` artifact only. The current approved deployable release is `021a3ef8eed767d4de0063ea28895ece82736755`; this record does not establish production activation.
+
 Date: 2026-09-02  
 Status: PREPROD_ACTIVATED_WITH_FINDINGS  
 Final server deployment readiness: READY_FOR_SERVER_DEPLOYMENT

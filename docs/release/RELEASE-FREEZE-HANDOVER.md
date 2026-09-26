@@ -1,5 +1,10 @@
 # PULSE Release Freeze Handover
 
+Current release identity (approved September 26, 2026):
+`021a3ef8eed767d4de0063ea28895ece82736755`. The original freeze identity `1e5e166` is retained below as historical
+release evidence only and is superseded. Production activation has
+not been performed.
+
 This document is the short operational handover for the frozen Release 1
 candidate. It complements `docs/operations/RUNBOOK.md`,
 `docs/operations/DEPLOYMENT.md`, and `docs/operations/RELEASE-1-SMOKE-TEST.md`.
@@ -9,7 +14,7 @@ candidate. It complements `docs/operations/RUNBOOK.md`,
 | Item | Value |
 |---|---|
 | Branch | `release/pulse-departmental-materialization` |
-| Git commit | `1e5e166` |
+| Git commit | `021a3ef8eed767d4de0063ea28895ece82736755` |
 | Application version | `1.0.0` |
 | Schema version | `1` |
 | Release name | `PULSE Release 1` |
@@ -70,7 +75,7 @@ PULSE_PLAN_YEAR=1405
 PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29
 PULSE_PLAN_TODAY=<approved reference date>
-PULSE_RELEASE_COMMIT=1e5e166
+PULSE_RELEASE_COMMIT=021a3ef8eed767d4de0063ea28895ece82736755
 PULSE_HTTPS=true             # only when TLS terminates before Next.js
 ```
 
@@ -120,7 +125,7 @@ For restore:
 2. Preserve the current database and logs as incident evidence.
 3. Verify the selected backup with integrity and foreign-key checks.
 4. Restore the backup to the exact external `PULSE_DB_PATH` and reapply ACLs.
-5. Start the frozen release with `PULSE_RELEASE_COMMIT=1e5e166`.
+5. Start the frozen release with `PULSE_RELEASE_COMMIT=021a3ef8eed767d4de0063ea28895ece82736755`.
 6. Verify health, login, dashboard/read access, governed report, PDF, XLSX,
    and restart persistence.
 7. Record the recovery point and any writes after the backup that were lost.
@@ -149,6 +154,6 @@ application successfully with health `200` / `database=ok`.
 
 ## Operational freeze
 
-This release is frozen at commit `1e5e166`. Future product or operational
+The historical release freeze was recorded at commit `1e5e166`; it is superseded by the approved current release commit `021a3ef8eed767d4de0063ea28895ece82736755`. Future product or operational
 changes require a new post-release change request, a new release identity, and
 fresh validation. No future change may silently modify this frozen release.

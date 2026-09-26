@@ -1,5 +1,9 @@
 # PULSE — راهنمای استقرار Release 1 روی Windows Server
 
+Current approved deployable release commit: `021a3ef8eed767d4de0063ea28895ece82736755`. Historical commit references
+`98ed206`, `1e5e166`, and `e810e41` are not current release identities.
+Production activation remains NOT_PERFORMED.
+
 این راهنما برای استقرار PULSE Release 1 با Next.js و SQLite است. مسیر واقعی
 سرور، حساب سرویس، پورت و service manager باید در change record ثبت شوند؛
 مقادیر داخل `<...>` فقط جای‌نگهدار هستند.
@@ -22,7 +26,7 @@ NODE_ENV=production
 PULSE_DB_PATH=<absolute external Windows path>\pulse.sqlite
 PULSE_ADMIN_PASSWORD=<secret-at-least-8-characters>
 PULSE_SEED_MODE=reference
-PULSE_RELEASE_COMMIT=<deployed git commit>
+PULSE_RELEASE_COMMIT=021a3ef8eed767d4de0063ea28895ece82736755
 PULSE_PLAN_YEAR=1405
 PULSE_PLAN_START_DATE=1405/01/01
 PULSE_PLAN_END_DATE=1405/12/29

@@ -777,5 +777,18 @@
     "passed": true
   },
   "readiness": "READY",
-  "blockers": []
+  "blockers": [],
+  "releaseIdentity": {
+    "releaseCommit": "021a3ef8eed767d4de0063ea28895ece82736755",
+    "branch": "release/pulse-departmental-materialization",
+    "productionActivation": "NOT_PERFORMED",
+    "authoritativePlan": "Samples/برنامه عملیاتی سال ۱۴۰۵ - Master Plan (Unit-Based)-V1.1.xlsx",
+    "planStatus": "READY",
+    "expectedCounts": {
+      "goals": 10,
+      "objectives": 156,
+      "activities": 490,
+      "actions": 1649
+    }
+  }
 }
